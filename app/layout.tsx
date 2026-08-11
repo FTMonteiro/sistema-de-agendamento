@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lumina Beauty OS",
+  title: "Nivrix",
   description: "Sistema de agendamento para profissionais de beleza",
 };
 
@@ -29,6 +30,10 @@ export default function RootLayout({
           <body className="min-h-full flex flex-col"
       suppressHydrationWarning ={true}>
   
+        
+        
+
+
         {children}
       </body>
     </html>

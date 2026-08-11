@@ -12,22 +12,17 @@ type Filter =
   | "completed";
 
 export default function AppointmentsPage() {
-  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Agendamentos
   const [appointments, setAppointments] = useState(
     initialAppointments
   );
 
-  // Filtro atual
   const [activeFilter, setActiveFilter] =
     useState<Filter>("all");
 
-  // Pesquisa
   const [search, setSearch] = useState("");
 
-  // Formulário
   const [client, setClient] = useState("");
   const [service, setService] = useState("");
   const [professional, setProfessional] = useState("");
@@ -35,29 +30,29 @@ export default function AppointmentsPage() {
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
 
-
-  // =====================================================
-  // FILTRAR E PESQUISAR
-  // =====================================================
+  /*
+   * =====================================================
+   * FILTROS
+   * =====================================================
+   */
 
   const filteredAppointments = appointments.filter(
     (appointment) => {
-
       const matchesFilter =
         activeFilter === "all" ||
         appointment.status === activeFilter;
 
-      const searchText = search.toLowerCase().trim();
+      const searchText = search
+        .toLowerCase()
+        .trim();
 
       const matchesSearch =
         appointment.client
           .toLowerCase()
           .includes(searchText) ||
-
         appointment.service
           .toLowerCase()
           .includes(searchText) ||
-
         appointment.professional
           .toLowerCase()
           .includes(searchText);
@@ -66,17 +61,17 @@ export default function AppointmentsPage() {
     }
   );
 
-
-  // =====================================================
-  // CRIAR AGENDAMENTO
-  // =====================================================
+  /*
+   * =====================================================
+   * CRIAR AGENDAMENTO
+   * =====================================================
+   */
 
   function handleCreateAppointment() {
-
     if (
-      !client ||
-      !service ||
-      !professional ||
+      !client.trim() ||
+      !service.trim() ||
+      !professional.trim() ||
       !date ||
       !time
     ) {
@@ -85,22 +80,14 @@ export default function AppointmentsPage() {
 
     const newAppointment = {
       id: Date.now().toString(),
-
-      client,
-
-      service,
-
-      professional,
-
+      client: client.trim(),
+      service: service.trim(),
+      professional: professional.trim(),
       date,
-
       time,
-
       payment: "pending" as const,
-
       status: "pending" as const,
-
-      notes,
+      notes: notes.trim(),
     };
 
     setAppointments((current) => [
@@ -108,7 +95,6 @@ export default function AppointmentsPage() {
       newAppointment,
     ]);
 
-    // Limpar formulário
     setClient("");
     setService("");
     setProfessional("");
@@ -116,17 +102,16 @@ export default function AppointmentsPage() {
     setTime("");
     setNotes("");
 
-    // Fechar modal
     setIsModalOpen(false);
   }
 
-
-  // =====================================================
-  // EXCLUIR AGENDAMENTO
-  // =====================================================
+  /*
+   * =====================================================
+   * EXCLUIR
+   * =====================================================
+   */
 
   function handleDeleteAppointment(id: string) {
-
     setAppointments((current) =>
       current.filter(
         (appointment) =>
@@ -135,60 +120,111 @@ export default function AppointmentsPage() {
     );
   }
 
+  /*
+   * =====================================================
+   * CONTADORES
+   * =====================================================
+   */
+
+  const confirmedCount = appointments.filter(
+    (appointment) =>
+      appointment.status === "confirmed"
+  ).length;
+
+  const pendingCount = appointments.filter(
+    (appointment) =>
+      appointment.status === "pending"
+  ).length;
+
+  const completedCount = appointments.filter(
+    (appointment) =>
+      appointment.status === "completed"
+  ).length;
+
+  /*
+   * =====================================================
+   * FILTROS
+   * =====================================================
+   */
+
+  const filters: {
+    value: Filter;
+    label: string;
+    count: number;
+  }[] = [
+    {
+      value: "all",
+      label: "Todos",
+      count: appointments.length,
+    },
+    {
+      value: "confirmed",
+      label: "Confirmados",
+      count: confirmedCount,
+    },
+    {
+      value: "pending",
+      label: "Aguardando",
+      count: pendingCount,
+    },
+    {
+      value: "completed",
+      label: "Concluídos",
+      count: completedCount,
+    },
+  ];
 
   return (
-    <div className="space-y-8">
-
+    <div className="min-h-full space-y-8">
 
       {/* =================================================
           HEADER
       ================================================= */}
 
-      <div
+      <section
         className="
           flex
           flex-col
-          gap-4
-          sm:flex-row
-          sm:items-center
-          sm:justify-between
+          gap-5
+          lg:flex-row
+          lg:items-end
+          lg:justify-between
         "
       >
-
         <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-blue-600" />
+
+            <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+              Gestão
+            </span>
+          </div>
 
           <h1
             className="
               text-3xl
               font-bold
               tracking-tight
-              text-gray-900
+              text-gray-950
+              sm:text-4xl
             "
           >
             Agenda
           </h1>
 
-          <p
-            className="
-              mt-2
-              text-sm
-              text-gray-500
-            "
-          >
-            Gerencie os agendamentos e atendimentos
-            do seu estabelecimento.
+          <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+            Organize os seus atendimentos, acompanhe
+            os profissionais e mantenha a agenda
+            sempre sob controlo.
           </p>
-
         </div>
 
-
-        {/* BOTÕES */}
-
-        <div className="flex gap-3">
+        <div className="flex w-full gap-3 sm:w-auto">
 
           <button
             type="button"
             className="
+              flex-1
               rounded-xl
               border
               border-gray-200
@@ -196,17 +232,19 @@ export default function AppointmentsPage() {
               px-5
               py-3
               text-sm
-              font-medium
+              font-semibold
               text-gray-700
+              shadow-sm
               transition-all
-              duration-200
+              hover:border-gray-300
               hover:bg-gray-50
-              active:scale-95
+              hover:shadow-md
+              active:scale-[0.98]
+              sm:flex-none
             "
           >
             Hoje
           </button>
-
 
           <button
             type="button"
@@ -214,32 +252,33 @@ export default function AppointmentsPage() {
               setIsModalOpen(true)
             }
             className="
+              flex-1
               rounded-xl
-              bg-black
+              bg-gray-950
               px-5
               py-3
               text-sm
-              font-medium
+              font-semibold
               text-white
+              shadow-sm
               transition-all
-              duration-200
               hover:bg-gray-800
-              active:scale-95
+              hover:shadow-md
+              active:scale-[0.98]
+              sm:flex-none
             "
           >
             + Novo Agendamento
           </button>
 
         </div>
-
-      </div>
-
+      </section>
 
       {/* =================================================
-          RESUMO
+          MÉTRICAS
       ================================================= */}
 
-      <div
+      <section
         className="
           grid
           gap-4
@@ -248,161 +287,181 @@ export default function AppointmentsPage() {
         "
       >
 
-        {/* HOJE */}
+        {/* Total */}
 
         <div
           className="
+            group
             rounded-2xl
             border
+            border-gray-100
             bg-white
             p-5
             shadow-sm
-            transition
+            transition-all
             duration-200
             hover:-translate-y-0.5
             hover:shadow-md
           "
         >
+          <div className="flex items-start justify-between">
 
-          <p className="text-sm text-gray-500">
-            Hoje
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Total hoje
+              </p>
+
+              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                {appointments.length}
+              </p>
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-700">
+              A
+            </div>
+
+          </div>
+
+          <p className="mt-4 text-xs text-gray-400">
+            Agendamentos registados
           </p>
-
-          <h2
-            className="
-              mt-2
-              text-3xl
-              font-bold
-              text-gray-900
-            "
-          >
-            {appointments.length}
-          </h2>
-
         </div>
 
-
-        {/* CONFIRMADOS */}
+        {/* Confirmados */}
 
         <div
           className="
+            group
             rounded-2xl
             border
+            border-gray-100
             bg-white
             p-5
             shadow-sm
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-md
           "
         >
+          <div className="flex items-start justify-between">
 
-          <p className="text-sm text-gray-500">
-            Confirmados
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Confirmados
+              </p>
+
+              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                {confirmedCount}
+              </p>
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-sm font-bold text-green-600">
+              ✓
+            </div>
+
+          </div>
+
+          <p className="mt-4 text-xs text-green-600">
+            Atendimento confirmado
           </p>
-
-          <h2
-            className="
-              mt-2
-              text-3xl
-              font-bold
-              text-gray-900
-            "
-          >
-            {
-              appointments.filter(
-                (appointment) =>
-                  appointment.status ===
-                  "confirmed"
-              ).length
-            }
-          </h2>
-
         </div>
 
-
-        {/* AGUARDANDO */}
+        {/* Aguardando */}
 
         <div
           className="
+            group
             rounded-2xl
             border
+            border-gray-100
             bg-white
             p-5
             shadow-sm
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-md
           "
         >
+          <div className="flex items-start justify-between">
 
-          <p className="text-sm text-gray-500">
-            Aguardando
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Aguardando
+              </p>
+
+              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                {pendingCount}
+              </p>
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-sm font-bold text-amber-600">
+              !
+            </div>
+
+          </div>
+
+          <p className="mt-4 text-xs text-amber-600">
+            Aguardam confirmação
           </p>
-
-          <h2
-            className="
-              mt-2
-              text-3xl
-              font-bold
-              text-gray-900
-            "
-          >
-            {
-              appointments.filter(
-                (appointment) =>
-                  appointment.status ===
-                  "pending"
-              ).length
-            }
-          </h2>
-
         </div>
 
-
-        {/* CONCLUÍDOS */}
+        {/* Concluídos */}
 
         <div
           className="
+            group
             rounded-2xl
             border
+            border-gray-100
             bg-white
             p-5
             shadow-sm
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-md
           "
         >
+          <div className="flex items-start justify-between">
 
-          <p className="text-sm text-gray-500">
-            Concluídos
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Concluídos
+              </p>
+
+              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                {completedCount}
+              </p>
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-600">
+              ✓
+            </div>
+
+          </div>
+
+          <p className="mt-4 text-xs text-blue-600">
+            Atendimentos concluídos
           </p>
-
-          <h2
-            className="
-              mt-2
-              text-3xl
-              font-bold
-              text-gray-900
-            "
-          >
-            {
-              appointments.filter(
-                (appointment) =>
-                  appointment.status ===
-                  "completed"
-              ).length
-            }
-          </h2>
-
         </div>
 
-      </div>
-
+      </section>
 
       {/* =================================================
-          PESQUISA + FILTROS
+          FILTROS + PESQUISA
       ================================================= */}
 
-      <div
+      <section
         className="
           rounded-2xl
           border
+          border-gray-100
           bg-white
           p-4
           shadow-sm
+          sm:p-5
         "
       >
 
@@ -411,147 +470,90 @@ export default function AppointmentsPage() {
             flex
             flex-col
             gap-4
-            md:flex-row
-            md:items-center
-            md:justify-between
+            xl:flex-row
+            xl:items-center
+            xl:justify-between
           "
         >
 
-          {/* FILTROS */}
+          {/* Filtros */}
 
-          <div
-            className="
-              flex
-              flex-wrap
-              gap-2
-            "
-          >
+          <div className="flex flex-wrap gap-2">
 
-            {/* TODOS */}
+            {filters.map((filter) => {
+              const active =
+                activeFilter === filter.value;
 
-            <button
-              type="button"
-              onClick={() =>
-                setActiveFilter("all")
-              }
-              className={`
-                rounded-lg
-                px-4
-                py-2
-                text-sm
-                font-medium
-                transition-all
-                duration-200
-                active:scale-95
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() =>
+                    setActiveFilter(
+                      filter.value
+                    )
+                  }
+                  className={`
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-xl
+                    px-3.5
+                    py-2.5
+                    text-sm
+                    font-medium
+                    transition-all
+                    duration-200
+                    active:scale-[0.97]
 
-                ${
-                  activeFilter === "all"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100"
-                }
-              `}
-            >
-              Todos
-            </button>
+                    ${
+                      active
+                        ? "bg-gray-950 text-white shadow-sm"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-950"
+                    }
+                  `}
+                >
+                  {filter.label}
 
+                  <span
+                    className={`
+                      rounded-full
+                      px-1.5
+                      py-0.5
+                      text-[11px]
+                      font-semibold
 
-            {/* CONFIRMADOS */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setActiveFilter("confirmed")
-              }
-              className={`
-                rounded-lg
-                px-4
-                py-2
-                text-sm
-                font-medium
-                transition-all
-                duration-200
-                active:scale-95
-
-                ${
-                  activeFilter ===
-                  "confirmed"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100"
-                }
-              `}
-            >
-              Confirmados
-            </button>
-
-
-            {/* AGUARDANDO */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setActiveFilter("pending")
-              }
-              className={`
-                rounded-lg
-                px-4
-                py-2
-                text-sm
-                font-medium
-                transition-all
-                duration-200
-                active:scale-95
-
-                ${
-                  activeFilter === "pending"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100"
-                }
-              `}
-            >
-              Aguardando
-            </button>
-
-
-            {/* CONCLUÍDOS */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setActiveFilter("completed")
-              }
-              className={`
-                rounded-lg
-                px-4
-                py-2
-                text-sm
-                font-medium
-                transition-all
-                duration-200
-                active:scale-95
-
-                ${
-                  activeFilter ===
-                  "completed"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100"
-                }
-              `}
-            >
-              Concluídos
-            </button>
+                      ${
+                        active
+                          ? "bg-white/15 text-white"
+                          : "bg-gray-100 text-gray-500"
+                      }
+                    `}
+                  >
+                    {filter.count}
+                  </span>
+                </button>
+              );
+            })}
 
           </div>
 
+          {/* Pesquisa */}
 
-          {/* PESQUISA */}
+          <div className="relative w-full xl:max-w-sm">
 
-          <div
-            className="
-              relative
-              w-full
-              md:w-72
-            "
-          >
+            <span
+              className="
+                pointer-events-none
+                absolute
+                left-4
+                top-1/2
+                -translate-y-1/2
+                text-gray-400
+              "
+            >
+              ⌕
+            </span>
 
             <input
               type="text"
@@ -561,23 +563,26 @@ export default function AppointmentsPage() {
                   event.target.value
                 )
               }
-              placeholder="Pesquisar cliente..."
+              placeholder="Pesquisar cliente, serviço..."
               className="
                 w-full
                 rounded-xl
                 border
                 border-gray-200
                 bg-gray-50
-                px-4
                 py-3
+                pl-10
+                pr-4
                 text-sm
+                text-gray-900
                 outline-none
                 transition-all
-                duration-200
-                focus:border-gray-400
+                placeholder:text-gray-400
+                hover:border-gray-300
+                focus:border-blue-500
                 focus:bg-white
-                focus:ring-2
-                focus:ring-gray-100
+                focus:ring-4
+                focus:ring-blue-500/10
               "
             />
 
@@ -585,19 +590,33 @@ export default function AppointmentsPage() {
 
         </div>
 
-      </div>
-
+      </section>
 
       {/* =================================================
           RESULTADOS
       ================================================= */}
 
-      <div
+      <section
         key={`${activeFilter}-${search}`}
-        className="
-          animate-[fadeIn_200ms_ease-out]
-        "
+        className="animate-[fadeIn_200ms_ease-out]"
       >
+
+        <div className="mb-4 flex items-center justify-between">
+
+          <div>
+            <h2 className="text-lg font-semibold text-gray-950">
+              Agendamentos
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              {filteredAppointments.length}{" "}
+              {filteredAppointments.length === 1
+                ? "resultado encontrado"
+                : "resultados encontrados"}
+            </p>
+          </div>
+
+        </div>
 
         <AppointmentList
           appointments={
@@ -608,15 +627,13 @@ export default function AppointmentsPage() {
           }
         />
 
-      </div>
-
+      </section>
 
       {/* =================================================
-          MODAL NOVO AGENDAMENTO
+          MODAL
       ================================================= */}
 
       {isModalOpen && (
-
         <div
           className="
             fixed
@@ -625,8 +642,9 @@ export default function AppointmentsPage() {
             flex
             items-center
             justify-center
-            bg-black/40
+            bg-gray-950/50
             p-4
+            backdrop-blur-sm
           "
           onClick={() =>
             setIsModalOpen(false)
@@ -634,396 +652,388 @@ export default function AppointmentsPage() {
         >
 
           <div
+            role="dialog"
+            aria-modal="true"
             className="
+              flex
+              max-h-[90vh]
               w-full
-              max-w-lg
+              max-w-xl
+              flex-col
+              overflow-hidden
               rounded-2xl
               bg-white
-              p-6
               shadow-2xl
+              ring-1
+              ring-black/5
             "
             onClick={(event) =>
               event.stopPropagation()
             }
           >
 
-            {/* CABEÇALHO */}
+            {/* Modal Header */}
 
             <div
               className="
-                mb-6
                 flex
-                items-center
+                items-start
                 justify-between
+                px-5
+                py-5
+                sm:px-6
               "
             >
 
-              <div>
+              <div className="flex gap-4">
 
-                <h2
-                  className="
-                    text-xl
-                    font-semibold
-                    text-gray-900
-                  "
-                >
-                  Novo Agendamento
-                </h2>
+                <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 sm:flex">
+                  <span className="text-lg font-bold">
+                    +
+                  </span>
+                </div>
 
-                <p
-                  className="
-                    mt-1
-                    text-sm
-                    text-gray-500
-                  "
-                >
-                  Preencha os dados do atendimento.
-                </p>
+                <div>
+
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-600">
+                    Novo atendimento
+                  </p>
+
+                  <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                    Novo Agendamento
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Preencha os dados do atendimento.
+                  </p>
+
+                </div>
 
               </div>
-
 
               <button
                 type="button"
                 onClick={() =>
                   setIsModalOpen(false)
                 }
+                aria-label="Fechar"
                 className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
                   rounded-lg
-                  px-3
-                  py-2
-                  text-gray-500
-                  transition
+                  text-lg
+                  text-gray-400
+                  transition-colors
                   hover:bg-gray-100
+                  hover:text-gray-900
                 "
               >
-                ✕
+                ×
               </button>
 
             </div>
 
+            <div className="h-px bg-gray-100" />
 
-            {/* FORMULÁRIO */}
+            {/* Formulário */}
 
-            <div className="space-y-4">
+            <div className="overflow-y-auto px-5 py-6 sm:px-6">
 
-              {/* CLIENTE */}
+              <div className="space-y-5">
 
-              <div>
+                {/* Cliente */}
 
-                <label
-                  className="
-                    mb-1
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Cliente
-                </label>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                    Cliente
+                  </label>
 
-                <input
-                  type="text"
-                  value={client}
-                  onChange={(event) =>
-                    setClient(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Nome do cliente"
-                  className="
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    transition
-                    focus:border-gray-400
-                  "
-                />
+                  <input
+                    type="text"
+                    value={client}
+                    onChange={(event) =>
+                      setClient(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Nome do cliente"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  />
+                </div>
+
+                {/* Serviço */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                    Serviço
+                  </label>
+
+                  <input
+                    type="text"
+                    value={service}
+                    onChange={(event) =>
+                      setService(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Ex.: Corte Premium"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  />
+                </div>
+
+                {/* Profissional */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                    Profissional
+                  </label>
+
+                  <input
+                    type="text"
+                    value={professional}
+                    onChange={(event) =>
+                      setProfessional(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Nome do profissional"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  />
+                </div>
+
+                {/* Data e hora */}
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-800">
+                      Data
+                    </label>
+
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(event) =>
+                        setDate(
+                          event.target.value
+                        )
+                      }
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        py-3
+                        text-sm
+                        text-gray-900
+                        outline-none
+                        transition-all
+                        focus:border-blue-500
+                        focus:ring-4
+                        focus:ring-blue-500/10
+                      "
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-800">
+                      Horário
+                    </label>
+
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(event) =>
+                        setTime(
+                          event.target.value
+                        )
+                      }
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        py-3
+                        text-sm
+                        text-gray-900
+                        outline-none
+                        transition-all
+                        focus:border-blue-500
+                        focus:ring-4
+                        focus:ring-blue-500/10
+                      "
+                    />
+                  </div>
+
+                </div>
+
+                {/* Observações */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                    Observações
+                    <span className="ml-1 font-normal text-gray-400">
+                      (opcional)
+                    </span>
+                  </label>
+
+                  <textarea
+                    value={notes}
+                    onChange={(event) =>
+                      setNotes(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Observações sobre o atendimento..."
+                    rows={3}
+                    className="
+                      w-full
+                      resize-none
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  />
+                </div>
 
               </div>
 
-
-              {/* SERVIÇO */}
-
-              <div>
-
-                <label
-                  className="
-                    mb-1
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Serviço
-                </label>
-
-                <input
-                  type="text"
-                  value={service}
-                  onChange={(event) =>
-                    setService(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Ex: Corte Premium"
-                  className="
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    transition
-                    focus:border-gray-400
-                  "
-                />
-
-              </div>
-
-
-              {/* PROFISSIONAL */}
-
-              <div>
-
-                <label
-                  className="
-                    mb-1
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Profissional
-                </label>
-
-                <input
-                  type="text"
-                  value={professional}
-                  onChange={(event) =>
-                    setProfessional(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Nome do profissional"
-                  className="
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    transition
-                    focus:border-gray-400
-                  "
-                />
-
-              </div>
-
-
-              {/* DATA + HORA */}
+              {/* Ações */}
 
               <div
                 className="
-                  grid
-                  grid-cols-2
-                  gap-4
+                  mt-7
+                  flex
+                  flex-col-reverse
+                  gap-3
+                  sm:flex-row
+                  sm:justify-end
                 "
               >
 
-                <div>
-
-                  <label
-                    className="
-                      mb-1
-                      block
-                      text-sm
-                      font-medium
-                      text-gray-700
-                    "
-                  >
-                    Data
-                  </label>
-
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(event) =>
-                      setDate(
-                        event.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-lg
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                    "
-                  />
-
-                </div>
-
-
-                <div>
-
-                  <label
-                    className="
-                      mb-1
-                      block
-                      text-sm
-                      font-medium
-                      text-gray-700
-                    "
-                  >
-                    Hora
-                  </label>
-
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(event) =>
-                      setTime(
-                        event.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-lg
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                    "
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* OBSERVAÇÕES */}
-
-              <div>
-
-                <label
-                  className="
-                    mb-1
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Observações
-                </label>
-
-                <textarea
-                  value={notes}
-                  onChange={(event) =>
-                    setNotes(
-                      event.target.value
-                    )
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsModalOpen(false)
                   }
-                  placeholder="Observações sobre o atendimento..."
-                  rows={3}
                   className="
                     w-full
-                    resize-none
-                    rounded-lg
+                    rounded-xl
                     border
                     border-gray-200
-                    px-4
+                    bg-white
+                    px-5
                     py-3
                     text-sm
-                    outline-none
-                    focus:border-gray-400
+                    font-semibold
+                    text-gray-700
+                    transition-colors
+                    hover:bg-gray-50
+                    sm:w-auto
                   "
-                />
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    handleCreateAppointment
+                  }
+                  className="
+                    w-full
+                    rounded-xl
+                    bg-blue-600
+                    px-5
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-white
+                    shadow-sm
+                    transition-all
+                    duration-200
+                    hover:bg-blue-700
+                    hover:shadow-md
+                    active:scale-[0.98]
+                    sm:w-auto
+                  "
+                >
+                  Criar Agendamento
+                </button>
 
               </div>
-
-            </div>
-
-
-            {/* BOTÕES DO MODAL */}
-
-            <div
-              className="
-                mt-6
-                flex
-                justify-end
-                gap-3
-              "
-            >
-
-              <button
-                type="button"
-                onClick={() =>
-                  setIsModalOpen(false)
-                }
-                className="
-                  rounded-xl
-                  border
-                  border-gray-200
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-gray-700
-                  transition
-                  hover:bg-gray-50
-                "
-              >
-                Cancelar
-              </button>
-
-
-              <button
-                type="button"
-                onClick={
-                  handleCreateAppointment
-                }
-                className="
-                  rounded-xl
-                  bg-black
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-white
-                  transition-all
-                  duration-200
-                  hover:bg-gray-800
-                  active:scale-95
-                "
-              >
-                Criar Agendamento
-              </button>
 
             </div>
 
           </div>
 
         </div>
-
       )}
 
     </div>

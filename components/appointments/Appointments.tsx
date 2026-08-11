@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,25 +6,43 @@ import { useState } from "react";
 export const Appointments = () => {
   const [open, setOpen] = useState(false);
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    // Aqui poderás futuramente enviar os dados para a API.
+    setOpen(false);
+  }
+
   return (
     <>
-      {/* Botão Novo Agendamento */}
+      {/* Botão principal */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         className="
+          inline-flex
+          w-full
+          items-center
+          justify-center
+          gap-2
           rounded-xl
-          bg-black
+          bg-blue-600
           px-5
           py-3
           text-sm
-          font-medium
+          font-semibold
           text-white
-          transition
-          hover:bg-gray-800
+          shadow-sm
+          transition-all
+          duration-200
+          hover:bg-blue-700
+          hover:shadow-md
+          active:scale-[0.98]
+          sm:w-auto
         "
       >
-        + Novo Agendamento
+        <span className="text-lg leading-none">+</span>
+        <span>Novo Agendamento</span>
       </button>
 
       {/* Modal */}
@@ -36,190 +55,336 @@ export const Appointments = () => {
             flex
             items-center
             justify-center
-            bg-black/20
+            bg-gray-950/50
             p-4
+            backdrop-blur-sm
           "
+          onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="appointment-title"
             className="
+              flex
+              max-h-[90vh]
               w-full
-              max-w-lg
+              max-w-xl
+              flex-col
+              overflow-hidden
               rounded-2xl
               bg-white
-              p-6
-              shadow-xl
+              shadow-2xl
+              ring-1
+              ring-black/5
             "
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Cabeçalho */}
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Novo agendamento
-                </h2>
+            <div className="flex items-start justify-between px-5 py-5 sm:px-6">
+              <div className="flex min-w-0 gap-4">
+                {/* Ícone */}
+                <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 sm:flex">
+                  <span className="text-lg font-semibold">+</span>
+                </div>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Preencha as informações do agendamento.
-                </p>
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
+                    Agenda
+                  </p>
+
+                  <h2
+                    id="appointment-title"
+                    className="text-xl font-semibold tracking-tight text-gray-900"
+                  >
+                    Novo agendamento
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Preencha os dados para criar um novo atendimento.
+                  </p>
+                </div>
               </div>
 
+              {/* Fechar */}
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-gray-400 transition hover:text-gray-900"
+                aria-label="Fechar modal"
+                className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-lg
+                  text-lg
+                  text-gray-400
+                  transition-colors
+                  hover:bg-gray-100
+                  hover:text-gray-900
+                "
               >
-                ✕
+                ×
               </button>
             </div>
 
-            {/* Formulário */}
-            <form className="space-y-4">
-              {/* Cliente */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Cliente
-                </label>
+            {/* Separador */}
+            <div className="h-px bg-gray-100" />
 
-                <input
-                  type="text"
-                  placeholder="Nome do cliente"
-                  className="
-                    w-full
-                    rounded-2xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    outline-none
-                    transition
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                />
-              </div>
+            {/* Conteúdo */}
+            <form
+              onSubmit={handleSubmit}
+              className="overflow-y-auto px-5 py-6 sm:px-6"
+            >
+              <div className="space-y-5">
 
-              {/* Serviço */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Serviço
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="Ex.: Corte Premium"
-                  className="
-                    w-full
-                    rounded-2xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    outline-none
-                    transition
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                />
-              </div>
-
-              {/* Profissional */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Profissional
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="Nome do profissional"
-                  className="
-                    w-full
-                    rounded-2xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    outline-none
-                    transition
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                />
-              </div>
-
-              {/* Data e horário */}
-              <div className="grid grid-cols-2 gap-4">
+                {/* Cliente */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Data
+                  <label
+                    htmlFor="appointment-client"
+                    className="mb-2 block text-sm font-medium text-gray-800"
+                  >
+                    Cliente
                   </label>
 
                   <input
-                    type="date"
+                    id="appointment-client"
+                    type="text"
+                    placeholder="Ex.: João Silva"
+                    required
+                    autoComplete="name"
                     className="
                       w-full
-                      rounded-2xl
+                      rounded-xl
                       border
                       border-gray-200
+                      bg-white
                       px-4
                       py-3
+                      text-sm
+                      text-gray-900
                       outline-none
-                      focus:ring-2
-                      focus:ring-blue-500
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
                     "
                   />
                 </div>
 
+                {/* Serviço */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Horário
+                  <label
+                    htmlFor="appointment-service"
+                    className="mb-2 block text-sm font-medium text-gray-800"
+                  >
+                    Serviço
                   </label>
 
-                  <input
-                    type="time"
+                  <select
+                    id="appointment-service"
+                    required
+                    defaultValue=""
                     className="
                       w-full
-                      rounded-2xl
+                      rounded-xl
                       border
                       border-gray-200
+                      bg-white
                       px-4
                       py-3
+                      text-sm
+                      text-gray-900
                       outline-none
-                      focus:ring-2
-                      focus:ring-blue-500
+                      transition-all
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  >
+                    <option value="" disabled>
+                      Selecione um serviço
+                    </option>
+
+                    <option value="corte">
+                      Corte Premium
+                    </option>
+
+                    <option value="barba">
+                      Barba
+                    </option>
+
+                    <option value="coloracao">
+                      Coloração
+                    </option>
+
+                    <option value="tratamento">
+                      Tratamento
+                    </option>
+                  </select>
+                </div>
+
+                {/* Profissional */}
+                <div>
+                  <label
+                    htmlFor="appointment-professional"
+                    className="mb-2 block text-sm font-medium text-gray-800"
+                  >
+                    Profissional
+                  </label>
+
+                  <select
+                    id="appointment-professional"
+                    required
+                    defaultValue=""
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+                    "
+                  >
+                    <option value="" disabled>
+                      Selecione um profissional
+                    </option>
+
+                    <option value="carlos">
+                      Carlos
+                    </option>
+
+                    <option value="pedro">
+                      Pedro
+                    </option>
+
+                    <option value="ana">
+                      Ana
+                    </option>
+                  </select>
+                </div>
+
+                {/* Data e horário */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="appointment-date"
+                      className="mb-2 block text-sm font-medium text-gray-800"
+                    >
+                      Data
+                    </label>
+
+                    <input
+                      id="appointment-date"
+                      type="date"
+                      required
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        py-3
+                        text-sm
+                        text-gray-900
+                        outline-none
+                        transition-all
+                        focus:border-blue-500
+                        focus:ring-4
+                        focus:ring-blue-500/10
+                      "
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="appointment-time"
+                      className="mb-2 block text-sm font-medium text-gray-800"
+                    >
+                      Horário
+                    </label>
+
+                    <input
+                      id="appointment-time"
+                      type="time"
+                      required
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        py-3
+                        text-sm
+                        text-gray-900
+                        outline-none
+                        transition-all
+                        focus:border-blue-500
+                        focus:ring-4
+                        focus:ring-blue-500/10
+                      "
+                    />
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div>
+                  <label
+                    htmlFor="appointment-notes"
+                    className="mb-2 block text-sm font-medium text-gray-800"
+                  >
+                    Observações
+                    <span className="ml-1 font-normal text-gray-400">
+                      (opcional)
+                    </span>
+                  </label>
+
+                  <textarea
+                    id="appointment-notes"
+                    rows={3}
+                    placeholder="Adicione alguma observação..."
+                    className="
+                      w-full
+                      resize-none
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition-all
+                      placeholder:text-gray-400
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
                     "
                   />
                 </div>
-              </div>
-
-              {/* Observações */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Observações
-                </label>
-
-                <textarea
-                  rows={3}
-                  placeholder="Observações sobre o agendamento..."
-                  className="
-                    w-full
-                    resize-none
-                    rounded-2xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                  "
-                />
               </div>
 
               {/* Ações */}
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="
+                    w-full
                     rounded-xl
                     border
                     border-gray-200
@@ -227,10 +392,11 @@ export const Appointments = () => {
                     px-5
                     py-3
                     text-sm
-                    font-medium
+                    font-semibold
                     text-gray-700
-                    transition
+                    transition-colors
                     hover:bg-gray-50
+                    sm:w-auto
                   "
                 >
                   Cancelar
@@ -239,18 +405,24 @@ export const Appointments = () => {
                 <button
                   type="submit"
                   className="
+                    w-full
                     rounded-xl
-                    bg-black
+                    bg-blue-600
                     px-5
                     py-3
                     text-sm
-                    font-medium
+                    font-semibold
                     text-white
-                    transition
-                    hover:bg-gray-800
+                    shadow-sm
+                    transition-all
+                    duration-200
+                    hover:bg-blue-700
+                    hover:shadow-md
+                    active:scale-[0.98]
+                    sm:w-auto
                   "
                 >
-                  Agendar
+                  Criar Agendamento
                 </button>
               </div>
             </form>
@@ -259,4 +431,5 @@ export const Appointments = () => {
       )}
     </>
   );
-}
+};
+
