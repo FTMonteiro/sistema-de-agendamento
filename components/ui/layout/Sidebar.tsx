@@ -46,7 +46,7 @@ export function Sidebar() {
         </Link>
 
         <Link
-          href="/dashboard/team"
+          href="/equipe"
           className="group flex items-center rounded-lg px-4 py-2.5 text-sm font-medium text-black transition-all duration-200 hover:bg-blue-600 hover:text-white"
         >
           Equipa
