@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  ChangeEvent,
-  FormEvent,
-  useState,
-} from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 
 import { TeamMember } from "@/data/Team";
 
@@ -12,9 +8,7 @@ interface TeamHeaderProps {
   onAddMember: (member: TeamMember) => void;
 }
 
-export function TeamHeader({
-  onAddMember,
-}: TeamHeaderProps) {
+export function TeamHeader({ onAddMember }: TeamHeaderProps) {
   const [showModal, setShowModal] = useState(false);
 
   const [name, setName] = useState("");
@@ -42,9 +36,7 @@ export function TeamHeader({
     resetForm();
   }
 
-  function handlePhotoChange(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -55,9 +47,7 @@ export function TeamHeader({
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError(
-        "A fotografia deve ter no máximo 5 MB."
-      );
+      setError("A fotografia deve ter no máximo 5 MB.");
       return;
     }
 
@@ -67,9 +57,7 @@ export function TeamHeader({
     setError("");
   }
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -121,17 +109,14 @@ export function TeamHeader({
       {/* HEADER */}
       <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">
-            Gestão da equipe
-          </p>
+          <p className="text-sm font-medium text-gray-500">Gestão da equipe</p>
 
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
             Equipe
           </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Gerencie os profissionais, cargos e
-            informações da sua equipe.
+            Gerencie os profissionais, cargos e informações da sua equipe.
           </p>
         </div>
 
@@ -177,7 +162,6 @@ export function TeamHeader({
             <path d="M19 8v6" />
             <path d="M22 11h-6" />
           </svg>
-
           Novo profissional
         </button>
       </header>
@@ -208,9 +192,7 @@ export function TeamHeader({
               bg-white
               shadow-2xl
             "
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
             {/* MODAL HEADER */}
             <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
@@ -247,7 +229,6 @@ export function TeamHeader({
 
             <form onSubmit={handleSubmit}>
               <div className="space-y-5 px-6 py-6">
-
                 {/* FOTOGRAFIA */}
                 <div>
                   <label className="mb-3 block text-sm font-semibold text-gray-700">
@@ -313,9 +294,7 @@ export function TeamHeader({
                           <circle cx="12" cy="13" r="3" />
                         </svg>
 
-                        {photo
-                          ? "Alterar fotografia"
-                          : "Adicionar fotografia"}
+                        {photo ? "Alterar fotografia" : "Adicionar fotografia"}
                       </label>
 
                       <input
@@ -341,9 +320,7 @@ export function TeamHeader({
 
                   <input
                     value={name}
-                    onChange={(event) =>
-                      setName(event.target.value)
-                    }
+                    onChange={(event) => setName(event.target.value)}
                     placeholder="Ex: João Silva"
                     className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
                   />
@@ -357,9 +334,7 @@ export function TeamHeader({
 
                   <input
                     value={role}
-                    onChange={(event) =>
-                      setRole(event.target.value)
-                    }
+                    onChange={(event) => setRole(event.target.value)}
                     placeholder="Ex: Barbeiro"
                     className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
                   />
@@ -375,9 +350,7 @@ export function TeamHeader({
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(event) =>
-                        setPhone(event.target.value)
-                      }
+                      onChange={(event) => setPhone(event.target.value)}
                       placeholder="+244 900 000 000"
                       className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
                     />
@@ -391,9 +364,7 @@ export function TeamHeader({
                     <input
                       type="email"
                       value={email}
-                      onChange={(event) =>
-                        setEmail(event.target.value)
-                      }
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder="profissional@email.com"
                       className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
                     />
@@ -442,7 +413,6 @@ export function TeamHeader({
                         <path d="M12 5v14" />
                         <path d="M5 12h14" />
                       </svg>
-
                       Adicionar profissional
                     </>
                   )}

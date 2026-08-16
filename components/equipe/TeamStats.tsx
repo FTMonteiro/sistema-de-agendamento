@@ -80,15 +80,13 @@ function InactiveIcon() {
   );
 }
 
-export default function TeamStats({
-  members,
-}: TeamStatsProps) {
+export default function TeamStats({ members }: TeamStatsProps) {
   const total = members.length;
 
   const active = members.filter(
     (member) =>
       member.status.toLowerCase() === "ativo" ||
-      member.status.toLowerCase() === "active"
+      member.status.toLowerCase() === "active",
   ).length;
 
   const inactive = total - active;
@@ -104,10 +102,7 @@ export default function TeamStats({
       {statsConfig.map((stat) => {
         const value = values[stat.key];
 
-        const percentage =
-          total > 0
-            ? Math.round((value / total) * 100)
-            : 0;
+        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
 
         const Icon =
           stat.key === "total"
@@ -185,9 +180,7 @@ export default function TeamStats({
             </div>
 
             <div className="mt-5 flex items-center justify-between gap-3">
-              <p className="text-sm text-gray-500">
-                {stat.description}
-              </p>
+              <p className="text-sm text-gray-500">{stat.description}</p>
 
               <span className="whitespace-nowrap text-xs font-semibold text-gray-500">
                 {percentage}% da equipe

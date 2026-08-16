@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Search,
-  MoreHorizontal,
-  Eye,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Search, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
 
 import { TeamMember } from "@/data/Team";
 import { TeamDetails } from "@/components/equipe/TeamDetails";
@@ -25,18 +19,13 @@ export default function TeamList({
 }: TeamListProps) {
   const [search, setSearch] = useState("");
 
-  const [selectedMember, setSelectedMember] =
-    useState<TeamMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
 
-  const [openMenu, setOpenMenu] = useState<
-    TeamMember["id"] | null
-  >(null);
+  const [openMenu, setOpenMenu] = useState<TeamMember["id"] | null>(null);
 
-  /*
-   * PESQUISA
-   */
+  /*PESQUISA*/
   const filteredTeam = members.filter((member) => {
     const value = search.toLowerCase().trim();
 
@@ -48,36 +37,28 @@ export default function TeamList({
     );
   });
 
-  /*
-   * VER PERFIL
-   */
+  /*VER PERFIL*/
   function handleView(member: TeamMember) {
     setOpenMenu(null);
     setIsEditing(false);
     setSelectedMember(member);
   }
 
-  /*
-   * ABRIR EDIÇÃO
-   */
+  /*ABRIR EDIÇÃO*/
   function handleEdit(member: TeamMember) {
     setOpenMenu(null);
     setSelectedMember(member);
     setIsEditing(true);
   }
 
-  /*
-   * SALVAR EDIÇÃO
-   */
-function handleSaveEdit(updatedMember: TeamMember) {
-  onUpdateMember(updatedMember);
+  /*SALVAR EDIÇÃO*/
+  function handleSaveEdit(updatedMember: TeamMember) {
+    onUpdateMember(updatedMember);
 
-  setSelectedMember(updatedMember);
-  setIsEditing(false);
-}
-  /*
-   * EXCLUIR
-   */
+    setSelectedMember(updatedMember);
+    setIsEditing(false);
+  }
+  /*EXCLUIR */
   function handleDelete(member: TeamMember) {
     setOpenMenu(null);
 
@@ -89,9 +70,6 @@ function handleSaveEdit(updatedMember: TeamMember) {
     }
   }
 
-  /*
-   * FECHAR MODAL
-   */
   function handleClose() {
     setSelectedMember(null);
     setIsEditing(false);
@@ -100,14 +78,9 @@ function handleSaveEdit(updatedMember: TeamMember) {
   return (
     <>
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-        {/* =========================
-            CABEÇALHO
-        ========================= */}
         <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Equipe
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Equipe</h2>
 
             <p className="mt-1 text-sm text-gray-500">
               Profissionais cadastrados.
@@ -121,9 +94,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
             <input
               type="text"
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Pesquisar profissional..."
               className="
                 h-10
@@ -146,9 +117,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
           </div>
         </div>
 
-        {/* =========================
-            TABELA
-        ========================= */}
+        {/* TABELa*/}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead>
@@ -190,9 +159,6 @@ function handleSaveEdit(updatedMember: TeamMember) {
                       hover:bg-gray-50/70
                     "
                   >
-                    {/* =========================
-                        PROFISSIONAL
-                    ========================= */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         {/* FOTO */}
@@ -205,9 +171,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
                             />
                           ) : (
                             <span className="text-sm font-semibold text-gray-700">
-                              {member.name
-                                .charAt(0)
-                                .toUpperCase()}
+                              {member.name.charAt(0).toUpperCase()}
                             </span>
                           )}
                         </div>
@@ -225,27 +189,19 @@ function handleSaveEdit(updatedMember: TeamMember) {
                       </div>
                     </td>
 
-                    {/* =========================
-                        CARGO
-                    ========================= */}
+                    {/* CARGO*/}
                     <td className="px-5 py-4">
                       <span className="text-sm text-gray-700">
                         {member.role}
                       </span>
                     </td>
 
-                    {/* =========================
-                        TELEFONE
-                    ========================= */}
                     <td className="px-5 py-4">
                       <span className="text-sm text-gray-700">
                         {member.phone}
                       </span>
                     </td>
 
-                    {/* =========================
-                        STATUS
-                    ========================= */}
                     <td className="px-5 py-4">
                       <span
                         className={`
@@ -266,17 +222,12 @@ function handleSaveEdit(updatedMember: TeamMember) {
                       </span>
                     </td>
 
-                    {/* =========================
-                        AÇÕES
-                    ========================= */}
                     <td className="px-5 py-4">
                       <div className="relative flex items-center justify-end gap-2">
                         {/* VER MAIS */}
                         <button
                           type="button"
-                          onClick={() =>
-                            handleView(member)
-                          }
+                          onClick={() => handleView(member)}
                           className="
                             inline-flex
                             items-center
@@ -303,9 +254,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
                           type="button"
                           onClick={() =>
                             setOpenMenu(
-                              openMenu === member.id
-                                ? null
-                                : member.id
+                              openMenu === member.id ? null : member.id,
                             )
                           }
                           className="
@@ -346,9 +295,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
                             {/* EDITAR */}
                             <button
                               type="button"
-                              onClick={() =>
-                                handleEdit(member)
-                              }
+                              onClick={() => handleEdit(member)}
                               className="
                                 flex
                                 w-full
@@ -370,9 +317,7 @@ function handleSaveEdit(updatedMember: TeamMember) {
                             {/* EXCLUIR */}
                             <button
                               type="button"
-                              onClick={() =>
-                                handleDelete(member)
-                              }
+                              onClick={() => handleDelete(member)}
                               className="
                                 flex
                                 w-full
@@ -398,23 +343,17 @@ function handleSaveEdit(updatedMember: TeamMember) {
                 );
               })}
 
-              {/* =========================
-                  SEM RESULTADOS
-              ========================= */}
               {filteredTeam.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-5 py-12 text-center"
-                  >
+                  <td colSpan={5} className="px-5 py-12 text-center">
                     <div>
                       <p className="text-sm font-medium text-gray-700">
                         Nenhum profissional encontrado
                       </p>
 
                       <p className="mt-1 text-xs text-gray-400">
-                        Tente pesquisar por outro nome, cargo,
-                        telefone ou email.
+                        Tente pesquisar por outro nome, cargo, telefone ou
+                        email.
                       </p>
                     </div>
                   </td>
@@ -425,17 +364,14 @@ function handleSaveEdit(updatedMember: TeamMember) {
         </div>
       </div>
 
-      {/* =========================
-          DETALHES / EDIÇÃO
-      ========================= */}
-<TeamDetails
-  member={selectedMember}
-  isEditing={isEditing}
-  onClose={handleClose}
-  onStartEdit={handleEdit}
-  onEdit={handleSaveEdit}
-  onDelete={handleDelete}
-/>
+      <TeamDetails
+        member={selectedMember}
+        isEditing={isEditing}
+        onClose={handleClose}
+        onStartEdit={handleEdit}
+        onEdit={handleSaveEdit}
+        onDelete={handleDelete}
+      />
     </>
   );
 }

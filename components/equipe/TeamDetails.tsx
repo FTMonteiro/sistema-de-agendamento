@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useState,
-} from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
 import {
   X,
@@ -45,10 +40,6 @@ export function TeamDetails({
 
   const [error, setError] = useState("");
 
-  /*
-   * Quando o profissional selecionado muda,
-   * carregamos os dados dele no formulário.
-   */
   useEffect(() => {
     if (!member) return;
 
@@ -66,12 +57,8 @@ export function TeamDetails({
 
   const active = member.status === "Ativo";
 
-  /*
-   * FOTO
-   */
-  function handlePhotoChange(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
+  /*FOTO*/
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -82,9 +69,7 @@ export function TeamDetails({
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError(
-        "A fotografia deve ter no máximo 5 MB."
-      );
+      setError("A fotografia deve ter no máximo 5 MB.");
       return;
     }
 
@@ -94,58 +79,50 @@ export function TeamDetails({
     setError("");
   }
 
-  /*
-   * SALVAR EDIÇÃO
-   */
- function handleSubmit(
-  event: FormEvent<HTMLFormElement>
-) {
-  event.preventDefault();
+  /*SALVAR EDIÇÃO*/
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  setError("");
+    setError("");
 
-  if (!member) {
-    return;
+    if (!member) {
+      return;
+    }
+
+    if (!name.trim()) {
+      setError("Informe o nome completo.");
+      return;
+    }
+
+    if (!role.trim()) {
+      setError("Informe o cargo.");
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError("Informe o telefone.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Informe o email.");
+      return;
+    }
+
+    const newData: TeamMember = {
+      id: member.id,
+      name: name.trim(),
+      role: role.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      photo: photo || "",
+      status: member.status,
+    };
+
+    onEdit(newData);
   }
 
-  if (!name.trim()) {
-    setError("Informe o nome completo.");
-    return;
-  }
-
-  if (!role.trim()) {
-    setError("Informe o cargo.");
-    return;
-  }
-
-  if (!phone.trim()) {
-    setError("Informe o telefone.");
-    return;
-  }
-
-  if (!email.trim()) {
-    setError("Informe o email.");
-    return;
-  }
-
-  const newData: TeamMember = {
-    id: member.id,
-    name: name.trim(),
-    role: role.trim(),
-    phone: phone.trim(),
-    email: email.trim(),
-    photo: photo || "",
-    status: member.status,
-  };
-
-  onEdit(newData);
-}
-
-  /*
-   * ==============================
-   * MODO EDIÇÃO
-   * ==============================
-   */
+  /* MODO EDIÇÃO */
   if (isEditing) {
     return (
       <div
@@ -172,9 +149,7 @@ export function TeamDetails({
             bg-white
             shadow-2xl
           "
-          onClick={(event) =>
-            event.stopPropagation()
-          }
+          onClick={(event) => event.stopPropagation()}
         >
           {/* HEADER */}
           <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
@@ -216,7 +191,6 @@ export function TeamDetails({
           {/* FORMULÁRIO */}
           <form onSubmit={handleSubmit}>
             <div className="space-y-5 px-6 py-6">
-
               {/* FOTOGRAFIA */}
               <div>
                 <label className="mb-3 block text-sm font-semibold text-gray-700">
@@ -258,9 +232,7 @@ export function TeamDetails({
                     >
                       <Camera className="h-4 w-4" />
 
-                      {photo
-                        ? "Alterar fotografia"
-                        : "Adicionar fotografia"}
+                      {photo ? "Alterar fotografia" : "Adicionar fotografia"}
                     </label>
 
                     <input
@@ -287,9 +259,7 @@ export function TeamDetails({
                 <input
                   type="text"
                   value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
+                  onChange={(event) => setName(event.target.value)}
                   className="
                     h-11
                     w-full
@@ -317,9 +287,7 @@ export function TeamDetails({
                 <input
                   type="text"
                   value={role}
-                  onChange={(event) =>
-                    setRole(event.target.value)
-                  }
+                  onChange={(event) => setRole(event.target.value)}
                   className="
                     h-11
                     w-full
@@ -347,9 +315,7 @@ export function TeamDetails({
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(event) =>
-                    setPhone(event.target.value)
-                  }
+                  onChange={(event) => setPhone(event.target.value)}
                   className="
                     h-11
                     w-full
@@ -377,9 +343,7 @@ export function TeamDetails({
                 <input
                   type="email"
                   value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
+                  onChange={(event) => setEmail(event.target.value)}
                   className="
                     h-11
                     w-full
@@ -455,11 +419,6 @@ export function TeamDetails({
     );
   }
 
-  /*
-   * ==============================
-   * MODO VISUALIZAÇÃO
-   * ==============================
-   */
   return (
     <div
       className="
@@ -484,9 +443,7 @@ export function TeamDetails({
           bg-white
           shadow-2xl
         "
-        onClick={(event) =>
-          event.stopPropagation()
-        }
+        onClick={(event) => event.stopPropagation()}
       >
         {/* HEADER */}
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
@@ -533,21 +490,15 @@ export function TeamDetails({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                member.name
-                  .charAt(0)
-                  .toUpperCase()
+                member.name.charAt(0).toUpperCase()
               )}
             </div>
 
             {/* NOME */}
             <div className="min-w-0">
-              <p className="font-semibold text-gray-950">
-                {member.name}
-              </p>
+              <p className="font-semibold text-gray-950">{member.name}</p>
 
-              <p className="mt-1 text-sm text-gray-500">
-                {member.role}
-              </p>
+              <p className="mt-1 text-sm text-gray-500">{member.role}</p>
             </div>
 
             {/* STATUS */}
@@ -574,11 +525,7 @@ export function TeamDetails({
                   h-1.5
                   w-1.5
                   rounded-full
-                  ${
-                    active
-                      ? "bg-emerald-500"
-                      : "bg-gray-400"
-                  }
+                  ${active ? "bg-emerald-500" : "bg-gray-400"}
                 `}
               />
 
@@ -593,9 +540,7 @@ export function TeamDetails({
               <BriefcaseBusiness className="h-4 w-4 text-gray-400" />
 
               <div>
-                <p className="text-xs text-gray-400">
-                  Cargo
-                </p>
+                <p className="text-xs text-gray-400">Cargo</p>
 
                 <p className="mt-0.5 text-sm font-medium text-gray-800">
                   {member.role}
@@ -608,9 +553,7 @@ export function TeamDetails({
               <Phone className="h-4 w-4 text-gray-400" />
 
               <div>
-                <p className="text-xs text-gray-400">
-                  Telefone
-                </p>
+                <p className="text-xs text-gray-400">Telefone</p>
 
                 <p className="mt-0.5 text-sm font-medium text-gray-800">
                   {member.phone}
@@ -623,9 +566,7 @@ export function TeamDetails({
               <Mail className="h-4 w-4 text-gray-400" />
 
               <div className="min-w-0">
-                <p className="text-xs text-gray-400">
-                  Email
-                </p>
+                <p className="text-xs text-gray-400">Email</p>
 
                 <p className="mt-0.5 truncate text-sm font-medium text-gray-800">
                   {member.email}

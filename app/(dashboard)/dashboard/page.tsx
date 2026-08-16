@@ -1,4 +1,3 @@
-
 import { Appointments } from "@/components/appointments/Appointments";
 import { ReceivePayment } from "@/components/appointments/ReceivePayment";
 
@@ -62,21 +61,17 @@ const appointments = [
 export default function DashboardPage() {
   return (
     <div className="min-h-full space-y-8">
-
       {/* Cabeçalho */}
       <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mb-2 text-sm font-medium text-blue-600">
-            Visão geral
-          </p>
+          <p className="mb-2 text-sm font-medium text-blue-600">Visão geral</p>
 
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             Dashboard
           </h1>
 
           <p className="mt-2 max-w-xl text-sm text-gray-500 sm:text-base">
-            Acompanhe o desempenho do seu negócio e os próximos
-            atendimentos.
+            Acompanhe o desempenho do seu negócio e os próximos atendimentos.
           </p>
         </div>
 
@@ -126,9 +121,7 @@ export default function DashboardPage() {
                 {stat.change}
               </span>
 
-              <span className="text-xs text-gray-400">
-                {stat.description}
-              </span>
+              <span className="text-xs text-gray-400">{stat.description}</span>
             </div>
           </div>
         ))}
@@ -136,10 +129,8 @@ export default function DashboardPage() {
 
       {/* Conteúdo principal */}
       <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-
         {/* Agenda */}
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-
           {/* Cabeçalho da agenda */}
           <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div>
@@ -229,49 +220,31 @@ export default function DashboardPage() {
 
         {/* Resumo lateral */}
         <div className="rounded-2xl bg-gray-900 p-6 text-white shadow-sm">
-          <p className="text-sm font-medium text-gray-400">
-            Resumo do dia
-          </p>
+          <p className="text-sm font-medium text-gray-400">Resumo do dia</p>
 
-          <h3 className="mt-3 text-3xl font-bold">
-            25
-          </h3>
+          <h3 className="mt-3 text-3xl font-bold">25</h3>
 
-          <p className="mt-1 text-sm text-gray-400">
-            agendamentos hoje
-          </p>
+          <p className="mt-1 text-sm text-gray-400">agendamentos hoje</p>
 
           <div className="my-6 h-px bg-white/10" />
 
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Confirmados
-              </span>
+              <span className="text-sm text-gray-400">Confirmados</span>
 
-              <span className="text-sm font-semibold text-white">
-                18
-              </span>
+              <span className="text-sm font-semibold text-white">18</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Aguardando
-              </span>
+              <span className="text-sm text-gray-400">Aguardando</span>
 
-              <span className="text-sm font-semibold text-white">
-                5
-              </span>
+              <span className="text-sm font-semibold text-white">5</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Concluídos
-              </span>
+              <span className="text-sm text-gray-400">Concluídos</span>
 
-              <span className="text-sm font-semibold text-white">
-                2
-              </span>
+              <span className="text-sm font-semibold text-white">2</span>
             </div>
           </div>
 
@@ -298,4 +271,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
