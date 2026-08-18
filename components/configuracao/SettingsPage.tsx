@@ -17,10 +17,7 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    localStorage.setItem(
-      "business-settings",
-      JSON.stringify(business)
-    );
+    localStorage.setItem("business-settings", JSON.stringify(business));
 
     setSaved(true);
 
@@ -31,10 +28,8 @@ export function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-
       {/* CONTEÚDO */}
       <div className="mx-auto max-w-6xl px-6 py-8">
-
         {/* BREADCRUMB */}
         <div className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]">
           <span>Admin</span>
@@ -59,34 +54,23 @@ export function SettingsPage() {
 
         {/* TABS */}
         <div className="mb-8 flex border-b border-[var(--border)]">
-
           <div className="flex items-center gap-2 border-b-2 border-primary px-5 pb-3 text-sm font-medium text-[var(--foreground)]">
             <Building2 size={17} />
-
             Dados do estabelecimento
           </div>
-
         </div>
 
         {/* CONTEÚDO */}
-        <BusinessSettings
-          business={business}
-          setBusiness={setBusiness}
-        />
-
+        <BusinessSettings business={business} setBusiness={setBusiness} />
       </div>
 
       {/* BARRA INFERIOR */}
       <div className="sticky bottom-0 z-20 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
-
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-
           {/* STATUS */}
           <div className="text-sm text-[var(--muted)]">
             {saved ? (
-              <span className="text-green-600">
-                ✓ Alterações salvas
-              </span>
+              <span className="text-green-600">✓ Alterações salvas</span>
             ) : (
               "Última alteração: agora"
             )}
@@ -94,7 +78,6 @@ export function SettingsPage() {
 
           {/* ACTIONS */}
           <div className="flex items-center gap-3">
-
             {/* CANCELAR */}
             <button
               type="button"
@@ -111,13 +94,9 @@ export function SettingsPage() {
             >
               Salvar alterações
             </button>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

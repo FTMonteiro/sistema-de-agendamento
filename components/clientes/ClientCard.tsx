@@ -1,4 +1,3 @@
-
 import { Client } from "@/types/clients";
 
 interface Props {
@@ -8,8 +7,7 @@ interface Props {
 export function ClientCard({ client }: Props) {
   const initial = client.name.charAt(0).toUpperCase();
 
-  const isActive =
-    client.status.toLowerCase() === "ativo";
+  const isActive = client.status.toLowerCase() === "ativo";
 
   return (
     <article
@@ -82,9 +80,7 @@ export function ClientCard({ client }: Props) {
             group-hover:opacity-100
           "
         >
-          <span className="text-lg leading-none">
-            ⋮
-          </span>
+          <span className="text-lg leading-none">⋮</span>
         </button>
       </div>
 
@@ -92,9 +88,7 @@ export function ClientCard({ client }: Props) {
       <div className="mt-5 space-y-3">
         {/* Telefone */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">
-            Telefone
-          </span>
+          <span className="text-sm text-gray-500">Telefone</span>
 
           <span className="text-sm font-medium text-gray-900">
             {client.phone}
@@ -103,9 +97,7 @@ export function ClientCard({ client }: Props) {
 
         {/* Visitas */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">
-            Visitas
-          </span>
+          <span className="text-sm text-gray-500">Visitas</span>
 
           <span className="text-sm font-semibold text-gray-900">
             {client.visits}
@@ -118,9 +110,7 @@ export function ClientCard({ client }: Props) {
 
       {/* Rodapé */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500">
-          Estado
-        </span>
+        <span className="text-xs font-medium text-gray-500">Estado</span>
 
         <span
           className={`
@@ -144,11 +134,7 @@ export function ClientCard({ client }: Props) {
               h-1.5
               w-1.5
               rounded-full
-              ${
-                isActive
-                  ? "bg-green-500"
-                  : "bg-gray-400"
-              }
+              ${isActive ? "bg-green-500" : "bg-gray-400"}
             `}
           />
 
@@ -158,4 +144,3 @@ export function ClientCard({ client }: Props) {
     </article>
   );
 }
-

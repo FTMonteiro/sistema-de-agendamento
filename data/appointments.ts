@@ -10,6 +10,7 @@ export const appointments: Appointment[] = [
     time: "09:00",
     payment: "paid",
     status: "confirmed",
+    price: 15000,
     notes: "Cliente prefere corte baixo.",
   },
 
@@ -22,6 +23,7 @@ export const appointments: Appointment[] = [
     time: "10:30",
     payment: "partial",
     status: "pending",
+    price: 8000,
     notes: "Confirmar horário.",
   },
 
@@ -34,6 +36,7 @@ export const appointments: Appointment[] = [
     time: "14:00",
     payment: "pending",
     status: "confirmed",
+    price: 25000,
     notes: "Cliente novo.",
   },
 
@@ -46,6 +49,7 @@ export const appointments: Appointment[] = [
     time: "16:00",
     payment: "paid",
     status: "completed",
+    price: 30000,
     notes: "Atendimento concluído.",
   },
 ];

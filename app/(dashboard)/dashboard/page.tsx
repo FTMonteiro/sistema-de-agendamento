@@ -1,4 +1,6 @@
-import { Appointments } from "@/components/appointments/Appointments";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ReceivePayment } from "@/components/appointments/ReceivePayment";
 
 const stats = [
@@ -59,12 +61,33 @@ const appointments = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  function handleNewAppointment() {
+    router.push("/appointments");
+  }
+
+  function handleViewAgenda() {
+    router.push("/appointments");
+  }
+
+  function handleViewDetails() {
+    router.push("/appointments");
+  }
+
   return (
     <div className="min-h-full space-y-8">
-      {/* Cabeçalho */}
+      {/* =====================================================
+          CABEÇALHO
+      ====================================================== */}
+
       <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        {/* TÍTULO */}
+
         <div>
-          <p className="mb-2 text-sm font-medium text-blue-600">Visão geral</p>
+          <p className="mb-2 text-sm font-medium text-blue-600">
+            Visão geral
+          </p>
 
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             Dashboard
@@ -75,14 +98,50 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Ações */}
+        {/* =================================================
+            AÇÕES
+        ================================================== */}
+
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Appointments />
+          {/* NOVO AGENDAMENTO */}
+
+          <button
+            type="button"
+            onClick={handleNewAppointment}
+            className="
+              inline-flex
+              w-full
+              items-center
+              justify-center
+              rounded-xl
+              bg-gray-900
+              px-5
+              py-3
+              text-sm
+              font-semibold
+              text-white
+              shadow-sm
+              transition-all
+              duration-200
+              hover:bg-gray-800
+              hover:shadow-md
+              active:scale-[0.98]
+              sm:w-auto
+            "
+          >
+            + Novo Agendamento
+          </button>
+
+          {/* RECEBER PAGAMENTO */}
+
           <ReceivePayment />
         </div>
       </section>
 
-      {/* Estatísticas */}
+      {/* =====================================================
+          ESTATÍSTICAS
+      ====================================================== */}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <div
@@ -101,6 +160,8 @@ export default function DashboardPage() {
             "
           >
             <div className="flex items-start justify-between gap-4">
+              {/* INFORMAÇÃO */}
+
               <div>
                 <p className="text-sm font-medium text-gray-500">
                   {stat.label}
@@ -111,28 +172,67 @@ export default function DashboardPage() {
                 </h2>
               </div>
 
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <span className="text-sm font-bold">↗</span>
+              {/* ÍCONE */}
+
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-lg
+                  bg-blue-50
+                  text-blue-600
+                "
+              >
+                <span className="text-sm font-bold">
+                  ↗
+                </span>
               </div>
             </div>
+
+            {/* CRESCIMENTO */}
 
             <div className="mt-4 flex items-center gap-2">
               <span className="text-xs font-semibold text-green-600">
                 {stat.change}
               </span>
 
-              <span className="text-xs text-gray-400">{stat.description}</span>
+              <span className="text-xs text-gray-400">
+                {stat.description}
+              </span>
             </div>
           </div>
         ))}
       </section>
 
-      {/* Conteúdo principal */}
+      {/* =====================================================
+          CONTEÚDO PRINCIPAL
+      ====================================================== */}
+
       <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        {/* Agenda */}
+        {/* =================================================
+            AGENDA DE HOJE
+        ================================================== */}
+
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-          {/* Cabeçalho da agenda */}
-          <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          {/* CABEÇALHO */}
+
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
+              border-b
+              border-gray-100
+              p-5
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+              sm:p-6
+            "
+          >
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 Agenda de hoje
@@ -143,8 +243,11 @@ export default function DashboardPage() {
               </p>
             </div>
 
+            {/* VER AGENDA */}
+
             <button
               type="button"
+              onClick={handleViewAgenda}
               className="
                 w-full
                 rounded-lg
@@ -163,7 +266,10 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Lista */}
+          {/* =================================================
+              LISTA
+          ================================================== */}
+
           <div className="divide-y divide-gray-100">
             {appointments.map((appointment) => (
               <div
@@ -181,12 +287,22 @@ export default function DashboardPage() {
                   sm:p-6
                 "
               >
-                {/* Cliente */}
+                {/* CLIENTE */}
+
                 <div className="flex min-w-0 items-center gap-4">
-                  {/* Indicador */}
+                  {/* INDICADOR */}
+
                   <div
-                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${appointment.dot}`}
+                    className={`
+                      h-2.5
+                      w-2.5
+                      shrink-0
+                      rounded-full
+                      ${appointment.dot}
+                    `}
                   />
+
+                  {/* DADOS */}
 
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-gray-900">
@@ -195,20 +311,32 @@ export default function DashboardPage() {
 
                     <p className="mt-1 truncate text-sm text-gray-500">
                       {appointment.service}
-                      <span className="mx-1.5 text-gray-300">•</span>
+
+                      <span className="mx-1.5 text-gray-300">
+                        •
+                      </span>
+
                       {appointment.professional}
                     </p>
                   </div>
                 </div>
 
-                {/* Horário e estado */}
+                {/* HORÁRIO + ESTADO */}
+
                 <div className="flex items-center justify-between gap-4 sm:justify-end">
                   <p className="text-sm font-semibold text-gray-900">
                     {appointment.time}
                   </p>
 
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${appointment.statusStyle}`}
+                    className={`
+                      rounded-full
+                      px-3
+                      py-1
+                      text-xs
+                      font-medium
+                      ${appointment.statusStyle}
+                    `}
                   >
                     {appointment.status}
                   </span>
@@ -218,38 +346,72 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Resumo lateral */}
+        {/* =================================================
+            RESUMO DO DIA
+        ================================================== */}
+
         <div className="rounded-2xl bg-gray-900 p-6 text-white shadow-sm">
-          <p className="text-sm font-medium text-gray-400">Resumo do dia</p>
+          <p className="text-sm font-medium text-gray-400">
+            Resumo do dia
+          </p>
 
-          <h3 className="mt-3 text-3xl font-bold">25</h3>
+          <h3 className="mt-3 text-3xl font-bold">
+            25
+          </h3>
 
-          <p className="mt-1 text-sm text-gray-400">agendamentos hoje</p>
+          <p className="mt-1 text-sm text-gray-400">
+            agendamentos hoje
+          </p>
+
+          {/* SEPARADOR */}
 
           <div className="my-6 h-px bg-white/10" />
 
+          {/* ESTATÍSTICAS */}
+
           <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Confirmados</span>
+            {/* CONFIRMADOS */}
 
-              <span className="text-sm font-semibold text-white">18</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">
+                Confirmados
+              </span>
+
+              <span className="text-sm font-semibold text-white">
+                18
+              </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Aguardando</span>
+            {/* AGUARDANDO */}
 
-              <span className="text-sm font-semibold text-white">5</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">
+                Aguardando
+              </span>
+
+              <span className="text-sm font-semibold text-white">
+                5
+              </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Concluídos</span>
+            {/* CONCLUÍDOS */}
 
-              <span className="text-sm font-semibold text-white">2</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">
+                Concluídos
+              </span>
+
+              <span className="text-sm font-semibold text-white">
+                2
+              </span>
             </div>
           </div>
 
+          {/* VER DETALHES */}
+
           <button
             type="button"
+            onClick={handleViewDetails}
             className="
               mt-7
               w-full

@@ -1,25 +1,19 @@
-
 "use client";
 
 import { useState } from "react";
-import { AppointmentList } from "@/components/scheduling/AppointmentList";
+import { AppointmentList } from "@/components/appointments/AppointmentList";
 import { appointments as initialAppointments } from "@/data/appointments";
 
-type Filter =
-  | "all"
-  | "confirmed"
-  | "pending"
-  | "completed";
+import { Search } from "lucide-react";
+
+type Filter = "all" | "confirmed" | "pending" | "completed";
 
 export default function AppointmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [appointments, setAppointments] = useState(
-    initialAppointments
-  );
+  const [appointments, setAppointments] = useState(initialAppointments);
 
-  const [activeFilter, setActiveFilter] =
-    useState<Filter>("all");
+  const [activeFilter, setActiveFilter] = useState<Filter>("all");
 
   const [search, setSearch] = useState("");
 
@@ -30,42 +24,23 @@ export default function AppointmentsPage() {
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
 
-  /*
-   * =====================================================
-   * FILTROS
-   * =====================================================
-   */
+  /*FILTROS */
 
-  const filteredAppointments = appointments.filter(
-    (appointment) => {
-      const matchesFilter =
-        activeFilter === "all" ||
-        appointment.status === activeFilter;
+  const filteredAppointments = appointments.filter((appointment) => {
+    const matchesFilter =
+      activeFilter === "all" || appointment.status === activeFilter;
 
-      const searchText = search
-        .toLowerCase()
-        .trim();
+    const searchText = search.toLowerCase().trim();
 
-      const matchesSearch =
-        appointment.client
-          .toLowerCase()
-          .includes(searchText) ||
-        appointment.service
-          .toLowerCase()
-          .includes(searchText) ||
-        appointment.professional
-          .toLowerCase()
-          .includes(searchText);
+    const matchesSearch =
+      appointment.client.toLowerCase().includes(searchText) ||
+      appointment.service.toLowerCase().includes(searchText) ||
+      appointment.professional.toLowerCase().includes(searchText);
 
-      return matchesFilter && matchesSearch;
-    }
-  );
+    return matchesFilter && matchesSearch;
+  });
 
-  /*
-   * =====================================================
-   * CRIAR AGENDAMENTO
-   * =====================================================
-   */
+  /*CRIAR AGENDAMENTO*/
 
   function handleCreateAppointment() {
     if (
@@ -90,11 +65,6 @@ export default function AppointmentsPage() {
       notes: notes.trim(),
     };
 
-    setAppointments((current) => [
-      ...current,
-      newAppointment,
-    ]);
-
     setClient("");
     setService("");
     setProfessional("");
@@ -105,47 +75,29 @@ export default function AppointmentsPage() {
     setIsModalOpen(false);
   }
 
-  /*
-   * =====================================================
-   * EXCLUIR
-   * =====================================================
-   */
+  /*EXCLUIR */
 
   function handleDeleteAppointment(id: string) {
     setAppointments((current) =>
-      current.filter(
-        (appointment) =>
-          appointment.id !== id
-      )
+      current.filter((appointment) => appointment.id !== id),
     );
   }
 
-  /*
-   * =====================================================
-   * CONTADORES
-   * =====================================================
-   */
+  /*CONTADORES*/
 
   const confirmedCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "confirmed"
+    (appointment) => appointment.status === "confirmed",
   ).length;
 
   const pendingCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "pending"
+    (appointment) => appointment.status === "pending",
   ).length;
 
   const completedCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "completed"
+    (appointment) => appointment.status === "completed",
   ).length;
 
-  /*
-   * =====================================================
-   * FILTROS
-   * =====================================================
-   */
+  /*FILTROS */
 
   const filters: {
     value: Filter;
@@ -176,10 +128,7 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-full space-y-8">
-
-      {/* =================================================
-          HEADER
-      ================================================= */}
+      {/*HEADER*/}
 
       <section
         className="
@@ -213,14 +162,12 @@ export default function AppointmentsPage() {
           </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Organize os seus atendimentos, acompanhe
-            os profissionais e mantenha a agenda
-            sempre sob controlo.
+            Organize os seus atendimentos, acompanhe os profissionais e mantenha
+            a agenda sempre sob controlo.
           </p>
         </div>
 
         <div className="flex w-full gap-3 sm:w-auto">
-
           <button
             type="button"
             className="
@@ -248,9 +195,7 @@ export default function AppointmentsPage() {
 
           <button
             type="button"
-            onClick={() =>
-              setIsModalOpen(true)
-            }
+            onClick={() => setIsModalOpen(true)}
             className="
               flex-1
               rounded-xl
@@ -270,13 +215,10 @@ export default function AppointmentsPage() {
           >
             + Novo Agendamento
           </button>
-
         </div>
       </section>
 
-      {/* =================================================
-          MÉTRICAS
-      ================================================= */}
+      {/*MÉTRICAS */}
 
       <section
         className="
@@ -286,7 +228,6 @@ export default function AppointmentsPage() {
           xl:grid-cols-4
         "
       >
-
         {/* Total */}
 
         <div
@@ -305,11 +246,8 @@ export default function AppointmentsPage() {
           "
         >
           <div className="flex items-start justify-between">
-
             <div>
-              <p className="text-sm font-medium text-gray-500">
-                Total hoje
-              </p>
+              <p className="text-sm font-medium text-gray-500">Total hoje</p>
 
               <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
                 {appointments.length}
@@ -319,12 +257,9 @@ export default function AppointmentsPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-700">
               A
             </div>
-
           </div>
 
-          <p className="mt-4 text-xs text-gray-400">
-            Agendamentos registados
-          </p>
+          <p className="mt-4 text-xs text-gray-400">Agendamentos registados</p>
         </div>
 
         {/* Confirmados */}
@@ -345,11 +280,8 @@ export default function AppointmentsPage() {
           "
         >
           <div className="flex items-start justify-between">
-
             <div>
-              <p className="text-sm font-medium text-gray-500">
-                Confirmados
-              </p>
+              <p className="text-sm font-medium text-gray-500">Confirmados</p>
 
               <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
                 {confirmedCount}
@@ -359,12 +291,9 @@ export default function AppointmentsPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-sm font-bold text-green-600">
               ✓
             </div>
-
           </div>
 
-          <p className="mt-4 text-xs text-green-600">
-            Atendimento confirmado
-          </p>
+          <p className="mt-4 text-xs text-green-600">Atendimento confirmado</p>
         </div>
 
         {/* Aguardando */}
@@ -385,11 +314,8 @@ export default function AppointmentsPage() {
           "
         >
           <div className="flex items-start justify-between">
-
             <div>
-              <p className="text-sm font-medium text-gray-500">
-                Aguardando
-              </p>
+              <p className="text-sm font-medium text-gray-500">Aguardando</p>
 
               <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
                 {pendingCount}
@@ -399,12 +325,9 @@ export default function AppointmentsPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-sm font-bold text-amber-600">
               !
             </div>
-
           </div>
 
-          <p className="mt-4 text-xs text-amber-600">
-            Aguardam confirmação
-          </p>
+          <p className="mt-4 text-xs text-amber-600">Aguardam confirmação</p>
         </div>
 
         {/* Concluídos */}
@@ -425,11 +348,8 @@ export default function AppointmentsPage() {
           "
         >
           <div className="flex items-start justify-between">
-
             <div>
-              <p className="text-sm font-medium text-gray-500">
-                Concluídos
-              </p>
+              <p className="text-sm font-medium text-gray-500">Concluídos</p>
 
               <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
                 {completedCount}
@@ -439,19 +359,13 @@ export default function AppointmentsPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-600">
               ✓
             </div>
-
           </div>
 
-          <p className="mt-4 text-xs text-blue-600">
-            Atendimentos concluídos
-          </p>
+          <p className="mt-4 text-xs text-blue-600">Atendimentos concluídos</p>
         </div>
-
       </section>
 
-      {/* =================================================
-          FILTROS + PESQUISA
-      ================================================= */}
+      {/*FILTROS + PESQUISA */}
 
       <section
         className="
@@ -464,7 +378,6 @@ export default function AppointmentsPage() {
           sm:p-5
         "
       >
-
         <div
           className="
             flex
@@ -475,24 +388,17 @@ export default function AppointmentsPage() {
             xl:justify-between
           "
         >
-
           {/* Filtros */}
 
           <div className="flex flex-wrap gap-2">
-
             {filters.map((filter) => {
-              const active =
-                activeFilter === filter.value;
+              const active = activeFilter === filter.value;
 
               return (
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() =>
-                    setActiveFilter(
-                      filter.value
-                    )
-                  }
+                  onClick={() => setActiveFilter(filter.value)}
                   className={`
                     inline-flex
                     items-center
@@ -535,13 +441,11 @@ export default function AppointmentsPage() {
                 </button>
               );
             })}
-
           </div>
 
           {/* Pesquisa */}
 
           <div className="relative w-full xl:max-w-sm">
-
             <span
               className="
                 pointer-events-none
@@ -552,17 +456,13 @@ export default function AppointmentsPage() {
                 text-gray-400
               "
             >
-              ⌕
+              <Search className="h-5 w-5" />
             </span>
 
             <input
               type="text"
               value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Pesquisar cliente, serviço..."
               className="
                 w-full
@@ -585,24 +485,17 @@ export default function AppointmentsPage() {
                 focus:ring-blue-500/10
               "
             />
-
           </div>
-
         </div>
-
       </section>
 
-      {/* =================================================
-          RESULTADOS
-      ================================================= */}
+      {/*RESULTADOS*/}
 
       <section
         key={`${activeFilter}-${search}`}
         className="animate-[fadeIn_200ms_ease-out]"
       >
-
         <div className="mb-4 flex items-center justify-between">
-
           <div>
             <h2 className="text-lg font-semibold text-gray-950">
               Agendamentos
@@ -615,23 +508,15 @@ export default function AppointmentsPage() {
                 : "resultados encontrados"}
             </p>
           </div>
-
         </div>
 
         <AppointmentList
-          appointments={
-            filteredAppointments
-          }
-          onDelete={
-            handleDeleteAppointment
-          }
+          appointments={filteredAppointments}
+          onDelete={handleDeleteAppointment}
         />
-
       </section>
 
-      {/* =================================================
-          MODAL
-      ================================================= */}
+      {/*MODAL */}
 
       {isModalOpen && (
         <div
@@ -646,11 +531,8 @@ export default function AppointmentsPage() {
             p-4
             backdrop-blur-sm
           "
-          onClick={() =>
-            setIsModalOpen(false)
-          }
+          onClick={() => setIsModalOpen(false)}
         >
-
           <div
             role="dialog"
             aria-modal="true"
@@ -667,11 +549,8 @@ export default function AppointmentsPage() {
               ring-1
               ring-black/5
             "
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
-
             {/* Modal Header */}
 
             <div
@@ -684,17 +563,12 @@ export default function AppointmentsPage() {
                 sm:px-6
               "
             >
-
               <div className="flex gap-4">
-
                 <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 sm:flex">
-                  <span className="text-lg font-bold">
-                    +
-                  </span>
+                  <span className="text-lg font-bold">+</span>
                 </div>
 
                 <div>
-
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-600">
                     Novo atendimento
                   </p>
@@ -706,16 +580,12 @@ export default function AppointmentsPage() {
                   <p className="mt-1 text-sm text-gray-500">
                     Preencha os dados do atendimento.
                   </p>
-
                 </div>
-
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setIsModalOpen(false)
-                }
+                onClick={() => setIsModalOpen(false)}
                 aria-label="Fechar"
                 className="
                   flex
@@ -733,7 +603,6 @@ export default function AppointmentsPage() {
               >
                 ×
               </button>
-
             </div>
 
             <div className="h-px bg-gray-100" />
@@ -741,9 +610,7 @@ export default function AppointmentsPage() {
             {/* Formulário */}
 
             <div className="overflow-y-auto px-5 py-6 sm:px-6">
-
               <div className="space-y-5">
-
                 {/* Cliente */}
 
                 <div>
@@ -754,11 +621,7 @@ export default function AppointmentsPage() {
                   <input
                     type="text"
                     value={client}
-                    onChange={(event) =>
-                      setClient(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setClient(event.target.value)}
                     placeholder="Nome do cliente"
                     className="
                       w-full
@@ -790,11 +653,7 @@ export default function AppointmentsPage() {
                   <input
                     type="text"
                     value={service}
-                    onChange={(event) =>
-                      setService(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setService(event.target.value)}
                     placeholder="Ex.: Corte Premium"
                     className="
                       w-full
@@ -826,11 +685,7 @@ export default function AppointmentsPage() {
                   <input
                     type="text"
                     value={professional}
-                    onChange={(event) =>
-                      setProfessional(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setProfessional(event.target.value)}
                     placeholder="Nome do profissional"
                     className="
                       w-full
@@ -855,7 +710,6 @@ export default function AppointmentsPage() {
                 {/* Data e hora */}
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-800">
                       Data
@@ -864,11 +718,7 @@ export default function AppointmentsPage() {
                     <input
                       type="date"
                       value={date}
-                      onChange={(event) =>
-                        setDate(
-                          event.target.value
-                        )
-                      }
+                      onChange={(event) => setDate(event.target.value)}
                       className="
                         w-full
                         rounded-xl
@@ -896,11 +746,7 @@ export default function AppointmentsPage() {
                     <input
                       type="time"
                       value={time}
-                      onChange={(event) =>
-                        setTime(
-                          event.target.value
-                        )
-                      }
+                      onChange={(event) => setTime(event.target.value)}
                       className="
                         w-full
                         rounded-xl
@@ -919,7 +765,6 @@ export default function AppointmentsPage() {
                       "
                     />
                   </div>
-
                 </div>
 
                 {/* Observações */}
@@ -934,11 +779,7 @@ export default function AppointmentsPage() {
 
                   <textarea
                     value={notes}
-                    onChange={(event) =>
-                      setNotes(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setNotes(event.target.value)}
                     placeholder="Observações sobre o atendimento..."
                     rows={3}
                     className="
@@ -961,7 +802,6 @@ export default function AppointmentsPage() {
                     "
                   />
                 </div>
-
               </div>
 
               {/* Ações */}
@@ -976,12 +816,9 @@ export default function AppointmentsPage() {
                   sm:justify-end
                 "
               >
-
                 <button
                   type="button"
-                  onClick={() =>
-                    setIsModalOpen(false)
-                  }
+                  onClick={() => setIsModalOpen(false)}
                   className="
                     w-full
                     rounded-xl
@@ -1003,9 +840,7 @@ export default function AppointmentsPage() {
 
                 <button
                   type="button"
-                  onClick={
-                    handleCreateAppointment
-                  }
+                  onClick={handleCreateAppointment}
                   className="
                     w-full
                     rounded-xl
@@ -1026,17 +861,11 @@ export default function AppointmentsPage() {
                 >
                   Criar Agendamento
                 </button>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
-

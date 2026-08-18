@@ -11,20 +11,24 @@ export type PaymentStatus =
 
 export interface Appointment {
   id: string;
-
   client: string;
-
   service: string;
-
   professional: string;
-
   date: string;
-
   time: string;
 
-  payment: PaymentStatus;
+  price: number;
 
-  status: AppointmentStatus;
+  status:
+    | "confirmed"
+    | "pending"
+    | "completed"
+    | "cancelled";
 
-  notes?: string;
+  payment:
+    | "paid"
+    | "partial"
+    | "pending";
+    
+      notes?: string;
 }

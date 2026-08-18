@@ -13,29 +13,21 @@ interface Business {
 interface BusinessSettingsProps {
   business: Business;
 
-  setBusiness: React.Dispatch<
-    React.SetStateAction<Business>
-  >;
+  setBusiness: React.Dispatch<React.SetStateAction<Business>>;
 }
 
 export function BusinessSettings({
   business,
   setBusiness,
 }: BusinessSettingsProps) {
-
-  const updateField = (
-    field: keyof Business,
-    value: string
-  ) => {
+  const updateField = (field: keyof Business, value: string) => {
     setBusiness((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleLogo = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleLogo = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -43,10 +35,7 @@ export function BusinessSettings({
     const reader = new FileReader();
 
     reader.onload = () => {
-      updateField(
-        "logo",
-        reader.result as string
-      );
+      updateField("logo", reader.result as string);
     };
 
     reader.readAsDataURL(file);
@@ -54,32 +43,24 @@ export function BusinessSettings({
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-
       {/* HEADER */}
       <div className="border-b border-[var(--border)] px-6 py-5">
-
-        <h2 className="text-lg font-semibold">
-          Informações gerais
-        </h2>
+        <h2 className="text-lg font-semibold">Informações gerais</h2>
 
         <p className="mt-1 text-sm text-[var(--muted)]">
           Atualize as informações do seu estabelecimento.
         </p>
-
       </div>
 
       {/* CONTENT */}
       <div className="grid gap-8 p-6 lg:grid-cols-[230px_1fr]">
-
         {/* LOGO */}
         <div>
-
           <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
             Logo
           </label>
 
           <label className="flex h-52 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--surface-secondary)] transition hover:border-primary">
-
             {business.logo ? (
               <img
                 src={business.logo}
@@ -89,10 +70,7 @@ export function BusinessSettings({
             ) : (
               <>
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--border)]">
-                  <ImagePlus
-                    size={24}
-                    className="text-[var(--muted)]"
-                  />
+                  <ImagePlus size={24} className="text-[var(--muted)]" />
                 </div>
 
                 <span className="text-sm font-medium">
@@ -111,14 +89,11 @@ export function BusinessSettings({
               onChange={handleLogo}
               className="hidden"
             />
-
           </label>
-
         </div>
 
         {/* FORM */}
         <div className="grid gap-5 sm:grid-cols-2">
-
           {/* NOME */}
           <div className="sm:col-span-2">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
@@ -127,9 +102,7 @@ export function BusinessSettings({
 
             <input
               value={business.name}
-              onChange={(e) =>
-                updateField("name", e.target.value)
-              }
+              onChange={(e) => updateField("name", e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="Nome do estabelecimento"
             />
@@ -143,9 +116,7 @@ export function BusinessSettings({
 
             <input
               value={business.phone}
-              onChange={(e) =>
-                updateField("phone", e.target.value)
-              }
+              onChange={(e) => updateField("phone", e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="+244 923 000 000"
             />
@@ -160,9 +131,7 @@ export function BusinessSettings({
             <input
               type="email"
               value={business.email}
-              onChange={(e) =>
-                updateField("email", e.target.value)
-              }
+              onChange={(e) => updateField("email", e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="contato@empresa.com"
             />
@@ -176,16 +145,12 @@ export function BusinessSettings({
 
             <input
               value={business.address}
-              onChange={(e) =>
-                updateField("address", e.target.value)
-              }
+              onChange={(e) => updateField("address", e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="Luanda, Angola"
             />
           </div>
-
         </div>
-
       </div>
     </div>
   );
