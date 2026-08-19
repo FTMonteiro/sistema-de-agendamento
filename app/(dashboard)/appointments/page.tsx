@@ -1,126 +1,357 @@
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Search, Plus } from "lucide-react";
+
 import { AppointmentList } from "@/components/appointments/AppointmentList";
-import { appointments as initialAppointments } from "@/data/appointments";
+import { Appointment } from "@/types/appointment";
 
-import { Search } from "lucide-react";
-
-type Filter = "all" | "confirmed" | "pending" | "completed";
+type Filter =
+  | "all"
+  | "confirmed"
+  | "pending"
+  | "completed";
 
 export default function AppointmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [appointments, setAppointments] = useState(initialAppointments);
-
-  const [activeFilter, setActiveFilter] = useState<Filter>("all");
+  const [activeFilter, setActiveFilter] =
+    useState<Filter>("all");
 
   const [search, setSearch] = useState("");
 
+  const [appointments, setAppointments] =
+    useState<Appointment[]>([]);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
   const [client, setClient] = useState("");
   const [service, setService] = useState("");
-  const [professional, setProfessional] = useState("");
+  const [professional, setProfessional] =
+    useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
 
-  /*FILTROS */
+  const [formError, setFormError] =
+    useState("");
 
-  const filteredAppointments = appointments.filter((appointment) => {
-    const matchesFilter =
-      activeFilter === "all" || appointment.status === activeFilter;
+  const [isCreating, setIsCreating] =
+    useState(false);
 
-    const searchText = search.toLowerCase().trim();
+  /*
+  |--------------------------------------------------------------------------
+  | BUSCAR
+  |--------------------------------------------------------------------------
+  */
 
-    const matchesSearch =
-      appointment.client.toLowerCase().includes(searchText) ||
-      appointment.service.toLowerCase().includes(searchText) ||
-      appointment.professional.toLowerCase().includes(searchText);
+  async function loadAppointments() {
+    try {
+      setLoading(true);
+      setError("");
 
-    return matchesFilter && matchesSearch;
-  });
+      const response = await fetch(
+        "/api/appointments",
+        {
+          cache: "no-store",
+        },
+      );
 
-  /*CRIAR AGENDAMENTO*/
+      const text = await response.text();
 
-  function handleCreateAppointment() {
-    if (
-      !client.trim() ||
-      !service.trim() ||
-      !professional.trim() ||
-      !date ||
-      !time
-    ) {
+      let data: {
+        appointments?: Appointment[];
+        error?: string;
+      } = {};
+
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(
+            "A API retornou uma resposta inválida.",
+          );
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Erro ao buscar agendamentos.",
+        );
+      }
+
+      setAppointments(
+        data.appointments ?? [],
+      );
+    } catch (error) {
+      console.error(error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao buscar agendamentos.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  /*
+  |--------------------------------------------------------------------------
+  | CRIAR
+  |--------------------------------------------------------------------------
+  */
+
+  async function handleCreateAppointment() {
+    setFormError("");
+
+    if (!client.trim()) {
+      setFormError(
+        "Preencha o nome do cliente.",
+      );
       return;
     }
 
-    const newAppointment = {
-      id: Date.now().toString(),
-      client: client.trim(),
-      service: service.trim(),
-      professional: professional.trim(),
-      date,
-      time,
-      payment: "pending" as const,
-      status: "pending" as const,
-      notes: notes.trim(),
-    };
+    if (!service.trim()) {
+      setFormError(
+        "Preencha o serviço.",
+      );
+      return;
+    }
 
-    setClient("");
-    setService("");
-    setProfessional("");
-    setDate("");
-    setTime("");
-    setNotes("");
+    if (!professional.trim()) {
+      setFormError(
+        "Preencha o profissional.",
+      );
+      return;
+    }
 
-    setIsModalOpen(false);
+    if (!date) {
+      setFormError(
+        "Selecione a data.",
+      );
+      return;
+    }
+
+    if (!time) {
+      setFormError(
+        "Selecione o horário.",
+      );
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+
+      const response = await fetch(
+        "/api/appointments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            client: client.trim(),
+            service: service.trim(),
+            professional:
+              professional.trim(),
+            date,
+            time,
+            notes: notes.trim(),
+          }),
+        },
+      );
+
+      const text = await response.text();
+
+      let data: {
+        appointment?: Appointment;
+        error?: string;
+      } = {};
+
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(
+            "A API retornou uma resposta inválida.",
+          );
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Não foi possível criar o agendamento.",
+        );
+      }
+
+      /*
+       * ADICIONAR DIRETAMENTE NA INTERFACE
+       */
+
+      if (data.appointment) {
+        setAppointments((current) => [
+          data.appointment!,
+          ...current,
+        ]);
+      } else {
+        await loadAppointments();
+      }
+
+      /*
+       * LIMPAR
+       */
+
+      setClient("");
+      setService("");
+      setProfessional("");
+      setDate("");
+      setTime("");
+      setNotes("");
+      setFormError("");
+
+      /*
+       * FECHAR
+       */
+
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(
+        "Erro ao criar agendamento:",
+        error,
+      );
+
+      setFormError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao criar agendamento.",
+      );
+    } finally {
+      setIsCreating(false);
+    }
   }
 
-  /*EXCLUIR */
+  /*
+  |--------------------------------------------------------------------------
+  | EXCLUIR
+  |--------------------------------------------------------------------------
+  */
 
   function handleDeleteAppointment(id: string) {
     setAppointments((current) =>
-      current.filter((appointment) => appointment.id !== id),
+      current.filter(
+        (appointment) =>
+          appointment.id !== id,
+      ),
     );
   }
 
-  /*CONTADORES*/
+  /*
+  |--------------------------------------------------------------------------
+  | EDITAR
+  |--------------------------------------------------------------------------
+  */
 
-  const confirmedCount = appointments.filter(
-    (appointment) => appointment.status === "confirmed",
-  ).length;
+  function handleEditAppointment(
+    updated: Appointment,
+  ) {
+    setAppointments((current) =>
+      current.map((appointment) =>
+        appointment.id === updated.id
+          ? updated
+          : appointment,
+      ),
+    );
+  }
 
-  const pendingCount = appointments.filter(
-    (appointment) => appointment.status === "pending",
-  ).length;
+  /*
+  |--------------------------------------------------------------------------
+  | FILTROS
+  |--------------------------------------------------------------------------
+  */
 
-  const completedCount = appointments.filter(
-    (appointment) => appointment.status === "completed",
-  ).length;
+  const filteredAppointments =
+    appointments.filter(
+      (appointment) => {
+        const matchesFilter =
+          activeFilter === "all" ||
+          appointment.status ===
+            activeFilter;
 
-  /*FILTROS */
+        const searchText =
+          search.toLowerCase().trim();
 
-  const filters: {
-    value: Filter;
-    label: string;
-    count: number;
-  }[] = [
+        const matchesSearch =
+          !searchText ||
+          appointment.client
+            .toLowerCase()
+            .includes(searchText) ||
+          appointment.service
+            .toLowerCase()
+            .includes(searchText) ||
+          appointment.professional
+            .toLowerCase()
+            .includes(searchText);
+
+        return (
+          matchesFilter &&
+          matchesSearch
+        );
+      },
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | CONTADORES
+  |--------------------------------------------------------------------------
+  */
+
+  const confirmedCount =
+    appointments.filter(
+      (item) =>
+        item.status === "confirmed",
+    ).length;
+
+  const pendingCount =
+    appointments.filter(
+      (item) =>
+        item.status === "pending",
+    ).length;
+
+  const completedCount =
+    appointments.filter(
+      (item) =>
+        item.status === "completed",
+    ).length;
+
+  const filters = [
     {
-      value: "all",
+      value: "all" as const,
       label: "Todos",
       count: appointments.length,
     },
     {
-      value: "confirmed",
+      value: "confirmed" as const,
       label: "Confirmados",
       count: confirmedCount,
     },
     {
-      value: "pending",
+      value: "pending" as const,
       label: "Aguardando",
       count: pendingCount,
     },
     {
-      value: "completed",
+      value: "completed" as const,
       label: "Concluídos",
       count: completedCount,
     },
@@ -128,18 +359,9 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-full space-y-8">
-      {/*HEADER*/}
+      {/* HEADER */}
 
-      <section
-        className="
-          flex
-          flex-col
-          gap-5
-          lg:flex-row
-          lg:items-end
-          lg:justify-between
-        "
-      >
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blue-600" />
@@ -149,292 +371,93 @@ export default function AppointmentsPage() {
             </span>
           </div>
 
-          <h1
-            className="
-              text-3xl
-              font-bold
-              tracking-tight
-              text-gray-950
-              sm:text-4xl
-            "
-          >
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
             Agenda
           </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Organize os seus atendimentos, acompanhe os profissionais e mantenha
-            a agenda sempre sob controlo.
+            Organize os seus atendimentos,
+            acompanhe os profissionais e
+            mantenha a agenda sempre sob
+            controlo.
           </p>
         </div>
 
-        <div className="flex w-full gap-3 sm:w-auto">
-          <button
-            type="button"
-            className="
-              flex-1
-              rounded-xl
-              border
-              border-gray-200
-              bg-white
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-gray-700
-              shadow-sm
-              transition-all
-              hover:border-gray-300
-              hover:bg-gray-50
-              hover:shadow-md
-              active:scale-[0.98]
-              sm:flex-none
-            "
-          >
-            Hoje
-          </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFormError("");
+            setIsModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
+        >
+          <Plus className="h-4 w-4" />
 
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="
-              flex-1
-              rounded-xl
-              bg-gray-950
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              shadow-sm
-              transition-all
-              hover:bg-gray-800
-              hover:shadow-md
-              active:scale-[0.98]
-              sm:flex-none
-            "
-          >
-            + Novo Agendamento
-          </button>
-        </div>
+          Novo Agendamento
+        </button>
       </section>
 
-      {/*MÉTRICAS */}
+      {/* MÉTRICAS */}
 
-      <section
-        className="
-          grid
-          gap-4
-          sm:grid-cols-2
-          xl:grid-cols-4
-        "
-      >
-        {/* Total */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          title="Total"
+          value={appointments.length}
+          description="Agendamentos registados"
+        />
 
-        <div
-          className="
-            group
-            rounded-2xl
-            border
-            border-gray-100
-            bg-white
-            p-5
-            shadow-sm
-            transition-all
-            duration-200
-            hover:-translate-y-0.5
-            hover:shadow-md
-          "
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total hoje</p>
+        <Metric
+          title="Confirmados"
+          value={confirmedCount}
+          description="Atendimentos confirmados"
+        />
 
-              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
-                {appointments.length}
-              </p>
-            </div>
+        <Metric
+          title="Aguardando"
+          value={pendingCount}
+          description="Aguardam confirmação"
+        />
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-700">
-              A
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-gray-400">Agendamentos registados</p>
-        </div>
-
-        {/* Confirmados */}
-
-        <div
-          className="
-            group
-            rounded-2xl
-            border
-            border-gray-100
-            bg-white
-            p-5
-            shadow-sm
-            transition-all
-            duration-200
-            hover:-translate-y-0.5
-            hover:shadow-md
-          "
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Confirmados</p>
-
-              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
-                {confirmedCount}
-              </p>
-            </div>
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-sm font-bold text-green-600">
-              ✓
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-green-600">Atendimento confirmado</p>
-        </div>
-
-        {/* Aguardando */}
-
-        <div
-          className="
-            group
-            rounded-2xl
-            border
-            border-gray-100
-            bg-white
-            p-5
-            shadow-sm
-            transition-all
-            duration-200
-            hover:-translate-y-0.5
-            hover:shadow-md
-          "
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Aguardando</p>
-
-              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
-                {pendingCount}
-              </p>
-            </div>
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-sm font-bold text-amber-600">
-              !
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-amber-600">Aguardam confirmação</p>
-        </div>
-
-        {/* Concluídos */}
-
-        <div
-          className="
-            group
-            rounded-2xl
-            border
-            border-gray-100
-            bg-white
-            p-5
-            shadow-sm
-            transition-all
-            duration-200
-            hover:-translate-y-0.5
-            hover:shadow-md
-          "
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Concluídos</p>
-
-              <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
-                {completedCount}
-              </p>
-            </div>
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-600">
-              ✓
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-blue-600">Atendimentos concluídos</p>
-        </div>
+        <Metric
+          title="Concluídos"
+          value={completedCount}
+          description="Atendimentos concluídos"
+        />
       </section>
 
-      {/*FILTROS + PESQUISA */}
+      {/* FILTROS */}
 
-      <section
-        className="
-          rounded-2xl
-          border
-          border-gray-100
-          bg-white
-          p-4
-          shadow-sm
-          sm:p-5
-        "
-      >
-        <div
-          className="
-            flex
-            flex-col
-            gap-4
-            xl:flex-row
-            xl:items-center
-            xl:justify-between
-          "
-        >
-          {/* Filtros */}
-
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
             {filters.map((filter) => {
-              const active = activeFilter === filter.value;
+              const active =
+                activeFilter ===
+                filter.value;
 
               return (
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() => setActiveFilter(filter.value)}
-                  className={`
-                    inline-flex
-                    items-center
-                    gap-2
-                    rounded-xl
-                    px-3.5
-                    py-2.5
-                    text-sm
-                    font-medium
-                    transition-all
-                    duration-200
-                    active:scale-[0.97]
-
-                    ${
-                      active
-                        ? "bg-gray-950 text-white shadow-sm"
-                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-950"
-                    }
-                  `}
+                  onClick={() =>
+                    setActiveFilter(
+                      filter.value,
+                    )
+                  }
+                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium ${
+                    active
+                      ? "bg-gray-950 text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
                 >
                   {filter.label}
 
                   <span
-                    className={`
-                      rounded-full
-                      px-1.5
-                      py-0.5
-                      text-[11px]
-                      font-semibold
-
-                      ${
-                        active
-                          ? "bg-white/15 text-white"
-                          : "bg-gray-100 text-gray-500"
-                      }
-                    `}
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] ${
+                      active
+                        ? "bg-white/15 text-white"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
                   >
                     {filter.count}
                   </span>
@@ -443,425 +466,200 @@ export default function AppointmentsPage() {
             })}
           </div>
 
-          {/* Pesquisa */}
-
           <div className="relative w-full xl:max-w-sm">
-            <span
-              className="
-                pointer-events-none
-                absolute
-                left-4
-                top-1/2
-                -translate-y-1/2
-                text-gray-400
-              "
-            >
-              <Search className="h-5 w-5" />
-            </span>
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
 
             <input
               type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value,
+                )
+              }
               placeholder="Pesquisar cliente, serviço..."
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-gray-50
-                py-3
-                pl-10
-                pr-4
-                text-sm
-                text-gray-900
-                outline-none
-                transition-all
-                placeholder:text-gray-400
-                hover:border-gray-300
-                focus:border-blue-500
-                focus:bg-white
-                focus:ring-4
-                focus:ring-blue-500/10
-              "
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
             />
           </div>
         </div>
       </section>
 
-      {/*RESULTADOS*/}
+      {/* ERRO */}
 
-      <section
-        key={`${activeFilter}-${search}`}
-        className="animate-[fadeIn_200ms_ease-out]"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-950">
-              Agendamentos
-            </h2>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-            <p className="mt-1 text-sm text-gray-500">
-              {filteredAppointments.length}{" "}
-              {filteredAppointments.length === 1
-                ? "resultado encontrado"
-                : "resultados encontrados"}
-            </p>
-          </div>
+      {/* RESULTADOS */}
+
+      <section>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-950">
+            Agendamentos
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-500">
+            {filteredAppointments.length}{" "}
+            resultado
+            {filteredAppointments.length ===
+            1
+              ? ""
+              : "s"}{" "}
+            encontrado
+            {filteredAppointments.length ===
+            1
+              ? ""
+              : "s"}
+          </p>
         </div>
 
-        <AppointmentList
-          appointments={filteredAppointments}
-          onDelete={handleDeleteAppointment}
-        />
+        {loading ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <p className="text-sm text-gray-500">
+              Carregando agendamentos...
+            </p>
+          </div>
+        ) : (
+          <AppointmentList
+            appointments={
+              filteredAppointments
+            }
+            onDelete={
+              handleDeleteAppointment
+            }
+            onEdit={
+              handleEditAppointment
+            }
+          />
+        )}
       </section>
 
-      {/*MODAL */}
+      {/* MODAL CRIAR */}
 
       {isModalOpen && (
         <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-gray-950/50
-            p-4
-            backdrop-blur-sm
-          "
-          onClick={() => setIsModalOpen(false)}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-sm"
+          onClick={() => {
+            if (!isCreating) {
+              setIsModalOpen(false);
+            }
+          }}
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            className="
-              flex
-              max-h-[90vh]
-              w-full
-              max-w-xl
-              flex-col
-              overflow-hidden
-              rounded-2xl
-              bg-white
-              shadow-2xl
-              ring-1
-              ring-black/5
-            "
-            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
           >
-            {/* Modal Header */}
+            <div className="border-b border-gray-100 px-6 py-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+                Novo atendimento
+              </p>
 
-            <div
-              className="
-                flex
-                items-start
-                justify-between
-                px-5
-                py-5
-                sm:px-6
-              "
-            >
-              <div className="flex gap-4">
-                <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 sm:flex">
-                  <span className="text-lg font-bold">+</span>
-                </div>
+              <h2 className="mt-1 text-xl font-semibold text-gray-950">
+                Novo Agendamento
+              </h2>
 
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-600">
-                    Novo atendimento
+              <p className="mt-1 text-sm text-gray-500">
+                Preencha os dados do atendimento.
+              </p>
+            </div>
+
+            <div className="space-y-5 p-6">
+              {formError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-800">
+                    Não foi possível criar
                   </p>
 
-                  <h2 className="text-xl font-semibold tracking-tight text-gray-950">
-                    Novo Agendamento
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    Preencha os dados do atendimento.
+                  <p className="mt-1 text-sm text-red-700">
+                    {formError}
                   </p>
                 </div>
+              )}
+
+              <Field
+                label="Cliente"
+                value={client}
+                onChange={setClient}
+                placeholder="Nome do cliente"
+              />
+
+              <Field
+                label="Serviço"
+                value={service}
+                onChange={setService}
+                placeholder="Ex.: Corte Premium"
+              />
+
+              <Field
+                label="Profissional"
+                value={professional}
+                onChange={setProfessional}
+                placeholder="Nome do profissional"
+              />
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Data"
+                  type="date"
+                  value={date}
+                  onChange={setDate}
+                />
+
+                <Field
+                  label="Horário"
+                  type="time"
+                  value={time}
+                  onChange={setTime}
+                />
               </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-800">
+                  Observações
+                </label>
+
+                <textarea
+                  value={notes}
+                  onChange={(event) =>
+                    setNotes(
+                      event.target.value,
+                    )
+                  }
+                  rows={3}
+                  placeholder="Observações sobre o atendimento..."
+                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isCreating}
+                onClick={() =>
+                  setIsModalOpen(false)
+                }
+                className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
 
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
-                aria-label="Fechar"
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-lg
-                  text-gray-400
-                  transition-colors
-                  hover:bg-gray-100
-                  hover:text-gray-900
-                "
+                disabled={isCreating}
+                onClick={
+                  handleCreateAppointment
+                }
+                className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ×
+                {isCreating
+                  ? "Criando..."
+                  : "Criar Agendamento"}
               </button>
-            </div>
-
-            <div className="h-px bg-gray-100" />
-
-            {/* Formulário */}
-
-            <div className="overflow-y-auto px-5 py-6 sm:px-6">
-              <div className="space-y-5">
-                {/* Cliente */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
-                    Cliente
-                  </label>
-
-                  <input
-                    type="text"
-                    value={client}
-                    onChange={(event) => setClient(event.target.value)}
-                    placeholder="Nome do cliente"
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-400
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
-                  />
-                </div>
-
-                {/* Serviço */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
-                    Serviço
-                  </label>
-
-                  <input
-                    type="text"
-                    value={service}
-                    onChange={(event) => setService(event.target.value)}
-                    placeholder="Ex.: Corte Premium"
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-400
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
-                  />
-                </div>
-
-                {/* Profissional */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
-                    Profissional
-                  </label>
-
-                  <input
-                    type="text"
-                    value={professional}
-                    onChange={(event) => setProfessional(event.target.value)}
-                    placeholder="Nome do profissional"
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-400
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
-                  />
-                </div>
-
-                {/* Data e hora */}
-
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-800">
-                      Data
-                    </label>
-
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(event) => setDate(event.target.value)}
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-200
-                        bg-white
-                        px-4
-                        py-3
-                        text-sm
-                        text-gray-900
-                        outline-none
-                        transition-all
-                        focus:border-blue-500
-                        focus:ring-4
-                        focus:ring-blue-500/10
-                      "
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-800">
-                      Horário
-                    </label>
-
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(event) => setTime(event.target.value)}
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-200
-                        bg-white
-                        px-4
-                        py-3
-                        text-sm
-                        text-gray-900
-                        outline-none
-                        transition-all
-                        focus:border-blue-500
-                        focus:ring-4
-                        focus:ring-blue-500/10
-                      "
-                    />
-                  </div>
-                </div>
-
-                {/* Observações */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
-                    Observações
-                    <span className="ml-1 font-normal text-gray-400">
-                      (opcional)
-                    </span>
-                  </label>
-
-                  <textarea
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    placeholder="Observações sobre o atendimento..."
-                    rows={3}
-                    className="
-                      w-full
-                      resize-none
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-400
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
-                  />
-                </div>
-              </div>
-
-              {/* Ações */}
-
-              <div
-                className="
-                  mt-7
-                  flex
-                  flex-col-reverse
-                  gap-3
-                  sm:flex-row
-                  sm:justify-end
-                "
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-5
-                    py-3
-                    text-sm
-                    font-semibold
-                    text-gray-700
-                    transition-colors
-                    hover:bg-gray-50
-                    sm:w-auto
-                  "
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCreateAppointment}
-                  className="
-                    w-full
-                    rounded-xl
-                    bg-blue-600
-                    px-5
-                    py-3
-                    text-sm
-                    font-semibold
-                    text-white
-                    shadow-sm
-                    transition-all
-                    duration-200
-                    hover:bg-blue-700
-                    hover:shadow-md
-                    active:scale-[0.98]
-                    sm:w-auto
-                  "
-                >
-                  Criar Agendamento
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -869,3 +667,74 @@ export default function AppointmentsPage() {
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| MÉTRICA
+|--------------------------------------------------------------------------
+*/
+
+function Metric({
+  title,
+  value,
+  description,
+}: {
+  title: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-gray-500">
+        {title}
+      </p>
+
+      <p className="mt-3 text-3xl font-bold text-gray-950">
+        {value}
+      </p>
+
+      <p className="mt-4 text-xs text-gray-400">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| CAMPO
+|--------------------------------------------------------------------------
+*/
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-800">
+        {label}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+      />
+    </div>
+  );
+}
+

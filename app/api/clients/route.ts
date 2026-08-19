@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-/*
-|--------------------------------------------------------------------------
-| GET /api/clients
-|--------------------------------------------------------------------------
-*/
+/*GET /api/clients*/
 
 export async function GET() {
   try {
@@ -54,11 +50,7 @@ export async function GET() {
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| POST /api/clients
-|--------------------------------------------------------------------------
-*/
+/* POST /api/clients*/
 
 export async function POST(
   request: NextRequest,
@@ -101,11 +93,7 @@ export async function POST(
         ? body.active
         : true;
 
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDAÇÕES
-    |--------------------------------------------------------------------------
-    */
+    /*VALIDAÇÕES*/
 
     if (!name) {
       return NextResponse.json(
@@ -131,11 +119,7 @@ export async function POST(
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CRIAR CLIENTE
-    |--------------------------------------------------------------------------
-    */
+    /*CRIAR CLIENTE*/
 
     const client =
       await prisma.client.create({

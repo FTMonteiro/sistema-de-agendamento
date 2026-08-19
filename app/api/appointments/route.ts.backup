@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET() {
+  try {
+    const appointments = await prisma.appointment.findMany({
+      orderBy: {
+        date: "asc",
+      },
+      include: {
+        client: true,
+        professional: true,
+        service: true,
+        payment: true,
+      },
+    });
+
+    return NextResponse.json({
+      appointments,
+    });
+  } catch (error) {
+    console.error("GET /api/appointments:", error);
+
+    return NextResponse.json(
+      {
+        error: "Não foi possível buscar os agendamentos.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}

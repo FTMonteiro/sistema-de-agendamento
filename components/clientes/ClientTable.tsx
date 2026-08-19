@@ -82,21 +82,13 @@ export function ClientTable() {
 
   const [error, setError] = useState("");
 
-  /*
-  |--------------------------------------------------------------------------
-  | CLIENTES VISÍVEIS
-  |--------------------------------------------------------------------------
-  */
+  /* CLIENTES VISÍVEIS*/
 
   const visibleClients = showAll
     ? clients
     : clients.slice(0, 5);
 
-  /*
-  |--------------------------------------------------------------------------
-  | CARREGAR CLIENTES
-  |--------------------------------------------------------------------------
-  */
+  /* CARREGAR CLIENTES*/
 
   async function loadClients() {
     try {
@@ -152,11 +144,7 @@ export function ClientTable() {
     loadClients();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | ADICIONAR CLIENTE
-  |--------------------------------------------------------------------------
-  */
+  /*ADICIONAR CLIENTE*/
 
   function handleOpenAddClient() {
     setError("");
@@ -260,11 +248,7 @@ export function ClientTable() {
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | VER CLIENTE
-  |--------------------------------------------------------------------------
-  */
+  /* VER CLIENTE*/
 
   function handleViewClient(client: Client) {
     setOpenMenu(null);
@@ -280,11 +264,7 @@ export function ClientTable() {
     setError("");
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | EDITAR CLIENTE
-  |--------------------------------------------------------------------------
-  */
+  /*EDITAR CLIENTE*/
 
   function handleStartEdit() {
     if (!selectedClient) return;
@@ -322,11 +302,7 @@ export function ClientTable() {
     });
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | GUARDAR EDIÇÃO
-  |--------------------------------------------------------------------------
-  */
+  /*GUARDAR EDIÇÃO*/
 
   async function handleSaveEdit() {
     if (!editForm) return;
@@ -431,11 +407,7 @@ export function ClientTable() {
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | EXCLUIR CLIENTE
-  |--------------------------------------------------------------------------
-  */
+  /*EXCLUIR CLIENTE*/
 
   function handleAskDelete(client: Client) {
     setOpenMenu(null);
@@ -522,11 +494,7 @@ export function ClientTable() {
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | FECHAR DETALHES
-  |--------------------------------------------------------------------------
-  */
+  /*FECHAR DETALHES*/
 
   function handleCloseDetails() {
     if (isUpdating) return;
@@ -983,10 +951,8 @@ export function ClientTable() {
 
       </div>
 
-      {/* ======================================================
-          MODAL — NOVO CLIENTE
-      ====================================================== */}
-
+      {/*  MODAL — NOVO CLIENTE*/}
+    
       {showAddModal && (
         <div
           className="
@@ -1274,9 +1240,7 @@ export function ClientTable() {
         </div>
       )}
 
-      {/* ======================================================
-          MODAL — VER / EDITAR
-      ====================================================== */}
+      {/*MODAL — VER / EDITAR*/}
 
       {selectedClient && (
         <div
@@ -1354,9 +1318,7 @@ export function ClientTable() {
 
             {isEditing && editForm ? (
 
-              /* ==================================================
-                 FORM EDITAR
-              ================================================== */
+              /* FORM EDITAR */
 
               <div className="space-y-5 px-6 py-6">
 
@@ -1567,9 +1529,7 @@ export function ClientTable() {
 
             ) : (
 
-              /* ==================================================
-                 DETALHES
-              ================================================== */
+              /* DETALHES */
 
               <>
 
@@ -1751,9 +1711,7 @@ export function ClientTable() {
         </div>
       )}
 
-      {/* ======================================================
-          MODAL — EXCLUIR
-      ====================================================== */}
+      {/*MODAL — EXCLUIR*/}
 
       {deletingClient && (
         <div

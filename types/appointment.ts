@@ -1,34 +1,32 @@
 export type AppointmentStatus =
-  | "confirmed"
   | "pending"
+  | "confirmed"
   | "completed"
   | "cancelled";
 
-export type PaymentStatus =
-  | "paid"
+export type AppointmentPayment =
   | "pending"
-  | "partial";
+  | "partial"
+  | "paid";
 
 export interface Appointment {
   id: string;
+
   client: string;
+
   service: string;
+
   professional: string;
+
   date: string;
+
   time: string;
 
   price: number;
 
-  status:
-    | "confirmed"
-    | "pending"
-    | "completed"
-    | "cancelled";
+  payment: AppointmentPayment;
 
-  payment:
-    | "paid"
-    | "partial"
-    | "pending";
-    
-      notes?: string;
+  status: AppointmentStatus;
+
+  notes?: string | null;
 }
