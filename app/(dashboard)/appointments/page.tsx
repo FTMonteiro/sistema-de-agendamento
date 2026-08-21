@@ -26,6 +26,43 @@ type Option = {
   label: string;
 };
 
+/* Horário e regras vindos das Configurações. */
+type BusinessRules = {
+  openingTime: string | null;
+  closingTime: string | null;
+  workingDays: number[];
+  slotInterval: number;
+  rules: string | null;
+};
+
+const WEEKDAY_NAMES = [
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
+];
+
+const WEEKDAY_SHORT = [
+  "Dom",
+  "Seg",
+  "Ter",
+  "Qua",
+  "Qui",
+  "Sex",
+  "Sáb",
+];
+
+function toMinutes(time: string) {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
+}
+
 export default function AppointmentsPage() {
   const { notify } = useNotifications();
 
@@ -65,6 +102,9 @@ export default function AppointmentsPage() {
 
   const [professionals, setProfessionals] =
     useState<Option[]>([]);
+
+  const [businessRules, setBusinessRules] =
+    useState<BusinessRules | null>(null);
 
   const [loadingOptions, setLoadingOptions] =
     useState(false);
@@ -155,6 +195,7 @@ export default function AppointmentsPage() {
         clientsResponse,
         professionalsResponse,
         servicesResponse,
+        businessResponse,
       ] = await Promise.all([
         fetch("/api/clients", {
           cache: "no-store",
@@ -163,6 +204,9 @@ export default function AppointmentsPage() {
           cache: "no-store",
         }),
         fetch("/api/services", {
+          cache: "no-store",
+        }),
+        fetch("/api/business", {
           cache: "no-store",
         }),
       ]);
@@ -186,6 +230,35 @@ export default function AppointmentsPage() {
         professionalsResponse.json(),
         servicesResponse.json(),
       ]);
+
+      /*
+       * O horário é informativo e não deve impedir o agendamento se falhar a
+       * carregar — a API valida de qualquer forma.
+       */
+      if (businessResponse.ok) {
+        const businessData =
+          await businessResponse.json();
+
+        setBusinessRules({
+          openingTime:
+            businessData.openingTime ??
+            null,
+          closingTime:
+            businessData.closingTime ??
+            null,
+          workingDays: Array.isArray(
+            businessData.workingDays,
+          )
+            ? businessData.workingDays
+            : [],
+          slotInterval:
+            Number(
+              businessData.slotInterval,
+            ) || 0,
+          rules:
+            businessData.rules ?? null,
+        });
+      }
 
       setClients(
         toOptions(clientsData, (item) => item.name),
@@ -282,6 +355,71 @@ export default function AppointmentsPage() {
         "Selecione o horário.",
       );
       return;
+    }
+
+    /*
+     * Mesmas regras que a API aplica. Aqui é só para dar resposta imediata —
+     * a validação que conta é a do servidor.
+     */
+    if (businessRules) {
+      const weekday = new Date(
+        `${date}T00:00:00`,
+      ).getDay();
+
+      if (
+        businessRules.workingDays
+          .length > 0 &&
+        !businessRules.workingDays.includes(
+          weekday,
+        )
+      ) {
+        setFormError(
+          `O estabelecimento não abre ${WEEKDAY_NAMES[weekday]}. Escolha outro dia.`,
+        );
+        return;
+      }
+
+      const requested =
+        toMinutes(time);
+
+      if (
+        businessRules.openingTime &&
+        requested <
+          toMinutes(
+            businessRules.openingTime,
+          )
+      ) {
+        setFormError(
+          `O estabelecimento abre às ${businessRules.openingTime}.`,
+        );
+        return;
+      }
+
+      if (
+        businessRules.closingTime &&
+        requested >=
+          toMinutes(
+            businessRules.closingTime,
+          )
+      ) {
+        setFormError(
+          `O estabelecimento fecha às ${businessRules.closingTime}.`,
+        );
+        return;
+      }
+
+      if (
+        businessRules.slotInterval >
+          0 &&
+        requested %
+          businessRules.slotInterval !==
+          0
+      ) {
+        setFormError(
+          `Os agendamentos são de ${businessRules.slotInterval} em ${businessRules.slotInterval} minutos.`,
+        );
+        return;
+      }
     }
 
     try {
@@ -784,8 +922,87 @@ export default function AppointmentsPage() {
                   type="time"
                   value={time}
                   onChange={setTime}
+                  min={
+                    businessRules?.openingTime ??
+                    undefined
+                  }
+                  max={
+                    businessRules?.closingTime ??
+                    undefined
+                  }
+                  step={
+                    businessRules?.slotInterval
+                      ? businessRules.slotInterval *
+                        60
+                      : undefined
+                  }
                 />
               </div>
+
+              {/* HORÁRIO E REGRAS DO ESTABELECIMENTO */}
+              {businessRules &&
+                (businessRules.openingTime ||
+                  businessRules.workingDays
+                    .length > 0 ||
+                  businessRules.rules) && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Funcionamento
+                    </p>
+
+                    {businessRules.openingTime &&
+                      businessRules.closingTime && (
+                        <p className="mt-2 text-sm text-[var(--foreground)]">
+                          Aberto das{" "}
+                          {
+                            businessRules.openingTime
+                          }{" "}
+                          às{" "}
+                          {
+                            businessRules.closingTime
+                          }
+                          {businessRules.slotInterval >
+                            0 && (
+                            <>
+                              , de{" "}
+                              {
+                                businessRules.slotInterval
+                              }{" "}
+                              em{" "}
+                              {
+                                businessRules.slotInterval
+                              }{" "}
+                              minutos
+                            </>
+                          )}
+                        </p>
+                      )}
+
+                    {businessRules
+                      .workingDays
+                      .length > 0 && (
+                      <p className="mt-1 text-sm text-[var(--muted)]">
+                        Dias:{" "}
+                        {businessRules.workingDays
+                          .map(
+                            (day) =>
+                              WEEKDAY_SHORT[
+                                day
+                              ],
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
+
+                    {businessRules.rules && (
+                      <p className="mt-2 whitespace-pre-line text-sm text-[var(--muted)]">
+                        {
+                          businessRules.rules
+                        }
+                      </p>
+                    )}
+                  </div>
+                )}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-800">
@@ -1022,12 +1239,18 @@ function Field({
   onChange,
   placeholder,
   type = "text",
+  min,
+  max,
+  step,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  min?: string;
+  max?: string;
+  step?: number;
 }) {
   return (
     <div>
@@ -1042,6 +1265,9 @@ function Field({
           onChange(event.target.value)
         }
         placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
       />
     </div>

@@ -75,10 +75,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!Number.isFinite(price) || price < 0) {
+    // Preço 0 nao e servico valido: Number("") tambem da 0, entao um campo
+    // vazio passava por aqui antes.
+    if (!Number.isFinite(price) || price <= 0) {
       return NextResponse.json(
         {
-          error: "O preço do serviço é inválido.",
+          error:
+            "Informe o preço do serviço. Tem de ser maior que zero.",
         },
         { status: 400 },
       );

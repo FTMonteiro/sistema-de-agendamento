@@ -99,11 +99,12 @@ export async function PUT(
 
     if (
       !Number.isFinite(price) ||
-      price < 0
+      price <= 0
     ) {
       return NextResponse.json(
         {
-          error: "Preço inválido.",
+          error:
+            "Informe o preço do serviço. Tem de ser maior que zero.",
         },
         {
           status: 400,

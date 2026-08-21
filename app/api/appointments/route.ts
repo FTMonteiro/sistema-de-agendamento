@@ -15,6 +15,24 @@ function createDateTime(date: string, time: string) {
   return dateTime;
 }
 
+function toMinutes(time: string) {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
+}
+
+const WEEKDAYS = [
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
+];
+
 /*
 |--------------------------------------------------------------------------
 | GET
@@ -169,6 +187,95 @@ export async function POST(
 
     /*
     |--------------------------------------------------------------------------
+    | HORÁRIO DE FUNCIONAMENTO
+    |
+    | Validar só no browser não basta: quem chamar a API directamente
+    | contornaria a regra. O estabelecimento é a fonte da verdade.
+    |--------------------------------------------------------------------------
+    */
+
+    const business =
+      await prisma.business.findUnique({
+        where: { id: BUSINESS_ID },
+
+        select: {
+          openingTime: true,
+          closingTime: true,
+          workingDays: true,
+          slotInterval: true,
+        },
+      });
+
+    if (business) {
+      const weekday =
+        appointmentDate.getDay();
+
+      if (
+        business.workingDays.length >
+          0 &&
+        !business.workingDays.includes(
+          weekday,
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error: `O estabelecimento não abre ${WEEKDAYS[weekday]}. Escolha outro dia.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const requested = toMinutes(
+        String(time),
+      );
+
+      if (
+        business.openingTime &&
+        requested <
+          toMinutes(
+            business.openingTime,
+          )
+      ) {
+        return NextResponse.json(
+          {
+            error: `O estabelecimento abre às ${business.openingTime}. Escolha um horário depois disso.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (
+        business.closingTime &&
+        requested >=
+          toMinutes(
+            business.closingTime,
+          )
+      ) {
+        return NextResponse.json(
+          {
+            error: `O estabelecimento fecha às ${business.closingTime}. Escolha um horário antes disso.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (
+        business.slotInterval > 0 &&
+        requested %
+          business.slotInterval !==
+          0
+      ) {
+        return NextResponse.json(
+          {
+            error: `Os agendamentos são de ${business.slotInterval} em ${business.slotInterval} minutos.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | RESOLVER REGISTROS
     |
     | Cliente, profissional e servico agora chegam por id, escolhidos num
@@ -242,6 +349,44 @@ export async function POST(
         {
           status: 404,
         },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONFLITO DE HORÁRIO
+    |
+    | O mesmo profissional não pode estar em dois atendimentos à mesma hora.
+    | Agendamentos cancelados libertam o horário.
+    |--------------------------------------------------------------------------
+    */
+
+    const conflict =
+      await prisma.appointment.findFirst({
+        where: {
+          professionalId:
+            professionalRecord.id,
+
+          date: appointmentDate,
+
+          status: {
+            not: "CANCELLED",
+          },
+        },
+
+        include: {
+          client: {
+            select: { name: true },
+          },
+        },
+      });
+
+    if (conflict) {
+      return NextResponse.json(
+        {
+          error: `${professionalRecord.name} já tem um atendimento às ${time} (${conflict.client.name}). Escolha outro horário ou profissional.`,
+        },
+        { status: 409 },
       );
     }
 

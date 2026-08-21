@@ -189,11 +189,12 @@ export default function ServicesList({
     }
 
     if (
+      !editPrice.trim() ||
       Number.isNaN(price) ||
-      price < 0
+      price <= 0
     ) {
       toast.error(
-        "Informe um preço válido.",
+        "Informe o preço do serviço. Tem de ser maior que zero.",
       );
 
       return;

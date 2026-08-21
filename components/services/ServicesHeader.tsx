@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { toast } from "sonner";
 
 import { X, Plus, Loader2 } from "lucide-react";
 
@@ -47,6 +48,48 @@ export default function ServicesHeader({
   ) {
     event.preventDefault();
 
+    /*
+     * Validação no cliente. Antes só existiam os `required` do HTML, que não
+     * cobrem preço zero — e `Number("")` é 0, então um campo vazio passava.
+     */
+
+    const cleanName = name.trim();
+
+    const numericPrice = Number(price);
+
+    const numericDuration =
+      Number(duration);
+
+    if (!cleanName) {
+      toast.error(
+        "Informe o nome do serviço.",
+      );
+      return;
+    }
+
+    if (
+      !price.trim() ||
+      !Number.isFinite(numericPrice) ||
+      numericPrice <= 0
+    ) {
+      toast.error(
+        "Informe o preço do serviço. Tem de ser maior que zero.",
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        numericDuration,
+      ) ||
+      numericDuration <= 0
+    ) {
+      toast.error(
+        "Informe a duração do serviço em minutos.",
+      );
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
@@ -62,10 +105,11 @@ export default function ServicesHeader({
           },
 
           body: JSON.stringify({
-            name,
-            description,
-            price: Number(price),
-            duration: Number(duration),
+            name: cleanName,
+            description:
+              description.trim(),
+            price: numericPrice,
+            duration: numericDuration,
             active: true,
           }),
         },
@@ -88,11 +132,14 @@ export default function ServicesHeader({
     } catch (error) {
       console.error(error);
 
-      setError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Erro ao criar serviço.",
-      );
+          : "Erro ao criar serviço.";
+
+      setError(message);
+
+      toast.error(message);
     } finally {
       setSaving(false);
     }

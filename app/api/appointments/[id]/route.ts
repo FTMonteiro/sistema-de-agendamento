@@ -1,6 +1,92 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function toMinutes(time: string) {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
+}
+
+const WEEKDAYS = [
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
+];
+
+/*
+ * As mesmas regras de horário aplicadas na criação. Sem isto, editar um
+ * agendamento contornava o horário de funcionamento.
+ */
+async function checkBusinessHours(
+  businessId: string,
+  date: string,
+  time: string,
+): Promise<string | null> {
+  const business =
+    await prisma.business.findUnique({
+      where: { id: businessId },
+
+      select: {
+        openingTime: true,
+        closingTime: true,
+        workingDays: true,
+        slotInterval: true,
+      },
+    });
+
+  if (!business) {
+    return null;
+  }
+
+  const weekday = new Date(
+    `${date}T00:00:00`,
+  ).getDay();
+
+  if (
+    business.workingDays.length > 0 &&
+    !business.workingDays.includes(
+      weekday,
+    )
+  ) {
+    return `O estabelecimento não abre ${WEEKDAYS[weekday]}. Escolha outro dia.`;
+  }
+
+  const requested = toMinutes(time);
+
+  if (
+    business.openingTime &&
+    requested <
+      toMinutes(business.openingTime)
+  ) {
+    return `O estabelecimento abre às ${business.openingTime}.`;
+  }
+
+  if (
+    business.closingTime &&
+    requested >=
+      toMinutes(business.closingTime)
+  ) {
+    return `O estabelecimento fecha às ${business.closingTime}.`;
+  }
+
+  if (
+    business.slotInterval > 0 &&
+    requested % business.slotInterval !==
+      0
+  ) {
+    return `Os agendamentos são de ${business.slotInterval} em ${business.slotInterval} minutos.`;
+  }
+
+  return null;
+}
+
+
 interface RouteContext {
   params: Promise<{
     id: string;
@@ -137,6 +223,20 @@ export async function PUT(
         {
           status: 404,
         },
+      );
+    }
+
+    const hoursError =
+      await checkBusinessHours(
+        existing.businessId,
+        String(date),
+        String(time),
+      );
+
+    if (hoursError) {
+      return NextResponse.json(
+        { error: hoursError },
+        { status: 400 },
       );
     }
 

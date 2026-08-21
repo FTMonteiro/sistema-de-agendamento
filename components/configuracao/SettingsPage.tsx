@@ -7,6 +7,7 @@ import {
 } from "react";
 import {
   Building2,
+  Clock,
   Users,
   UsersRound,
   Scissors,
@@ -15,6 +16,10 @@ import {
 import { toast } from "sonner";
 
 import { BusinessSettings } from "./BusinessSettings";
+import {
+  BusinessHours,
+  type HoursForm,
+} from "./BusinessHours";
 
 interface BusinessForm {
   name: string;
@@ -39,6 +44,16 @@ const EMPTY_FORM: BusinessForm = {
   logo: "",
 };
 
+const EMPTY_HOURS: HoursForm = {
+  openingTime: "",
+  closingTime: "",
+  workingDays: [1, 2, 3, 4, 5, 6],
+  slotInterval: 30,
+  rules: "",
+};
+
+type Tab = "dados" | "horario";
+
 export function SettingsPage() {
   const [business, setBusiness] =
     useState<BusinessForm>(EMPTY_FORM);
@@ -49,6 +64,15 @@ export function SettingsPage() {
    */
   const [saved, setSaved] =
     useState<BusinessForm>(EMPTY_FORM);
+
+  const [hours, setHours] =
+    useState<HoursForm>(EMPTY_HOURS);
+
+  const [savedHours, setSavedHours] =
+    useState<HoursForm>(EMPTY_HOURS);
+
+  const [tab, setTab] =
+    useState<Tab>("dados");
 
   const [counts, setCounts] =
     useState<BusinessCounts | null>(null);
@@ -95,8 +119,26 @@ export function SettingsPage() {
         logo: data.logo ?? "",
       };
 
+      const loadedHours: HoursForm = {
+        openingTime:
+          data.openingTime ?? "",
+        closingTime:
+          data.closingTime ?? "",
+        workingDays: Array.isArray(
+          data.workingDays,
+        )
+          ? data.workingDays
+          : EMPTY_HOURS.workingDays,
+        slotInterval:
+          Number(data.slotInterval) ||
+          EMPTY_HOURS.slotInterval,
+        rules: data.rules ?? "",
+      };
+
       setBusiness(form);
       setSaved(form);
+      setHours(loadedHours);
+      setSavedHours(loadedHours);
       setCounts(data._count ?? null);
       setCreatedAt(
         data.createdAt ?? null,
@@ -123,13 +165,39 @@ export function SettingsPage() {
 
   const isDirty =
     JSON.stringify(business) !==
-    JSON.stringify(saved);
+      JSON.stringify(saved) ||
+    JSON.stringify(hours) !==
+      JSON.stringify(savedHours);
 
   async function handleSave() {
     if (!business.name.trim()) {
       toast.error(
         "O nome do estabelecimento é obrigatório.",
       );
+      setTab("dados");
+      return;
+    }
+
+    if (
+      hours.openingTime &&
+      hours.closingTime &&
+      hours.openingTime >=
+        hours.closingTime
+    ) {
+      toast.error(
+        "A hora de fecho tem de ser depois da hora de abertura.",
+      );
+      setTab("horario");
+      return;
+    }
+
+    if (
+      hours.workingDays.length === 0
+    ) {
+      toast.error(
+        "Escolha pelo menos um dia de funcionamento.",
+      );
+      setTab("horario");
       return;
     }
 
@@ -144,7 +212,10 @@ export function SettingsPage() {
             "Content-Type":
               "application/json",
           },
-          body: JSON.stringify(business),
+          body: JSON.stringify({
+            ...business,
+            ...hours,
+          }),
         },
       );
 
@@ -166,8 +237,26 @@ export function SettingsPage() {
         logo: data.logo ?? "",
       };
 
+      const savedFormHours: HoursForm = {
+        openingTime:
+          data.openingTime ?? "",
+        closingTime:
+          data.closingTime ?? "",
+        workingDays: Array.isArray(
+          data.workingDays,
+        )
+          ? data.workingDays
+          : EMPTY_HOURS.workingDays,
+        slotInterval:
+          Number(data.slotInterval) ||
+          EMPTY_HOURS.slotInterval,
+        rules: data.rules ?? "",
+      };
+
       setBusiness(form);
       setSaved(form);
+      setHours(savedFormHours);
+      setSavedHours(savedFormHours);
       setUpdatedAt(
         data.updatedAt ?? null,
       );
@@ -268,21 +357,41 @@ export function SettingsPage() {
           </div>
         )}
 
-        <div className="mb-8 flex border-b border-[var(--border)]">
-          <div className="flex items-center gap-2 border-b-2 border-primary px-5 pb-3 text-sm font-medium text-[var(--foreground)]">
-            <Building2 size={17} />
-            Dados do estabelecimento
-          </div>
+        <div className="mb-8 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
+          <TabButton
+            active={tab === "dados"}
+            onClick={() =>
+              setTab("dados")
+            }
+            icon={
+              <Building2 size={17} />
+            }
+            label="Dados do estabelecimento"
+          />
+
+          <TabButton
+            active={tab === "horario"}
+            onClick={() =>
+              setTab("horario")
+            }
+            icon={<Clock size={17} />}
+            label="Horário e regras"
+          />
         </div>
 
         {loading ? (
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-10 text-center text-sm text-[var(--muted)]">
             Carregando dados do estabelecimento...
           </div>
-        ) : (
+        ) : tab === "dados" ? (
           <BusinessSettings
             business={business}
             setBusiness={setBusiness}
+          />
+        ) : (
+          <BusinessHours
+            hours={hours}
+            setHours={setHours}
           />
         )}
 
@@ -335,9 +444,10 @@ export function SettingsPage() {
               disabled={
                 !isDirty || isSaving
               }
-              onClick={() =>
-                setBusiness(saved)
-              }
+              onClick={() => {
+                setBusiness(saved);
+                setHours(savedHours);
+              }}
               className="rounded-xl px-5 py-2.5 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancelar
@@ -361,6 +471,36 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={
+        active ? "page" : undefined
+      }
+      className={`flex shrink-0 items-center gap-2 border-b-2 px-5 pb-3 text-sm font-medium transition ${
+        active
+          ? "border-primary text-[var(--foreground)]"
+          : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

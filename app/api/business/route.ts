@@ -19,6 +19,31 @@ function readOptionalText(
     : null;
 }
 
+/* "HH:MM" em 24 horas. */
+const TIME_PATTERN =
+  /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function readTime(
+  value: unknown,
+): string | null | undefined {
+  const text = readOptionalText(value);
+
+  if (text === null) {
+    return null;
+  }
+
+  return TIME_PATTERN.test(text)
+    ? text
+    : undefined;
+}
+
+function toMinutes(time: string) {
+  const [hours, minutes] =
+    time.split(":").map(Number);
+
+  return hours * 60 + minutes;
+}
+
 export async function GET() {
   try {
     if (!BUSINESS_ID) {
@@ -122,6 +147,90 @@ export async function PUT(
       );
     }
 
+    /*
+     * Horário. `undefined` aqui significa formato inválido — distinto de
+     * `null`, que é "sem horário definido".
+     */
+    const openingTime = readTime(
+      body.openingTime,
+    );
+
+    const closingTime = readTime(
+      body.closingTime,
+    );
+
+    if (
+      openingTime === undefined ||
+      closingTime === undefined
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Horário inválido. Use o formato HH:MM.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (
+      openingTime &&
+      closingTime &&
+      toMinutes(openingTime) >=
+        toMinutes(closingTime)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A hora de fecho tem de ser depois da hora de abertura.",
+        },
+        { status: 400 },
+      );
+    }
+
+    /* Dias da semana: 0 (domingo) a 6 (sábado), sem repetidos. */
+    const workingDays = Array.isArray(
+      body.workingDays,
+    )
+      ? Array.from(
+          new Set(
+            body.workingDays
+              .map((day: unknown) =>
+                Number(day),
+              )
+              .filter(
+                (day: number) =>
+                  Number.isInteger(day) &&
+                  day >= 0 &&
+                  day <= 6,
+              ),
+          ),
+        ).sort(
+          (a, b) =>
+            (a as number) -
+            (b as number),
+        )
+      : undefined;
+
+    const slotInterval =
+      body.slotInterval === undefined
+        ? undefined
+        : Number(body.slotInterval);
+
+    if (
+      slotInterval !== undefined &&
+      (!Number.isInteger(slotInterval) ||
+        slotInterval < 5 ||
+        slotInterval > 240)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "O intervalo entre agendamentos deve estar entre 5 e 240 minutos.",
+        },
+        { status: 400 },
+      );
+    }
+
     const business =
       await prisma.business.update({
         where: { id: BUSINESS_ID },
@@ -134,6 +243,22 @@ export async function PUT(
             body.address,
           ),
           logo,
+          openingTime,
+          closingTime,
+          rules: readOptionalText(
+            body.rules,
+          ),
+
+          ...(workingDays
+            ? {
+                workingDays:
+                  workingDays as number[],
+              }
+            : {}),
+
+          ...(slotInterval !== undefined
+            ? { slotInterval }
+            : {}),
         },
       });
 

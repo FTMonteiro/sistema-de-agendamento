@@ -14,6 +14,22 @@ model Business {
   phone         String?
   address       String?
   logo          String?
+
+  // Horário de funcionamento. Guardado como "HH:MM" para casar directamente
+  // com o input type="time" do formulário, sem conversão de fuso.
+  openingTime   String?
+  closingTime   String?
+
+  // Dias da semana em que abre, no formato do getDay() do JavaScript:
+  // 0 = domingo ... 6 = sábado.
+  workingDays   Int[]          @default([1, 2, 3, 4, 5, 6])
+
+  // Duração mínima de um intervalo de agendamento, em minutos.
+  slotInterval  Int            @default(30)
+
+  // Regras livres do estabelecimento (política de cancelamento, atrasos...).
+  rules         String?
+
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

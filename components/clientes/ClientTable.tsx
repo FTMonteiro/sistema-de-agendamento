@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+/* Verificação simples de formato; o email do cliente é opcional. */
+const EMAIL_PATTERN =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 import {
   X,
   Pencil,
@@ -182,6 +186,16 @@ export function ClientTable() {
       return;
     }
 
+    const addEmail = addForm.email.trim();
+
+    if (
+      addEmail &&
+      !EMAIL_PATTERN.test(addEmail)
+    ) {
+      setError("Digite um email válido.");
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -319,6 +333,17 @@ export function ClientTable() {
       setError(
         "O telefone do cliente é obrigatório.",
       );
+      return;
+    }
+
+    const editEmail =
+      editForm.email.trim();
+
+    if (
+      editEmail &&
+      !EMAIL_PATTERN.test(editEmail)
+    ) {
+      setError("Digite um email válido.");
       return;
     }
 
