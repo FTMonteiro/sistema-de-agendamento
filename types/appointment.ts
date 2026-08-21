@@ -26,6 +26,9 @@ export interface Appointment {
 
   payment: AppointmentPayment;
 
+  /** Valor efectivamente recebido; 0 enquanto não houver pagamento. */
+  paidAmount?: number;
+
   status: AppointmentStatus;
 
   notes?: string | null;

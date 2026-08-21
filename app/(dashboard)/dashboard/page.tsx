@@ -160,6 +160,23 @@ export default function DashboardPage() {
   }, [load]);
 
   /*
+   * Criar, editar, apagar agendamento ou receber pagamento noutra tela emite
+   * este evento — o dashboard tem de refletir sem recarregar a página.
+   */
+  useEffect(() => {
+    window.addEventListener(
+      "appointments:changed",
+      load,
+    );
+
+    return () =>
+      window.removeEventListener(
+        "appointments:changed",
+        load,
+      );
+  }, [load]);
+
+  /*
    * Métricas derivadas dos agendamentos reais. "Receita" conta apenas o que
    * foi efectivamente pago, para não inflar o número com agendamentos por
    * confirmar.
@@ -171,23 +188,31 @@ export default function DashboardPage() {
           item.status === "completed",
       ).length;
 
-    const revenue = appointments
-      .filter(
-        (item) =>
-          item.payment === "paid",
-      )
-      .reduce(
+    /*
+     * Soma o que foi recebido, nao o preco do servico: quem registou o
+     * pagamento pode ter lancado outro valor.
+     */
+    const revenue =
+      appointments.reduce(
         (total, item) =>
           total +
-          (Number(item.price) || 0),
+          (Number(item.paidAmount) ||
+            0),
         0,
       );
+
+    const paidCount =
+      appointments.filter(
+        (item) =>
+          item.payment === "paid",
+      ).length;
 
     return {
       clients: clientCount,
       appointments: appointments.length,
       completed,
       revenue,
+      paidCount,
       activeServices:
         services.filter(
           (service) =>
@@ -259,7 +284,10 @@ export default function DashboardPage() {
             + Novo Agendamento
           </button>
 
-          <ReceivePayment />
+          {/* Recarrega para a receita refletir o pagamento na hora. */}
+          <ReceivePayment
+            onPaymentCreated={load}
+          />
         </div>
       </section>
 
@@ -307,11 +335,15 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          label="Receita"
+          label="Receita recebida"
           value={formatPrice(
             metrics.revenue,
           )}
-          description="pagamentos recebidos"
+          description={
+            metrics.paidCount === 1
+              ? "1 pagamento recebido"
+              : `${metrics.paidCount} pagamentos recebidos`
+          }
           loading={loading}
         />
       </section>

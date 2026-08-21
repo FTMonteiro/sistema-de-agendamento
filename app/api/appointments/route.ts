@@ -93,6 +93,20 @@ export async function GET() {
             appointment.payment?.status
               ?.toLowerCase() || "pending",
 
+          /*
+           * Valor efectivamente recebido. A receita nao pode sair do preco do
+           * servico: quem recebe pode registar um valor diferente (desconto,
+           * pagamento parcial acordado), e e este numero que conta.
+           */
+          paidAmount:
+            appointment.payment
+              ?.status === "PAID"
+              ? Number(
+                  appointment.payment
+                    .amount,
+                )
+              : 0,
+
           status:
             appointment.status.toLowerCase(),
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   CreditCard,
   X,
@@ -290,6 +291,21 @@ export function ReceivePayment({
        */
 
       onPaymentCreated?.();
+
+      /*
+       * O pagamento muda a receita e o estado do agendamento, e outras telas
+       * (dashboard, lista de agendamentos) precisam refletir isso sem
+       * recarregar a página.
+       */
+      window.dispatchEvent(
+        new Event("appointments:changed")
+      );
+
+      toast.success(
+        `Pagamento de ${formatPrice(
+          numericAmount
+        )} recebido.`
+      );
 
       /*
        * Fecha o modal depois de 1 segundo.
