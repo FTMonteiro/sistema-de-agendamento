@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { toast } from "sonner";
 
 import {
   Search,
@@ -180,7 +181,7 @@ export default function ServicesList({
      */
 
     if (!name) {
-      alert(
+      toast.error(
         "O nome do serviço é obrigatório.",
       );
 
@@ -191,7 +192,7 @@ export default function ServicesList({
       Number.isNaN(price) ||
       price < 0
     ) {
-      alert(
+      toast.error(
         "Informe um preço válido.",
       );
 
@@ -202,7 +203,7 @@ export default function ServicesList({
       Number.isNaN(duration) ||
       duration <= 0
     ) {
-      alert(
+      toast.error(
         "Informe uma duração válida.",
       );
 
@@ -287,7 +288,7 @@ export default function ServicesList({
         error,
       );
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao editar serviço.",
@@ -374,7 +375,7 @@ export default function ServicesList({
         error,
       );
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao alterar serviço.",
@@ -455,7 +456,7 @@ export default function ServicesList({
         error,
       );
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao excluir serviço.",

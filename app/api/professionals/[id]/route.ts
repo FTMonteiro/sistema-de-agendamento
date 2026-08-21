@@ -350,10 +350,21 @@ export async function DELETE(
       });
 
     if (appointments > 0) {
+      // Excluir apagaria os agendamentos em cascata (onDelete: Cascade no
+      // schema), levando embora o historico do estabelecimento. Por isso a
+      // exclusao e bloqueada e sugerimos desativar.
+      const registros =
+        appointments === 1
+          ? "1 agendamento registrado"
+          : `${appointments} agendamentos registrados`;
+
       return NextResponse.json(
         {
-          error:
-            "Este profissional possui agendamentos e não pode ser excluído.",
+          error: `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Desativar" — o profissional deixa de aparecer em novos agendamentos e os anteriores permanecem.`,
+
+          reason: "has_appointments",
+
+          appointments,
         },
         { status: 409 },
       );

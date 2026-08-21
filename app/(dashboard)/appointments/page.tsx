@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppointmentList } from "@/components/appointments/AppointmentList";
 import { Appointment } from "@/types/appointment";
@@ -12,6 +13,16 @@ type Filter =
   | "confirmed"
   | "pending"
   | "completed";
+
+/*
+ * Opção de dropdown. `label` é o que aparece na tela e `id` é o que vai para a
+ * API — o agendamento passa a referenciar registros existentes por id, em vez
+ * de criar cliente/serviço/profissional a partir de texto livre.
+ */
+type Option = {
+  id: string;
+  label: string;
+};
 
 export default function AppointmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,13 +39,34 @@ export default function AppointmentsPage() {
 
   const [error, setError] = useState("");
 
-  const [client, setClient] = useState("");
-  const [service, setService] = useState("");
-  const [professional, setProfessional] =
+  const [clientId, setClientId] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [professionalId, setProfessionalId] =
     useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
+
+  /*
+   * Opções dos dropdowns, vindas do banco.
+   */
+
+  const [clients, setClients] = useState<
+    Option[]
+  >([]);
+
+  const [services, setServices] = useState<
+    Option[]
+  >([]);
+
+  const [professionals, setProfessionals] =
+    useState<Option[]>([]);
+
+  const [loadingOptions, setLoadingOptions] =
+    useState(false);
+
+  const [optionsError, setOptionsError] =
+    useState("");
 
   const [formError, setFormError] =
     useState("");
@@ -106,6 +138,106 @@ export default function AppointmentsPage() {
 
   /*
   |--------------------------------------------------------------------------
+  | OPÇÕES DOS DROPDOWNS
+  |--------------------------------------------------------------------------
+  */
+
+  async function loadOptions() {
+    try {
+      setLoadingOptions(true);
+      setOptionsError("");
+
+      const [
+        clientsResponse,
+        professionalsResponse,
+        servicesResponse,
+      ] = await Promise.all([
+        fetch("/api/clients", {
+          cache: "no-store",
+        }),
+        fetch("/api/professionals", {
+          cache: "no-store",
+        }),
+        fetch("/api/services", {
+          cache: "no-store",
+        }),
+      ]);
+
+      if (
+        !clientsResponse.ok ||
+        !professionalsResponse.ok ||
+        !servicesResponse.ok
+      ) {
+        throw new Error(
+          "Não foi possível carregar clientes, profissionais e serviços.",
+        );
+      }
+
+      const [
+        clientsData,
+        professionalsData,
+        servicesData,
+      ] = await Promise.all([
+        clientsResponse.json(),
+        professionalsResponse.json(),
+        servicesResponse.json(),
+      ]);
+
+      setClients(
+        toOptions(clientsData, (item) => item.name),
+      );
+
+      /*
+       * Profissionais e serviços inativos continuam no banco pelo histórico,
+       * mas não devem ser oferecidos para um novo agendamento.
+       */
+
+      setProfessionals(
+        toOptions(
+          professionalsData,
+          (item) => item.name,
+          (item) => item.active !== false,
+        ),
+      );
+
+      setServices(
+        toOptions(
+          servicesData,
+          (item) =>
+            item.price != null
+              ? `${item.name} — ${formatPrice(
+                  Number(item.price),
+                )}`
+              : item.name,
+          (item) => item.active !== false,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+
+      setOptionsError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar as opções.",
+      );
+    } finally {
+      setLoadingOptions(false);
+    }
+  }
+
+  /*
+   * Recarrega a cada abertura da modal, para refletir cadastros feitos noutro
+   * separador sem obrigar a recarregar a página.
+   */
+
+  function openModal() {
+    setFormError("");
+    setIsModalOpen(true);
+    loadOptions();
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | CRIAR
   |--------------------------------------------------------------------------
   */
@@ -113,23 +245,23 @@ export default function AppointmentsPage() {
   async function handleCreateAppointment() {
     setFormError("");
 
-    if (!client.trim()) {
+    if (!clientId) {
       setFormError(
-        "Preencha o nome do cliente.",
+        "Selecione o cliente.",
       );
       return;
     }
 
-    if (!service.trim()) {
+    if (!serviceId) {
       setFormError(
-        "Preencha o serviço.",
+        "Selecione o serviço.",
       );
       return;
     }
 
-    if (!professional.trim()) {
+    if (!professionalId) {
       setFormError(
-        "Preencha o profissional.",
+        "Selecione o profissional.",
       );
       return;
     }
@@ -160,10 +292,9 @@ export default function AppointmentsPage() {
               "application/json",
           },
           body: JSON.stringify({
-            client: client.trim(),
-            service: service.trim(),
-            professional:
-              professional.trim(),
+            clientId,
+            serviceId,
+            professionalId,
             date,
             time,
             notes: notes.trim(),
@@ -212,9 +343,9 @@ export default function AppointmentsPage() {
        * LIMPAR
        */
 
-      setClient("");
-      setService("");
-      setProfessional("");
+      setClientId("");
+      setServiceId("");
+      setProfessionalId("");
       setDate("");
       setTime("");
       setNotes("");
@@ -225,6 +356,8 @@ export default function AppointmentsPage() {
        */
 
       setIsModalOpen(false);
+
+      toast.success("Agendamento criado.");
     } catch (error) {
       console.error(
         "Erro ao criar agendamento:",
@@ -385,10 +518,7 @@ export default function AppointmentsPage() {
 
         <button
           type="button"
-          onClick={() => {
-            setFormError("");
-            setIsModalOpen(true);
-          }}
+          onClick={openModal}
           className="flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
         >
           <Plus className="h-4 w-4" />
@@ -580,25 +710,50 @@ export default function AppointmentsPage() {
                 </div>
               )}
 
-              <Field
+              {optionsError && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm text-amber-800">
+                    {optionsError}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={loadOptions}
+                    className="mt-2 text-sm font-semibold text-amber-900 underline"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+
+              <SelectField
                 label="Cliente"
-                value={client}
-                onChange={setClient}
-                placeholder="Nome do cliente"
+                value={clientId}
+                onChange={setClientId}
+                options={clients}
+                loading={loadingOptions}
+                placeholder="Selecione o cliente"
+                emptyHint="Nenhum cliente cadastrado. Cadastre um em Clientes."
               />
 
-              <Field
+              <SelectField
                 label="Serviço"
-                value={service}
-                onChange={setService}
-                placeholder="Ex.: Corte Premium"
+                value={serviceId}
+                onChange={setServiceId}
+                options={services}
+                loading={loadingOptions}
+                placeholder="Selecione o serviço"
+                emptyHint="Nenhum serviço ativo. Cadastre um em Serviços."
               />
 
-              <Field
+              <SelectField
                 label="Profissional"
-                value={professional}
-                onChange={setProfessional}
-                placeholder="Nome do profissional"
+                value={professionalId}
+                onChange={setProfessionalId}
+                options={professionals}
+                loading={loadingOptions}
+                placeholder="Selecione o profissional"
+                emptyHint="Nenhum profissional ativo. Cadastre um em Equipe."
               />
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -696,6 +851,146 @@ function Metric({
       <p className="mt-4 text-xs text-gray-400">
         {description}
       </p>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| OPÇÕES
+|--------------------------------------------------------------------------
+*/
+
+type ApiRecord = {
+  id?: unknown;
+  name?: unknown;
+  price?: unknown;
+  active?: unknown;
+};
+
+/*
+ * As três APIs devolvem arrays de registos do Prisma. Normalizamos para
+ * { id, label }, descartando o que não tem id ou nome utilizável — assim um
+ * registo estranho no banco não quebra a modal inteira.
+ */
+function toOptions(
+  data: unknown,
+  toLabel: (item: {
+    name: string;
+    price?: unknown;
+  }) => string,
+  filter?: (item: {
+    active?: unknown;
+  }) => boolean,
+): Option[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data
+    .filter((item): item is ApiRecord => {
+      if (!item || typeof item !== "object") {
+        return false;
+      }
+
+      const record = item as ApiRecord;
+
+      if (
+        typeof record.id !== "string" ||
+        typeof record.name !== "string" ||
+        !record.name.trim()
+      ) {
+        return false;
+      }
+
+      return filter
+        ? filter(record)
+        : true;
+    })
+    .map((item) => ({
+      id: item.id as string,
+      label: toLabel({
+        name: item.name as string,
+        price: item.price,
+      }),
+    }));
+}
+
+function formatPrice(price: number) {
+  if (!Number.isFinite(price)) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("pt-AO", {
+    style: "currency",
+    currency: "AOA",
+    minimumFractionDigits: 2,
+  }).format(price);
+}
+
+/*
+|--------------------------------------------------------------------------
+| DROPDOWN
+|--------------------------------------------------------------------------
+*/
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  loading,
+  placeholder,
+  emptyHint,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Option[];
+  loading: boolean;
+  placeholder: string;
+  emptyHint: string;
+}) {
+  const isEmpty =
+    !loading && options.length === 0;
+
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-800">
+        {label}
+      </label>
+
+      <select
+        value={value}
+        disabled={loading || isEmpty}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+      >
+        <option value="">
+          {loading
+            ? "Carregando..."
+            : isEmpty
+              ? "Nada disponível"
+              : placeholder}
+        </option>
+
+        {options.map((option) => (
+          <option
+            key={option.id}
+            value={option.id}
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      {isEmpty && (
+        <p className="mt-2 text-xs text-amber-700">
+          {emptyHint}
+        </p>
+      )}
     </div>
   );
 }

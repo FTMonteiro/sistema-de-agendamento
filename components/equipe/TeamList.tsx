@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
   Search,
@@ -230,7 +231,7 @@ export default function TeamList({
         active: data.active === true,
       });
     } catch (error) {
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao alterar estado.",
@@ -256,6 +257,20 @@ export default function TeamList({
       const data = await response.json();
 
       if (!response.ok) {
+        // Bloqueio por agendamentos nunca vai passar em nova tentativa, entao
+        // fecha a confirmacao em vez de deixar o usuario clicar de novo. A
+        // mensagem e longa e acionavel, por isso fica mais tempo em tela.
+        if (data?.reason === "has_appointments") {
+          setDeletingMember(null);
+          setOpenMenu(null);
+
+          toast.error(data.error, {
+            duration: 10000,
+          });
+
+          return;
+        }
+
         throw new Error(
           data?.error ||
             "Não foi possível excluir.",
@@ -266,8 +281,12 @@ export default function TeamList({
 
       setDeletingMember(null);
       setOpenMenu(null);
+
+      toast.success(
+        `${deletingMember.name} foi excluído.`,
+      );
     } catch (error) {
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao excluir.",

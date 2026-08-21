@@ -123,9 +123,9 @@ export async function POST(
     const body = await request.json();
 
     const {
-      client,
-      service,
-      professional,
+      clientId,
+      serviceId,
+      professionalId,
       date,
       time,
       notes,
@@ -138,9 +138,9 @@ export async function POST(
     */
 
     if (
-      !client ||
-      !service ||
-      !professional ||
+      !clientId ||
+      !serviceId ||
+      !professionalId ||
       !date ||
       !time
     ) {
@@ -169,118 +169,80 @@ export async function POST(
 
     /*
     |--------------------------------------------------------------------------
-    | BUSINESS
+    | RESOLVER REGISTROS
+    |
+    | Cliente, profissional e servico agora chegam por id, escolhidos num
+    | dropdown. Antes vinham como texto livre e eram criados quando nao
+    | existiam, o que enchia o banco de clientes sem telefone e servicos com
+    | preco zero. Aqui apenas validamos que pertencem a este estabelecimento.
     |--------------------------------------------------------------------------
     */
 
-    let business =
-      await prisma.business.findUnique({
+    const [
+      clientRecord,
+      professionalRecord,
+      serviceRecord,
+    ] = await Promise.all([
+      prisma.client.findFirst({
         where: {
-          id: BUSINESS_ID,
+          id: String(clientId),
+          businessId: BUSINESS_ID,
         },
-      });
+      }),
 
-    /*
-     * Se ainda não existir um Business,
-     * criamos um automaticamente para
-     * o ambiente de desenvolvimento.
-     */
-
-    if (!business) {
-      business =
-        await prisma.business.create({
-          data: {
-            id: BUSINESS_ID,
-            name: "Meu Negócio",
-          },
-        });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CLIENTE
-    |--------------------------------------------------------------------------
-    */
-
-    let clientRecord =
-      await prisma.client.findFirst({
+      prisma.professional.findFirst({
         where: {
-          businessId: business.id,
-          name: String(client).trim(),
+          id: String(professionalId),
+          businessId: BUSINESS_ID,
         },
-      });
+      }),
 
-    if (!clientRecord) {
-      clientRecord =
-        await prisma.client.create({
-          data: {
-            name: String(client).trim(),
-
-            phone: "000000000",
-
-            businessId: business.id,
-          },
-        });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PROFISSIONAL
-    |--------------------------------------------------------------------------
-    */
-
-    let professionalRecord =
-      await prisma.professional.findFirst({
+      prisma.service.findFirst({
         where: {
-          businessId: business.id,
-          name: String(
-            professional,
-          ).trim(),
+          id: String(serviceId),
+          businessId: BUSINESS_ID,
         },
-      });
+      }),
+    ]);
 
-    if (!professionalRecord) {
-      professionalRecord =
-        await prisma.professional.create(
-          {
-            data: {
-              name: String(
-                professional,
-              ).trim(),
+    const missing = [
+      !clientRecord && "o cliente",
+      !professionalRecord && "o profissional",
+      !serviceRecord && "o serviço",
+    ].filter(
+      (item): item is string =>
+        typeof item === "string",
+    );
 
-              businessId: business.id,
-            },
-          },
-        );
-    }
+    if (
+      !clientRecord ||
+      !professionalRecord ||
+      !serviceRecord
+    ) {
+      // "o cliente" / "o cliente e o profissional" /
+      // "o cliente, o profissional e o serviço"
+      const lista =
+        missing.length === 1
+          ? missing[0]
+          : `${missing
+              .slice(0, -1)
+              .join(", ")} e ${
+              missing[missing.length - 1]
+            }`;
 
-    /*
-    |--------------------------------------------------------------------------
-    | SERVIÇO
-    |--------------------------------------------------------------------------
-    */
+      const concordancia =
+        missing.length === 1
+          ? "selecionado"
+          : "selecionados";
 
-    let serviceRecord =
-      await prisma.service.findFirst({
-        where: {
-          businessId: business.id,
-          name: String(service).trim(),
+      return NextResponse.json(
+        {
+          error: `Não foi possível encontrar ${lista} ${concordancia}. Atualize a página e tente novamente.`,
         },
-      });
-
-    if (!serviceRecord) {
-      serviceRecord =
-        await prisma.service.create({
-          data: {
-            name: String(service).trim(),
-
-            price: 0,
-
-            duration: 60,
-
-            businessId: business.id,
-          },
-        });
+        {
+          status: 404,
+        },
+      );
     }
 
     /*
@@ -304,7 +266,7 @@ export async function POST(
 
           business: {
             connect: {
-              id: business.id,
+              id: BUSINESS_ID,
             },
           },
 

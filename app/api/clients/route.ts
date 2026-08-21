@@ -17,27 +17,27 @@ export async function GET() {
       );
     }
 
-    const services =
-      await prisma.service.findMany({
+    const clients =
+      await prisma.client.findMany({
         where: {
           businessId: BUSINESS_ID,
         },
         orderBy: {
-          createdAt: "desc",
+          name: "asc",
         },
       });
 
-    return NextResponse.json(services);
+    return NextResponse.json(clients);
   } catch (error) {
     console.error(
-      "Erro ao buscar serviços:",
+      "Erro ao buscar clientes:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível carregar os serviços.",
+          "Não foi possível carregar os clientes.",
       },
       { status: 500 },
     );
