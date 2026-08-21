@@ -65,14 +65,16 @@ export async function POST(
         ? body.name.trim()
         : "";
 
-    const description =
-      typeof body.description === "string"
-        ? body.description.trim()
+    const email =
+      typeof body.email === "string" &&
+      body.email.trim()
+        ? body.email.trim()
         : null;
 
-    const price = Number(body.price);
-
-    const duration = Number(body.duration);
+    const phone =
+      typeof body.phone === "string"
+        ? body.phone.trim()
+        : "";
 
     const active =
       typeof body.active === "boolean"
@@ -83,64 +85,47 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "O nome do serviço é obrigatório.",
+            "O nome do cliente é obrigatório.",
         },
         { status: 400 },
       );
     }
 
-    if (
-      !Number.isFinite(price) ||
-      price < 0
-    ) {
+    if (!phone) {
       return NextResponse.json(
         {
           error:
-            "O preço do serviço é inválido.",
+            "O telefone do cliente é obrigatório.",
         },
         { status: 400 },
       );
     }
 
-    if (
-      !Number.isFinite(duration) ||
-      duration <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "A duração do serviço é inválida.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const service =
-      await prisma.service.create({
+    const client =
+      await prisma.client.create({
         data: {
           name,
-          description: description || null,
-          price,
-          duration,
+          email,
+          phone,
           active,
           businessId: BUSINESS_ID,
         },
       });
 
     return NextResponse.json(
-      service,
+      client,
       { status: 201 },
     );
   } catch (error) {
     console.error(
-      "Erro ao criar serviço:",
+      "Erro ao criar cliente:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível criar o serviço.",
+          "Não foi possível criar o cliente.",
       },
       { status: 500 },
     );

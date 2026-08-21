@@ -36,14 +36,16 @@ export async function PUT(
         ? body.name.trim()
         : "";
 
-    const description =
-      typeof body.description === "string"
-        ? body.description.trim()
+    const email =
+      typeof body.email === "string" &&
+      body.email.trim()
+        ? body.email.trim()
         : null;
 
-    const price = Number(body.price);
-
-    const duration = Number(body.duration);
+    const phone =
+      typeof body.phone === "string"
+        ? body.phone.trim()
+        : "";
 
     const active =
       typeof body.active === "boolean"
@@ -54,40 +56,24 @@ export async function PUT(
       return NextResponse.json(
         {
           error:
-            "O nome do serviço é obrigatório.",
+            "O nome do cliente é obrigatório.",
         },
         { status: 400 },
       );
     }
 
-    if (
-      !Number.isFinite(price) ||
-      price < 0
-    ) {
+    if (!phone) {
       return NextResponse.json(
         {
           error:
-            "O preço do serviço é inválido.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (
-      !Number.isFinite(duration) ||
-      duration <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "A duração do serviço é inválida.",
+            "O telefone do cliente é obrigatório.",
         },
         { status: 400 },
       );
     }
 
     const existing =
-      await prisma.service.findFirst({
+      await prisma.client.findFirst({
         where: {
           id,
           businessId: BUSINESS_ID,
@@ -98,37 +84,34 @@ export async function PUT(
       return NextResponse.json(
         {
           error:
-            "Serviço não encontrado.",
+            "Cliente não encontrado.",
         },
         { status: 404 },
       );
     }
 
-    const service =
-      await prisma.service.update({
-        where: {
-          id,
-        },
+    const client =
+      await prisma.client.update({
+        where: { id },
         data: {
           name,
-          description: description || null,
-          price,
-          duration,
+          email,
+          phone,
           active,
         },
       });
 
-    return NextResponse.json(service);
+    return NextResponse.json(client);
   } catch (error) {
     console.error(
-      "Erro ao atualizar serviço:",
+      "Erro ao atualizar cliente:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível atualizar o serviço.",
+          "Não foi possível atualizar o cliente.",
       },
       { status: 500 },
     );
@@ -136,7 +119,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  _request: NextRequest,
   context: RouteContext,
 ) {
   try {
@@ -154,7 +137,7 @@ export async function DELETE(
     }
 
     const existing =
-      await prisma.service.findFirst({
+      await prisma.client.findFirst({
         where: {
           id,
           businessId: BUSINESS_ID,
@@ -165,32 +148,58 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "Serviço não encontrado.",
+            "Cliente não encontrado.",
         },
         { status: 404 },
       );
     }
 
-    await prisma.service.delete({
-      where: {
-        id,
-      },
+    const appointments =
+      await prisma.appointment.count({
+        where: {
+          clientId: id,
+        },
+      });
+
+    if (appointments > 0) {
+      // Igual ao profissional: o schema tem onDelete Cascade, entao excluir o
+      // cliente levaria os agendamentos dele embora.
+      const registros =
+        appointments === 1
+          ? "1 agendamento registrado"
+          : `${appointments} agendamentos registrados`;
+
+      return NextResponse.json(
+        {
+          error: `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Inativo" — o cliente deixa de aparecer em novos agendamentos e os anteriores permanecem.`,
+
+          reason: "has_appointments",
+
+          appointments,
+        },
+        { status: 409 },
+      );
+    }
+
+    await prisma.client.delete({
+      where: { id },
     });
 
     return NextResponse.json({
+      success: true,
       message:
-        "Serviço excluído com sucesso.",
+        "Cliente excluído com sucesso.",
     });
   } catch (error) {
     console.error(
-      "Erro ao excluir serviço:",
+      "Erro ao excluir cliente:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível excluir o serviço.",
+          "Não foi possível excluir o cliente.",
       },
       { status: 500 },
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   X,
   Pencil,
@@ -441,6 +442,19 @@ export function ClientTable() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Bloqueio por agendamentos nao muda em nova tentativa: fecha a
+        // confirmacao e explica no toast, que fica mais tempo em tela.
+        if (data?.reason === "has_appointments") {
+          setDeletingClient(null);
+          setOpenMenu(null);
+
+          toast.error(data.error, {
+            duration: 10000,
+          });
+
+          return;
+        }
+
         throw new Error(
           data?.error ||
             "Não foi possível excluir o cliente.",
@@ -478,13 +492,17 @@ export function ClientTable() {
       setOpenMenu(null);
 
       setError("");
+
+      toast.success(
+        `${deletingClient.name} foi excluído.`,
+      );
     } catch (error) {
       console.error(
         "Erro ao excluir cliente:",
         error,
       );
 
-      setError(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Erro ao excluir cliente.",

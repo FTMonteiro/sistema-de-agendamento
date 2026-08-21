@@ -348,7 +348,7 @@ export default function TeamList({
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between gap-4 p-5 transition hover:bg-gray-50"
+                  className="flex flex-col gap-4 p-5 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
