@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
 import {
   MoreHorizontal,
@@ -43,6 +46,8 @@ export function AppointmentList({
 
   const [deletingAppointment, setDeletingAppointment] =
     useState<Appointment | null>(null);
+
+  const { notify } = useNotifications();
 
   const [openMenu, setOpenMenu] = useState<string | null>(
     null,
@@ -246,6 +251,16 @@ export function AppointmentList({
 
       onDelete?.(
         deletingAppointment.id,
+      );
+
+      notify({
+        kind: "deleted",
+        title: "Agendamento apagado",
+        description: `${deletingAppointment.client} — ${deletingAppointment.date} às ${deletingAppointment.time}`,
+      });
+
+      toast.success(
+        "Agendamento apagado.",
       );
 
       /*
@@ -485,6 +500,20 @@ export function AppointmentList({
       onEdit?.(
         data.appointment ??
           editingAppointment,
+      );
+
+      const saved =
+        data.appointment ??
+        editingAppointment;
+
+      notify({
+        kind: "updated",
+        title: "Agendamento editado",
+        description: `${saved.client} — ${saved.date} às ${saved.time}`,
+      });
+
+      toast.success(
+        "Agendamento atualizado.",
       );
 
       setEditingAppointment(null);

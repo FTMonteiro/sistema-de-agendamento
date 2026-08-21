@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { useNotifications } from "@/components/notifications/NotificationsProvider";
+
 import { AppointmentList } from "@/components/appointments/AppointmentList";
 import { Appointment } from "@/types/appointment";
 
@@ -25,6 +27,8 @@ type Option = {
 };
 
 export default function AppointmentsPage() {
+  const { notify } = useNotifications();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [activeFilter, setActiveFilter] =
@@ -356,6 +360,17 @@ export default function AppointmentsPage() {
        */
 
       setIsModalOpen(false);
+
+      const clientName =
+        clients.find(
+          (item) => item.id === clientId,
+        )?.label ?? "Cliente";
+
+      notify({
+        kind: "created",
+        title: "Agendamento criado",
+        description: `${clientName} — ${date} às ${time}`,
+      });
 
       toast.success("Agendamento criado.");
     } catch (error) {

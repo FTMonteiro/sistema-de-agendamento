@@ -1,89 +1,239 @@
 "use client";
 
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
+
 import { ReceivePayment } from "@/components/appointments/ReceivePayment";
+import { Appointment } from "@/types/appointment";
 
-const stats = [
-  {
-    label: "Clientes",
-    value: "120",
-    change: "+12%",
-    description: "vs. mês anterior",
-  },
-  {
-    label: "Agendamentos",
-    value: "25",
-    change: "+8%",
-    description: "vs. mês anterior",
-  },
-  {
-    label: "Serviços realizados",
-    value: "15",
-    change: "+5%",
-    description: "vs. mês anterior",
-  },
-  {
-    label: "Receita",
-    value: "250.000 Kz",
-    change: "+15%",
-    description: "vs. mês anterior",
-  },
-];
+interface ServiceRecord {
+  id: string;
+  name: string;
+  price: number | string;
+  active?: boolean;
+}
 
-const appointments = [
-  {
-    client: "João Silva",
-    service: "Corte Premium",
-    professional: "Carlos",
-    time: "09:00",
-    status: "Confirmado",
-    statusStyle: "bg-green-50 text-green-700",
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("pt-AO", {
+    style: "currency",
+    currency: "AOA",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function todayKey() {
+  const now = new Date();
+
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(
+      2,
+      "0",
+    ),
+    String(now.getDate()).padStart(
+      2,
+      "0",
+    ),
+  ].join("-");
+}
+
+const STATUS_STYLES: Record<
+  string,
+  { label: string; badge: string; dot: string }
+> = {
+  confirmed: {
+    label: "Confirmado",
+    badge: "bg-green-50 text-green-700",
     dot: "bg-green-500",
   },
-  {
-    client: "Maria Santos",
-    service: "Barba",
-    professional: "Pedro",
-    time: "10:30",
-    status: "Aguardando",
-    statusStyle: "bg-yellow-50 text-yellow-700",
+  pending: {
+    label: "Aguardando",
+    badge: "bg-yellow-50 text-yellow-700",
     dot: "bg-yellow-500",
   },
-  {
-    client: "Pedro Manuel",
-    service: "Coloração",
-    professional: "Ana",
-    time: "14:00",
-    status: "Confirmado",
-    statusStyle: "bg-green-50 text-green-700",
-    dot: "bg-green-500",
+  completed: {
+    label: "Concluído",
+    badge: "bg-blue-50 text-blue-700",
+    dot: "bg-blue-500",
   },
-];
+  cancelled: {
+    label: "Cancelado",
+    badge: "bg-red-50 text-red-700",
+    dot: "bg-red-500",
+  },
+};
 
 export default function DashboardPage() {
   const router = useRouter();
 
-  function handleNewAppointment() {
-    router.push("/appointments");
-  }
+  const [appointments, setAppointments] =
+    useState<Appointment[]>([]);
 
-  function handleViewAgenda() {
-    router.push("/appointments");
-  }
+  const [clientCount, setClientCount] =
+    useState(0);
 
-  function handleViewDetails() {
-    router.push("/appointments");
-  }
+  const [services, setServices] =
+    useState<ServiceRecord[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [
+        appointmentsResponse,
+        clientsResponse,
+        servicesResponse,
+      ] = await Promise.all([
+        fetch("/api/appointments", {
+          cache: "no-store",
+        }),
+        fetch("/api/clients", {
+          cache: "no-store",
+        }),
+        fetch("/api/services", {
+          cache: "no-store",
+        }),
+      ]);
+
+      if (
+        !appointmentsResponse.ok ||
+        !clientsResponse.ok ||
+        !servicesResponse.ok
+      ) {
+        throw new Error(
+          "Não foi possível carregar os dados do dashboard.",
+        );
+      }
+
+      const [
+        appointmentsData,
+        clientsData,
+        servicesData,
+      ] = await Promise.all([
+        appointmentsResponse.json(),
+        clientsResponse.json(),
+        servicesResponse.json(),
+      ]);
+
+      setAppointments(
+        appointmentsData.appointments ??
+          [],
+      );
+
+      setClientCount(
+        Array.isArray(clientsData)
+          ? clientsData.length
+          : 0,
+      );
+
+      setServices(
+        Array.isArray(servicesData)
+          ? servicesData
+          : [],
+      );
+    } catch (caught) {
+      console.error(caught);
+
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível carregar os dados.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /*
+   * Métricas derivadas dos agendamentos reais. "Receita" conta apenas o que
+   * foi efectivamente pago, para não inflar o número com agendamentos por
+   * confirmar.
+   */
+  const metrics = useMemo(() => {
+    const completed =
+      appointments.filter(
+        (item) =>
+          item.status === "completed",
+      ).length;
+
+    const revenue = appointments
+      .filter(
+        (item) =>
+          item.payment === "paid",
+      )
+      .reduce(
+        (total, item) =>
+          total +
+          (Number(item.price) || 0),
+        0,
+      );
+
+    return {
+      clients: clientCount,
+      appointments: appointments.length,
+      completed,
+      revenue,
+      activeServices:
+        services.filter(
+          (service) =>
+            service.active !== false,
+        ).length,
+    };
+  }, [
+    appointments,
+    clientCount,
+    services,
+  ]);
+
+  const today = todayKey();
+
+  const todayAppointments = useMemo(
+    () =>
+      appointments
+        .filter(
+          (item) =>
+            item.date === today,
+        )
+        .sort((a, b) =>
+          a.time.localeCompare(b.time),
+        ),
+    [appointments, today],
+  );
+
+  const todaySummary = useMemo(() => {
+    const count = (status: string) =>
+      todayAppointments.filter(
+        (item) =>
+          item.status === status,
+      ).length;
+
+    return {
+      total: todayAppointments.length,
+      confirmed: count("confirmed"),
+      pending: count("pending"),
+      completed: count("completed"),
+    };
+  }, [todayAppointments]);
 
   return (
     <div className="min-h-full space-y-8">
-      {/* =====================================================
-          CABEÇALHO
-      ====================================================== */}
-
+      {/* CABEÇALHO */}
       <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        {/* TÍTULO */}
-
         <div>
           <p className="mb-2 text-sm font-medium text-blue-600">
             Visão geral
@@ -98,338 +248,307 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* =================================================
-            AÇÕES
-        ================================================== */}
-
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          {/* NOVO AGENDAMENTO */}
-
           <button
             type="button"
-            onClick={handleNewAppointment}
-            className="
-              inline-flex
-              w-full
-              items-center
-              justify-center
-              rounded-xl
-              bg-gray-900
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              shadow-sm
-              transition-all
-              duration-200
-              hover:bg-gray-800
-              hover:shadow-md
-              active:scale-[0.98]
-              sm:w-auto
-            "
+            onClick={() =>
+              router.push("/appointments")
+            }
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-gray-800 hover:shadow-md active:scale-[0.98] sm:w-auto"
           >
             + Novo Agendamento
           </button>
-
-          {/* RECEBER PAGAMENTO */}
 
           <ReceivePayment />
         </div>
       </section>
 
-      {/* =====================================================
-          ESTATÍSTICAS
-      ====================================================== */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-800">
+            {error}
+          </p>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="
-              rounded-2xl
-              bg-white
-              p-5
-              shadow-sm
-              ring-1
-              ring-gray-100
-              transition-all
-              duration-200
-              hover:-translate-y-0.5
-              hover:shadow-md
-            "
+          <button
+            type="button"
+            onClick={load}
+            className="mt-2 text-sm font-semibold text-red-900 underline"
           >
-            <div className="flex items-start justify-between gap-4">
-              {/* INFORMAÇÃO */}
+            Tentar novamente
+          </button>
+        </div>
+      )}
 
-              <div>
-                <p className="text-sm font-medium text-gray-500">
-                  {stat.label}
-                </p>
+      {/* ESTATÍSTICAS */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Clientes"
+          value={String(metrics.clients)}
+          description="cadastrados"
+          loading={loading}
+        />
 
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                  {stat.value}
-                </h2>
-              </div>
+        <StatCard
+          label="Agendamentos"
+          value={String(
+            metrics.appointments,
+          )}
+          description="no total"
+          loading={loading}
+        />
 
-              {/* ÍCONE */}
+        <StatCard
+          label="Serviços realizados"
+          value={String(
+            metrics.completed,
+          )}
+          description={`${metrics.activeServices} serviços activos`}
+          loading={loading}
+        />
 
-              <div
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  bg-blue-50
-                  text-blue-600
-                "
-              >
-                <span className="text-sm font-bold">
-                  ↗
-                </span>
-              </div>
-            </div>
-
-            {/* CRESCIMENTO */}
-
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-xs font-semibold text-green-600">
-                {stat.change}
-              </span>
-
-              <span className="text-xs text-gray-400">
-                {stat.description}
-              </span>
-            </div>
-          </div>
-        ))}
+        <StatCard
+          label="Receita"
+          value={formatPrice(
+            metrics.revenue,
+          )}
+          description="pagamentos recebidos"
+          loading={loading}
+        />
       </section>
 
-      {/* =====================================================
-          CONTEÚDO PRINCIPAL
-      ====================================================== */}
-
+      {/* CONTEÚDO PRINCIPAL */}
       <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        {/* =================================================
-            AGENDA DE HOJE
-        ================================================== */}
-
+        {/* AGENDA DE HOJE */}
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-          {/* CABEÇALHO */}
-
-          <div
-            className="
-              flex
-              flex-col
-              gap-4
-              border-b
-              border-gray-100
-              p-5
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-              sm:p-6
-            "
-          >
+          <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 Agenda de hoje
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Próximos atendimentos do dia
+                {loading
+                  ? "Carregando..."
+                  : `${todaySummary.total} atendimento${
+                      todaySummary.total ===
+                      1
+                        ? ""
+                        : "s"
+                    } para hoje`}
               </p>
             </div>
 
-            {/* VER AGENDA */}
-
             <button
               type="button"
-              onClick={handleViewAgenda}
-              className="
-                w-full
-                rounded-lg
-                bg-gray-900
-                px-4
-                py-2.5
-                text-sm
-                font-medium
-                text-white
-                transition-colors
-                hover:bg-gray-800
-                sm:w-auto
-              "
+              onClick={() =>
+                router.push(
+                  "/appointments",
+                )
+              }
+              className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 sm:w-auto"
             >
               Ver agenda
             </button>
           </div>
 
-          {/* =================================================
-              LISTA
-          ================================================== */}
+          {loading ? (
+            <div className="p-10 text-center text-sm text-gray-500">
+              Carregando agendamentos...
+            </div>
+          ) : todayAppointments.length ===
+            0 ? (
+            <div className="p-10 text-center">
+              <p className="font-medium text-gray-700">
+                Nenhum atendimento hoje
+              </p>
 
-          <div className="divide-y divide-gray-100">
-            {appointments.map((appointment) => (
-              <div
-                key={`${appointment.client}-${appointment.time}`}
-                className="
-                  flex
-                  flex-col
-                  gap-4
-                  p-5
-                  transition-colors
-                  hover:bg-gray-50/70
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                  sm:p-6
-                "
-              >
-                {/* CLIENTE */}
+              <p className="mt-1 text-sm text-gray-500">
+                Os agendamentos de hoje aparecem aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {todayAppointments.map(
+                (appointment) => {
+                  const style =
+                    STATUS_STYLES[
+                      appointment.status
+                    ] ??
+                    STATUS_STYLES.pending;
 
-                <div className="flex min-w-0 items-center gap-4">
-                  {/* INDICADOR */}
+                  return (
+                    <div
+                      key={
+                        appointment.id
+                      }
+                      className="flex flex-col gap-4 p-5 transition-colors hover:bg-gray-50/70 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+                    >
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`}
+                        />
 
-                  <div
-                    className={`
-                      h-2.5
-                      w-2.5
-                      shrink-0
-                      rounded-full
-                      ${appointment.dot}
-                    `}
-                  />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {
+                              appointment.client
+                            }
+                          </p>
 
-                  {/* DADOS */}
+                          <p className="mt-1 truncate text-sm text-gray-500">
+                            {
+                              appointment.service
+                            }
 
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900">
-                      {appointment.client}
-                    </p>
+                            <span className="mx-1.5 text-gray-300">
+                              •
+                            </span>
 
-                    <p className="mt-1 truncate text-sm text-gray-500">
-                      {appointment.service}
+                            {
+                              appointment.professional
+                            }
+                          </p>
+                        </div>
+                      </div>
 
-                      <span className="mx-1.5 text-gray-300">
-                        •
-                      </span>
+                      <div className="flex items-center justify-between gap-4 sm:justify-end">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {
+                            appointment.time
+                          }
+                        </p>
 
-                      {appointment.professional}
-                    </p>
-                  </div>
-                </div>
-
-                {/* HORÁRIO + ESTADO */}
-
-                <div className="flex items-center justify-between gap-4 sm:justify-end">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {appointment.time}
-                  </p>
-
-                  <span
-                    className={`
-                      rounded-full
-                      px-3
-                      py-1
-                      text-xs
-                      font-medium
-                      ${appointment.statusStyle}
-                    `}
-                  >
-                    {appointment.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${style.badge}`}
+                        >
+                          {style.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          )}
         </div>
 
-        {/* =================================================
-            RESUMO DO DIA
-        ================================================== */}
-
+        {/* RESUMO DO DIA */}
         <div className="rounded-2xl bg-gray-900 p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-gray-400">
             Resumo do dia
           </p>
 
           <h3 className="mt-3 text-3xl font-bold">
-            25
+            {loading
+              ? "—"
+              : todaySummary.total}
           </h3>
 
           <p className="mt-1 text-sm text-gray-400">
             agendamentos hoje
           </p>
 
-          {/* SEPARADOR */}
-
           <div className="my-6 h-px bg-white/10" />
 
-          {/* ESTATÍSTICAS */}
-
           <div className="space-y-5">
-            {/* CONFIRMADOS */}
+            <SummaryRow
+              label="Confirmados"
+              value={
+                todaySummary.confirmed
+              }
+              loading={loading}
+            />
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Confirmados
-              </span>
+            <SummaryRow
+              label="Aguardando"
+              value={
+                todaySummary.pending
+              }
+              loading={loading}
+            />
 
-              <span className="text-sm font-semibold text-white">
-                18
-              </span>
-            </div>
-
-            {/* AGUARDANDO */}
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Aguardando
-              </span>
-
-              <span className="text-sm font-semibold text-white">
-                5
-              </span>
-            </div>
-
-            {/* CONCLUÍDOS */}
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">
-                Concluídos
-              </span>
-
-              <span className="text-sm font-semibold text-white">
-                2
-              </span>
-            </div>
+            <SummaryRow
+              label="Concluídos"
+              value={
+                todaySummary.completed
+              }
+              loading={loading}
+            />
           </div>
-
-          {/* VER DETALHES */}
 
           <button
             type="button"
-            onClick={handleViewDetails}
-            className="
-              mt-7
-              w-full
-              rounded-lg
-              bg-white
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-gray-900
-              transition-colors
-              hover:bg-gray-100
-            "
+            onClick={() =>
+              router.push("/appointments")
+            }
+            className="mt-7 w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
           >
             Ver detalhes
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  description,
+  loading,
+}: {
+  label: string;
+  value: string;
+  description: string;
+  loading: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-500">
+            {label}
+          </p>
+
+          <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            {loading ? "—" : value}
+          </h2>
+        </div>
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <span className="text-sm font-bold">
+            ↗
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <span className="text-xs text-gray-400">
+          {description}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number;
+  loading: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-400">
+        {label}
+      </span>
+
+      <span className="text-sm font-semibold text-white">
+        {loading ? "—" : value}
+      </span>
     </div>
   );
 }

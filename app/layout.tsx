@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { NotificationsProvider } from "@/components/notifications/NotificationsProvider";
+import { ThemedToaster } from "@/components/theme/ThemedToaster";
 
 import "./globals.css";
 
@@ -19,29 +21,56 @@ export const metadata: Metadata = {
   description: "Sistema de agendamento para profissionais de beleza",
 };
 
+/*
+ * Corre antes da primeira pintura e define a classe de tema em <html>. Sem
+ * isto o React só aplicaria o tema depois de hidratar, e uma página escura
+ * apareceria branca por um instante a cada carregamento.
+ */
+const themeScript = `
+(function () {
+  try {
+    var stored = localStorage.getItem("nevrix-theme");
+    var theme = stored === "dark" || stored === "light"
+      ? stored
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.classList.add(theme);
+    document.documentElement.style.colorScheme = theme;
+  } catch (error) {
+    document.documentElement.classList.add("light");
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      
-          <body className="min-h-full flex flex-col"
-      suppressHydrationWarning ={true}>
-  
-        
-        
-
-
-        {children}
-
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
+    <html
+      lang="pt"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: themeScript,
+          }}
         />
+      </head>
+
+      <body
+        className="min-h-full flex flex-col"
+        suppressHydrationWarning={true}
+      >
+        <ThemeProvider>
+          <NotificationsProvider>
+            {children}
+
+            <ThemedToaster />
+          </NotificationsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

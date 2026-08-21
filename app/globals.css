@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/*
+ * O tema é controlado por classe em <html> (html.dark / html.light), definida
+ * pelo ThemeProvider. Esta variante liga os utilitários `dark:` do Tailwind a
+ * essa classe, em vez do prefers-color-scheme padrão.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #009685;
 }
@@ -10,14 +17,14 @@
   --card: #ffffff;
   --border: #e5e7eb;
   --muted: #6b7280;
-}
 
-html.dark {
-  --background: #111827;
-  --foreground: #f9fafb;
-  --card: #1f2937;
-  --border: #374151;
-  --muted: #9ca3af;
+  /*
+   * `surface` é a superfície elevada (menu lateral, cartões) e
+   * `surface-secondary` o realce de hover. Faltavam, e por isso o drawer
+   * aparecia transparente.
+   */
+  --surface: #ffffff;
+  --surface-secondary: #f3f4f6;
 }
 
 html.light {
@@ -26,6 +33,18 @@ html.light {
   --card: #ffffff;
   --border: #e5e7eb;
   --muted: #6b7280;
+  --surface: #ffffff;
+  --surface-secondary: #f3f4f6;
+}
+
+html.dark {
+  --background: #0b1120;
+  --foreground: #f9fafb;
+  --card: #1f2937;
+  --border: #374151;
+  --muted: #9ca3af;
+  --surface: #111827;
+  --surface-secondary: #1f2937;
 }
 
 html,
@@ -39,4 +58,95 @@ body {
 
 * {
   border-color: var(--border);
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Compatibilidade de tema
+ * ---------------------------------------------------------------------------
+ * As telas foram escritas com cores fixas (bg-white, text-gray-900, ...).
+ * Reescrever cada uma para usar variantes `dark:` seria mexer em milhares de
+ * linhas, então aqui as cores neutras mais usadas são remapeadas para as
+ * variáveis do tema quando o modo escuro está activo.
+ *
+ * Cores de acento (azul, verde, âmbar, vermelho) ficam de fora de propósito:
+ * são sinal de estado e devem manter-se reconhecíveis nos dois modos.
+ *
+ * Código novo deve usar as variáveis ou `dark:` directamente; isto existe
+ * para as telas antigas.
+ */
+
+html.dark {
+  /* Superfícies */
+  .bg-white,
+  .bg-white\/95,
+  .bg-white\/90 {
+    background-color: var(--card);
+  }
+
+  .bg-gray-50,
+  .bg-gray-50\/70,
+  .bg-gray-100 {
+    background-color: var(--surface-secondary);
+  }
+
+  /* O cartão escuro do resumo já era escuro: passa a destacar-se do fundo. */
+  .bg-gray-900,
+  .bg-gray-950 {
+    background-color: #030712;
+  }
+
+  /* Texto */
+  .text-gray-950,
+  .text-gray-900 {
+    color: var(--foreground);
+  }
+
+  .text-gray-800,
+  .text-gray-700 {
+    color: #e5e7eb;
+  }
+
+  .text-gray-600,
+  .text-gray-500 {
+    color: var(--muted);
+  }
+
+  .text-gray-400,
+  .text-gray-300 {
+    color: #6b7280;
+  }
+
+  /* Contornos */
+  .border-gray-100,
+  .border-gray-200,
+  .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border);
+  }
+
+  .ring-gray-100,
+  .ring-gray-200 {
+    --tw-ring-color: var(--border);
+  }
+
+  /* Hover que assumia fundo claro */
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-50\/70:hover,
+  .hover\:bg-gray-100:hover {
+    background-color: var(--surface-secondary);
+  }
+
+  /* Campos de formulário */
+  input,
+  textarea,
+  select {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted);
+  }
 }
