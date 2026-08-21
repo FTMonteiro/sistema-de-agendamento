@@ -9,6 +9,110 @@ const ALLOWED_METHODS = [
   "MOBILE_MONEY",
 ] as const;
 
+const BUSINESS_ID =
+  process.env.NEXT_PUBLIC_BUSINESS_ID;
+
+/*
+ * Agendamentos que ainda esperam pagamento.
+ *
+ * A modal de receber pagamento não pode usar GET /api/appointments: essa rota
+ * devolve tudo achatado para a listagem (client e service como texto, payment
+ * como "pending"), e aqui é preciso o preço do serviço para preencher o valor e
+ * saber se já existe registo de pagamento. Daí uma rota própria, com os
+ * relacionamentos incluídos.
+ */
+export async function GET() {
+  try {
+    if (!BUSINESS_ID) {
+      return NextResponse.json(
+        {
+          error:
+            "Business ID não configurado.",
+        },
+        { status: 500 },
+      );
+    }
+
+    const appointments =
+      await prisma.appointment.findMany({
+        where: {
+          businessId: BUSINESS_ID,
+
+          /*
+           * Cancelados não entram: não há o que cobrar. Os que já têm
+           * pagamento são excluídos porque o POST rejeita duplicados de
+           * qualquer forma.
+           */
+          status: {
+            not: "CANCELLED",
+          },
+
+          payment: null,
+        },
+
+        orderBy: {
+          date: "asc",
+        },
+
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+
+          professional: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+
+          service: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              duration: true,
+            },
+          },
+
+          payment: true,
+        },
+      });
+
+    return NextResponse.json({
+      appointments: appointments.map(
+        (appointment) => ({
+          ...appointment,
+
+          // Decimal do Prisma não sobrevive ao JSON como número.
+          service: {
+            ...appointment.service,
+            price: Number(
+              appointment.service.price,
+            ),
+          },
+        }),
+      ),
+    });
+  } catch (error) {
+    console.error(
+      "GET /api/appointments/payments:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Não foi possível carregar os agendamentos.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest,
 ) {

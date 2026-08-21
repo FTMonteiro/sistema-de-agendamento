@@ -114,10 +114,18 @@ export function ReceivePayment({
       setIsLoading(true);
       setError("");
 
-      const response = await fetch("/api/appointments", {
-        method: "GET",
-        cache: "no-store",
-      });
+      /*
+       * Rota própria: devolve os agendamentos por pagar já com client,
+       * professional e service incluídos. GET /api/appointments serve a
+       * listagem e traz tudo achatado, sem o preço do serviço.
+       */
+      const response = await fetch(
+        "/api/appointments/payments",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
 
       const data = await response.json();
 
@@ -131,16 +139,7 @@ export function ReceivePayment({
       const apiAppointments: PaymentAppointment[] =
         data?.appointments ?? [];
 
-      const unpaidAppointments = apiAppointments.filter(
-        (appointment) => {
-          return (
-            appointment.payment === null ||
-            appointment.payment === undefined
-          );
-        }
-      );
-
-      setAppointments(unpaidAppointments);
+      setAppointments(apiAppointments);
     } catch (err) {
       console.error("Erro ao carregar pagamentos:", err);
 
