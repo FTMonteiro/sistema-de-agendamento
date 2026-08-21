@@ -1,53 +1,56 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
-type Service = {
-  id: number;
+import {
+  Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  Save,
+} from "lucide-react";
+
+export interface Service {
+  id: string;
   name: string;
-  description: string;
-  duration: string;
-  price: string;
+  description: string | null;
+  price: number;
+  duration: number;
   active: boolean;
-};
+  businessId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const initialServices: Service[] = [
-  {
-    id: 1,
-    name: "Corte Premium",
-    description: "Corte de cabelo profissional",
-    duration: "45 min",
-    price: "10.000 Kz",
-    active: true,
-  },
-  {
-    id: 2,
-    name: "Barba",
-    description: "Barba completa",
-    duration: "30 min",
-    price: "5.000 Kz",
-    active: true,
-  },
-  {
-    id: 3,
-    name: "Coloração",
-    description: "Coloração completa",
-    duration: "90 min",
-    price: "25.000 Kz",
-    active: true,
-  },
-];
+interface ServicesListProps {
+  services: Service[];
 
-type Filter = "all" | "active" | "inactive";
+  onServicesChange: (
+    updater:
+      | Service[]
+      | ((current: Service[]) => Service[]),
+  ) => void;
+}
 
-export default function ServicesList() {
-  const [services, setServices] =
-    useState<Service[]>(initialServices);
+export default function ServicesList({
+  services,
+  onServicesChange,
+}: ServicesListProps) {
+  /*
+   * ============================
+   * ESTADOS
+   * ============================
+   */
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
 
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [openMenu, setOpenMenu] =
+    useState<string | null>(null);
 
   const [editingService, setEditingService] =
     useState<Service | null>(null);
@@ -55,658 +58,645 @@ export default function ServicesList() {
   const [deletingService, setDeletingService] =
     useState<Service | null>(null);
 
+  const [loadingId, setLoadingId] =
+    useState<string | null>(null);
+
+  const [editName, setEditName] =
+    useState("");
+
+  const [editDescription, setEditDescription] =
+    useState("");
+
+  const [editPrice, setEditPrice] =
+    useState("");
+
+  const [editDuration, setEditDuration] =
+    useState("");
+
+  /*
+   * ============================
+   * PESQUISA
+   * ============================
+   */
+
   const filteredServices = useMemo(() => {
-    const query = search.toLowerCase().trim();
+    const normalizedQuery =
+      query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return services;
+    }
 
     return services.filter((service) => {
-      const matchesSearch =
-        service.name.toLowerCase().includes(query) ||
-        service.description.toLowerCase().includes(query);
+      const name =
+        service.name?.toLowerCase() ?? "";
 
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "active" && service.active) ||
-        (filter === "inactive" && !service.active);
+      const description =
+        service.description
+          ?.toLowerCase() ?? "";
 
-      return matchesSearch && matchesFilter;
+      return (
+        name.includes(normalizedQuery) ||
+        description.includes(normalizedQuery)
+      );
     });
-  }, [search, filter, services]);
+  }, [services, query]);
 
-  // EDITAR
-  function handleEdit(service: Service) {
-    setEditingService({ ...service });
+  /*
+   * ============================
+   * FORMATAR PREÇO
+   * ============================
+   */
+
+  function formatPrice(price: number) {
+    return new Intl.NumberFormat("pt-AO", {
+      style: "currency",
+      currency: "AOA",
+      minimumFractionDigits: 2,
+    }).format(price);
+  }
+
+  /*
+   * ============================
+   * ABRIR MENU
+   * ============================
+   */
+
+  function handleOpenMenu(id: string) {
+    setOpenMenu((current) =>
+      current === id ? null : id,
+    );
+  }
+
+  /*
+   * ============================
+   * ABRIR EDIÇÃO
+   * ============================
+   */
+
+  function openEdit(service: Service) {
+    setEditingService(service);
+
+    setEditName(service.name);
+
+    setEditDescription(
+      service.description ?? "",
+    );
+
+    setEditPrice(
+      String(service.price),
+    );
+
+    setEditDuration(
+      String(service.duration),
+    );
+
     setOpenMenu(null);
   }
 
-  // GUARDAR EDIÇÃO
-  function handleSaveEdit() {
-    if (!editingService) return;
+  /*
+   * ============================
+   * EDITAR SERVIÇO
+   * PUT /api/services/:id
+   * ============================
+   */
 
-    setServices((current) =>
-      current.map((service) =>
-        service.id === editingService.id
-          ? editingService
-          : service
-      )
-    );
+  async function handleEdit() {
+    if (!editingService) {
+      return;
+    }
 
-    setEditingService(null);
+    const name = editName.trim();
+
+    const description =
+      editDescription.trim();
+
+    const price = Number(editPrice);
+
+    const duration = Number(editDuration);
+
+    /*
+     * Validações
+     */
+
+    if (!name) {
+      alert(
+        "O nome do serviço é obrigatório.",
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(price) ||
+      price < 0
+    ) {
+      alert(
+        "Informe um preço válido.",
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(duration) ||
+      duration <= 0
+    ) {
+      alert(
+        "Informe uma duração válida.",
+      );
+
+      return;
+    }
+
+    try {
+      setLoadingId(
+        editingService.id,
+      );
+
+      const response = await fetch(
+        `/api/services/${editingService.id}`,
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            name,
+            description:
+              description || null,
+            price,
+            duration,
+            active:
+              editingService.active,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível editar o serviço.",
+        );
+      }
+
+      /*
+       * Normaliza a resposta da API
+       */
+
+      const updatedService: Service = {
+        ...data,
+
+        price: Number(
+          data.price,
+        ),
+
+        duration: Number(
+          data.duration,
+        ),
+      };
+
+      /*
+       * Atualiza a lista
+       */
+
+      onServicesChange(
+        (current) =>
+          current.map((service) =>
+            service.id ===
+            updatedService.id
+              ? updatedService
+              : service,
+          ),
+      );
+
+      /*
+       * Fecha modal
+       */
+
+      setEditingService(null);
+    } catch (error) {
+      console.error(
+        "Erro ao editar serviço:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao editar serviço.",
+      );
+    } finally {
+      setLoadingId(null);
+    }
   }
 
-  // DUPLICAR
-  function handleDuplicate(service: Service) {
-    const duplicatedService: Service = {
-      ...service,
-      id: Date.now(),
-      name: `${service.name} (cópia)`,
-      active: false,
-    };
+  /*
+   * ============================
+   * ATIVAR / DESATIVAR
+   *
+   * PATCH /api/services/:id
+   * ============================
+   */
 
-    setServices((current) => [
-      ...current,
-      duplicatedService,
-    ]);
+  async function handleToggleActive(
+    service: Service,
+  ) {
+    try {
+      setLoadingId(service.id);
+
+      setOpenMenu(null);
+
+      const response = await fetch(
+        `/api/services/${service.id}`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            active: !service.active,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível alterar o estado do serviço.",
+        );
+      }
+
+      /*
+       * Normaliza resposta
+       */
+
+      const updatedService: Service = {
+        ...data,
+
+        price: Number(
+          data.price,
+        ),
+
+        duration: Number(
+          data.duration,
+        ),
+      };
+
+      /*
+       * Atualiza somente o serviço
+       */
+
+      onServicesChange(
+        (current) =>
+          current.map((item) =>
+            item.id ===
+            updatedService.id
+              ? updatedService
+              : item,
+          ),
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao alterar serviço:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao alterar serviço.",
+      );
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  /*
+   * ============================
+   * ABRIR CONFIRMAÇÃO DE EXCLUSÃO
+   * ============================
+   */
+
+  function openDelete(
+    service: Service,
+  ) {
+    setDeletingService(service);
 
     setOpenMenu(null);
   }
 
-  // ATIVAR / DESATIVAR
-  function handleToggleStatus(service: Service) {
-    setServices((current) =>
-      current.map((item) =>
-        item.id === service.id
-          ? {
-              ...item,
-              active: !item.active,
-            }
-          : item
-      )
-    );
+  /*
+   * ============================
+   * EXCLUIR SERVIÇO
+   *
+   * DELETE /api/services/:id
+   * ============================
+   */
 
-    setOpenMenu(null);
+  async function handleDelete() {
+    if (!deletingService) {
+      return;
+    }
+
+    try {
+      setLoadingId(
+        deletingService.id,
+      );
+
+      const response = await fetch(
+        `/api/services/${deletingService.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível excluir o serviço.",
+        );
+      }
+
+      /*
+       * Remove da lista local
+       *
+       * O DELETE já aconteceu na API.
+       */
+
+      onServicesChange(
+        (current) =>
+          current.filter(
+            (service) =>
+              service.id !==
+              deletingService.id,
+          ),
+      );
+
+      setDeletingService(null);
+    } catch (error) {
+      console.error(
+        "Erro ao excluir serviço:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao excluir serviço.",
+      );
+    } finally {
+      setLoadingId(null);
+    }
   }
 
-  // ELIMINAR
-  function handleDelete() {
-    if (!deletingService) return;
-
-    setServices((current) =>
-      current.filter(
-        (service) => service.id !== deletingService.id
-      )
-    );
-
-    setDeletingService(null);
-  }
+  /*
+   * ============================
+   * RENDER
+   * ============================
+   */
 
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      {/* ================================= */}
+      {/* LISTA */}
+      {/* ================================= */}
 
-        {/* Toolbar */}
-        <div className="border-b border-gray-100 p-5 sm:p-6">
+      <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+        {/* HEADER */}
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-950">
+              Lista de serviços
+            </h2>
 
-            {/* Pesquisa */}
-            <div className="relative w-full lg:max-w-md">
-
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="
-                  pointer-events-none
-                  absolute
-                  left-4
-                  top-1/2
-                  h-4
-                  w-4
-                  -translate-y-1/2
-                  text-gray-400
-                "
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path
-                  strokeLinecap="round"
-                  d="m20 20-4-4"
-                />
-              </svg>
-
-              <input
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="Pesquisar serviços..."
-                className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-gray-50
-                  py-3
-                  pl-11
-                  pr-4
-                  text-sm
-                  text-gray-900
-                  outline-none
-                  transition-all
-                  duration-200
-                  placeholder:text-gray-400
-                  hover:border-gray-300
-                  focus:border-gray-900
-                  focus:bg-white
-                  focus:ring-4
-                  focus:ring-gray-100
-                "
-              />
-
-            </div>
-
-            {/* Filtro */}
-            <div className="flex w-full items-center gap-3 sm:w-auto">
-
-              <span className="hidden text-sm font-medium text-gray-500 sm:block">
-                Filtrar:
-              </span>
-
-              <select
-                value={filter}
-                onChange={(event) =>
-                  setFilter(
-                    event.target.value as Filter
-                  )
-                }
-                className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-white
-                  px-3
-                  py-3
-                  text-sm
-                  font-medium
-                  text-gray-700
-                  outline-none
-                  transition-all
-                  duration-200
-                  hover:border-gray-300
-                  focus:border-gray-900
-                  focus:ring-4
-                  focus:ring-gray-100
-                  sm:w-44
-                "
-              >
-                <option value="all">
-                  Todos os serviços
-                </option>
-
-                <option value="active">
-                  Apenas ativos
-                </option>
-
-                <option value="inactive">
-                  Apenas inativos
-                </option>
-              </select>
-
-            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Gerencie os serviços do
+              estabelecimento.
+            </p>
           </div>
 
-          {/* Resultado */}
-          {(search || filter !== "all") && (
-            <div className="mt-4 flex items-center justify-between">
+          {/* PESQUISA */}
 
-              <p className="text-sm text-gray-500">
-                {filteredServices.length}{" "}
-                {filteredServices.length === 1
-                  ? "serviço encontrado"
-                  : "serviços encontrados"}
-              </p>
+          <div className="relative w-full md:w-80">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setFilter("all");
-                }}
-                className="
-                  text-sm
-                  font-medium
-                  text-gray-500
-                  transition
-                  hover:text-gray-900
-                "
-              >
-                Limpar filtros
-              </button>
-
-            </div>
-          )}
-
+            <input
+              type="text"
+              value={query}
+              onChange={(event) =>
+                setQuery(
+                  event.target.value,
+                )
+              }
+              placeholder="Pesquisar serviço..."
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+            />
+          </div>
         </div>
 
-        {/* Cabeçalho */}
-        <div
-          className="
-            hidden
-            grid-cols-[minmax(0,2fr)_120px_140px_120px_48px]
-            gap-6
-            border-b
-            border-gray-100
-            bg-gray-50/60
-            px-6
-            py-3.5
-            text-[11px]
-            font-semibold
-            uppercase
-            tracking-wider
-            text-gray-400
-            md:grid
-          "
-        >
-          <span>Serviço</span>
-          <span>Duração</span>
-          <span>Preço</span>
-          <span>Status</span>
-          <span />
-        </div>
+        {/* SERVIÇOS */}
 
-        {/* Lista */}
         <div className="divide-y divide-gray-100">
-
-          {filteredServices.length === 0 ? (
-
-            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
-
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-6 w-6"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <path
-                    strokeLinecap="round"
-                    d="m20 20-4-4"
-                  />
-                </svg>
-              </div>
-
-              <p className="font-semibold text-gray-900">
-                Nenhum serviço encontrado
+          {filteredServices.length ===
+          0 ? (
+            <div className="p-10 text-center">
+              <p className="font-medium text-gray-700">
+                Nenhum serviço encontrado.
               </p>
 
-              <p className="mt-1 max-w-sm text-sm text-gray-500">
-                Tente alterar a pesquisa ou remover os
-                filtros aplicados.
+              <p className="mt-1 text-sm text-gray-500">
+                Tente pesquisar por outro
+                nome.
               </p>
-
             </div>
-
           ) : (
+            filteredServices.map(
+              (service) => {
+                const isLoading =
+                  loadingId ===
+                  service.id;
 
-            filteredServices.map((service) => (
+                return (
+                  <div
+                    key={service.id}
+                    className="relative flex flex-col gap-4 p-5 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
+                  >
+                    {/* ========================= */}
+                    {/* INFORMAÇÕES */}
+                    {/* ========================= */}
 
-              <article
-                key={service.id}
-                className="
-                  group
-                  px-5
-                  py-5
-                  transition-colors
-                  duration-200
-                  hover:bg-gray-50/70
-                  sm:px-6
-                "
-              >
-
-                <div
-                  className="
-                    grid
-                    gap-5
-                    md:grid-cols-[minmax(0,2fr)_120px_140px_120px_48px]
-                    md:items-center
-                    md:gap-6
-                  "
-                >
-
-                  {/* Serviço */}
-                  <div className="min-w-0">
-
-                    <div className="flex items-center gap-3">
-
-                      <div
-                        className="
-                          flex
-                          h-10
-                          w-10
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-xl
-                          bg-gray-100
-                          text-sm
-                          font-semibold
-                          text-gray-700
-                        "
-                      >
-                        {service.name
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <p className="truncate font-semibold text-gray-900">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="truncate font-semibold text-gray-950">
                           {service.name}
-                        </p>
+                        </h3>
 
-                        <p className="mt-1 truncate text-sm text-gray-500">
-                          {service.description}
-                        </p>
-
+                        {service.active ? (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            Ativo
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                            Inativo
+                          </span>
+                        )}
                       </div>
 
+                      <p className="mt-1 text-sm text-gray-500">
+                        {service.description ||
+                          "Sem descrição"}
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                        <span className="font-semibold text-gray-900">
+                          {formatPrice(
+                            service.price,
+                          )}
+                        </span>
+
+                        <span className="text-gray-500">
+                          {service.duration}{" "}
+                          minutos
+                        </span>
+                      </div>
                     </div>
 
-                  </div>
+                    {/* ========================= */}
+                    {/* TRÊS PONTOS */}
+                    {/* ========================= */}
 
-                  {/* Duração */}
-                  <div className="flex items-center justify-between md:block">
-
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-400 md:hidden">
-                      Duração
-                    </span>
-
-                    <span className="text-sm font-medium text-gray-700">
-                      {service.duration}
-                    </span>
-
-                  </div>
-
-                  {/* Preço */}
-                  <div className="flex items-center justify-between md:block">
-
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-400 md:hidden">
-                      Preço
-                    </span>
-
-                    <span className="text-sm font-semibold text-gray-900">
-                      {service.price}
-                    </span>
-
-                  </div>
-
-                  {/* Status */}
-                  <div className="flex items-center justify-between md:block">
-
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-400 md:hidden">
-                      Status
-                    </span>
-
-                    {service.active ? (
-
-                      <span
-                        className="
-                          inline-flex
-                          items-center
-                          gap-2
-                          rounded-full
-                          bg-emerald-50
-                          px-3
-                          py-1.5
-                          text-xs
-                          font-semibold
-                          text-emerald-700
-                        "
+                    <div className="relative flex items-center justify-end">
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() =>
+                          handleOpenMenu(
+                            service.id,
+                          )
+                        }
+                        className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="Abrir ações"
                       >
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Ativo
-                      </span>
+                        <MoreHorizontal
+                          size={20}
+                        />
+                      </button>
 
-                    ) : (
+                      {/* ========================= */}
+                      {/* MENU */}
+                      {/* ========================= */}
 
-                      <span
-                        className="
-                          inline-flex
-                          items-center
-                          gap-2
-                          rounded-full
-                          bg-gray-100
-                          px-3
-                          py-1.5
-                          text-xs
-                          font-semibold
-                          text-gray-600
-                        "
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                        Inativo
-                      </span>
+                      {openMenu ===
+                        service.id && (
+                        <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
 
-                    )}
+                          {/* EDITAR */}
 
+                          <button
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() =>
+                              openEdit(
+                                service,
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            <Pencil
+                              size={16}
+                            />
+
+                            Editar
+                          </button>
+
+                          {/* ATIVAR / DESATIVAR */}
+
+                          <button
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() =>
+                              handleToggleActive(
+                                service,
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            <Power
+                              size={16}
+                            />
+
+                            {service.active
+                              ? "Desativar"
+                              : "Ativar"}
+                          </button>
+
+                          {/* EXCLUIR */}
+
+                          <button
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() =>
+                              openDelete(
+                                service,
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            <Trash2
+                              size={16}
+                            />
+
+                            Excluir
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-
-                  {/* AÇÕES */}
-                  <div className="relative flex justify-end">
-
-                    <button
-                      type="button"
-                      aria-label={`Ações para ${service.name}`}
-                      onClick={() =>
-                        setOpenMenu(
-                          openMenu === service.id
-                            ? null
-                            : service.id
-                        )
-                      }
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        text-gray-400
-                        transition-all
-                        duration-200
-                        hover:bg-gray-100
-                        hover:text-gray-900
-                        lg:opacity-0
-                        lg:group-hover:opacity-100
-                      "
-                    >
-                      <span className="text-xl leading-none">
-                        ⋯
-                      </span>
-                    </button>
-
-                    {/* MENU */}
-                    {openMenu === service.id && (
-
-                      <div
-                        className="
-                          absolute
-                          right-0
-                          top-11
-                          z-40
-                          w-52
-                          overflow-hidden
-                          rounded-xl
-                          border
-                          border-gray-200
-                          bg-white
-                          p-1.5
-                          shadow-xl
-                          shadow-gray-200/50
-                        "
-                      >
-
-                        {/* Editar */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(service)
-                          }
-                          className="
-                            w-full
-                            rounded-lg
-                            px-3
-                            py-2.5
-                            text-left
-                            text-sm
-                            font-medium
-                            text-gray-700
-                            transition
-                            hover:bg-gray-50
-                          "
-                        >
-                          Editar serviço
-                        </button>
-
-                        {/* Duplicar */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDuplicate(service)
-                          }
-                          className="
-                            w-full
-                            rounded-lg
-                            px-3
-                            py-2.5
-                            text-left
-                            text-sm
-                            font-medium
-                            text-gray-700
-                            transition
-                            hover:bg-gray-50
-                          "
-                        >
-                          Duplicar serviço
-                        </button>
-
-                        {/* Ativar / Desativar */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleToggleStatus(service)
-                          }
-                          className="
-                            w-full
-                            rounded-lg
-                            px-3
-                            py-2.5
-                            text-left
-                            text-sm
-                            font-medium
-                            text-gray-700
-                            transition
-                            hover:bg-gray-50
-                          "
-                        >
-                          {service.active
-                            ? "Desativar serviço"
-                            : "Ativar serviço"}
-                        </button>
-
-                        <div className="my-1.5 border-t border-gray-100" />
-
-                        {/* Eliminar */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeletingService(service);
-                            setOpenMenu(null);
-                          }}
-                          className="
-                            w-full
-                            rounded-lg
-                            px-3
-                            py-2.5
-                            text-left
-                            text-sm
-                            font-medium
-                            text-red-600
-                            transition
-                            hover:bg-red-50
-                          "
-                        >
-                          Eliminar serviço
-                        </button>
-
-                      </div>
-                    )}
-
-                  </div>
-
-                </div>
-
-              </article>
-
-            ))
-
+                );
+              },
+            )
           )}
-
         </div>
-
-        {/* Rodapé */}
-        <footer className="flex flex-col gap-4 border-t border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-
-          <p className="text-sm text-gray-500">
-            Mostrando{" "}
-            <span className="font-medium text-gray-900">
-              {filteredServices.length}
-            </span>{" "}
-            de{" "}
-            <span className="font-medium text-gray-900">
-              {services.length}
-            </span>{" "}
-            serviços
-          </p>
-
-        </footer>
-
       </section>
 
-      {/* ==================================================
-          MODAL EDITAR
-      ================================================== */}
+      {/* ================================= */}
+      {/* MODAL EDITAR */}
+      {/* ================================= */}
 
       {editingService && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+            {/* HEADER */}
 
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-black/40
-            px-4
-          "
-        >
-
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-
-            <div className="mb-6 flex items-start justify-between">
-
+            <div className="flex items-center justify-between border-b border-gray-100 p-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-950">
                   Editar serviço
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Atualize as informações do serviço.
+                  Atualize os dados do
+                  serviço.
                 </p>
               </div>
 
@@ -715,324 +705,198 @@ export default function ServicesList() {
                 onClick={() =>
                   setEditingService(null)
                 }
-                className="
-                  flex
-                  h-8
-                  w-8
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-xl
-                  text-gray-400
-                  hover:bg-gray-100
-                  hover:text-gray-700
-                "
+                className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100"
               >
-                ×
+                <X size={20} />
               </button>
-
             </div>
 
-            <div className="space-y-5">
+            {/* FORMULÁRIO */}
 
-              {/* Nome */}
+            <div className="space-y-5 p-6">
+              {/* NOME */}
+
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Nome do serviço
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Nome
                 </label>
 
                 <input
                   type="text"
-                  value={editingService.name}
+                  value={editName}
                   onChange={(event) =>
-                    setEditingService({
-                      ...editingService,
-                      name: event.target.value,
-                    })
+                    setEditName(
+                      event.target.value,
+                    )
                   }
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
                 />
-
               </div>
 
-              {/* Descrição */}
-              <div>
+              {/* DESCRIÇÃO */}
 
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Descrição
                 </label>
 
                 <textarea
-                  rows={3}
-                  value={editingService.description}
+                  value={editDescription}
                   onChange={(event) =>
-                    setEditingService({
-                      ...editingService,
-                      description:
-                        event.target.value,
-                    })
+                    setEditDescription(
+                      event.target.value,
+                    )
                   }
-                  className="
-                    w-full
-                    resize-none
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
                 />
-
               </div>
 
-              {/* Preço / Duração */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* PREÇO / DURAÇÃO */}
 
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Preço
                   </label>
 
                   <input
-                    type="text"
-                    value={editingService.price}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editPrice}
                     onChange={(event) =>
-                      setEditingService({
-                        ...editingService,
-                        price: event.target.value,
-                      })
+                      setEditPrice(
+                        event.target.value,
+                      )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
                   />
-
                 </div>
 
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Duração
                   </label>
 
-                  <select
-                    value={editingService.duration}
+                  <input
+                    type="number"
+                    min="1"
+                    value={editDuration}
                     onChange={(event) =>
-                      setEditingService({
-                        ...editingService,
-                        duration:
-                          event.target.value,
-                      })
+                      setEditDuration(
+                        event.target.value,
+                      )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
-                  >
-                    <option>30 min</option>
-                    <option>45 min</option>
-                    <option>60 min</option>
-                    <option>90 min</option>
-                    <option>120 min</option>
-                  </select>
-
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+                  />
                 </div>
-
               </div>
-
             </div>
 
-            <div className="mt-8 flex justify-end gap-3">
+            {/* FOOTER */}
 
+            <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
               <button
                 type="button"
                 onClick={() =>
                   setEditingService(null)
                 }
-                className="
-                  rounded-xl
-                  border
-                  border-gray-200
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-gray-700
-                  hover:bg-gray-50
-                "
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
-                onClick={handleSaveEdit}
-                className="
-                  rounded-xl
-                  bg-gray-950
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-white
-                  hover:bg-gray-800
-                "
+                disabled={
+                  loadingId ===
+                  editingService.id
+                }
+                onClick={handleEdit}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Guardar alterações
+                <Save size={16} />
+
+                {loadingId ===
+                editingService.id
+                  ? "A guardar..."
+                  : "Guardar alterações"}
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
 
-      {/* ==================================================
-          CONFIRMAR ELIMINAÇÃO
-      ================================================== */}
+      {/* ================================= */}
+      {/* MODAL EXCLUIR */}
+      {/* ================================= */}
 
       {deletingService && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            {/* ÍCONE */}
 
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-black/40
-            px-4
-          "
-        >
-
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
-            <div className="mb-6">
-
-              <div
-                className="
-                  mb-4
-                  flex
-                  h-11
-                  w-11
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-red-50
-                  font-bold
-                  text-red-600
-                "
-              >
-                !
-              </div>
-
-              <h2 className="text-xl font-semibold text-gray-900">
-                Eliminar serviço?
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-gray-500">
-
-                Tem certeza que deseja eliminar{" "}
-
-                <span className="font-semibold text-gray-900">
-                  {deletingService.name}
-                </span>
-
-                ? Esta ação não poderá ser desfeita.
-
-              </p>
-
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+              <Trash2
+                size={22}
+                className="text-red-600"
+              />
             </div>
 
-            <div className="flex justify-end gap-3">
+            {/* TÍTULO */}
 
+            <h2 className="mt-5 text-xl font-bold text-gray-950">
+              Excluir serviço?
+            </h2>
+
+            {/* DESCRIÇÃO */}
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Tem certeza que deseja excluir
+              o serviço{" "}
+              <strong className="text-gray-800">
+                {deletingService.name}
+              </strong>
+              ?
+
+              <br />
+
+              Esta ação não pode ser
+              desfeita.
+            </p>
+
+            {/* BOTÕES */}
+
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() =>
                   setDeletingService(null)
                 }
-                className="
-                  rounded-xl
-                  border
-                  border-gray-200
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-gray-700
-                  hover:bg-gray-50
-                "
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
+                disabled={
+                  loadingId ===
+                  deletingService.id
+                }
                 onClick={handleDelete}
-                className="
-                  rounded-xl
-                  bg-red-600
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-white
-                  hover:bg-red-700
-                "
+                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Eliminar
+                {loadingId ===
+                deletingService.id
+                  ? "A excluir..."
+                  : "Sim, excluir"}
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </>
   );
 }

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
 
 interface RouteContext {
@@ -7,78 +8,128 @@ interface RouteContext {
   }>;
 }
 
-export async function GET(
-  _request: Request,
+const BUSINESS_ID =
+  process.env.NEXT_PUBLIC_BUSINESS_ID;
+
+export async function PUT(
+  request: NextRequest,
   context: RouteContext,
 ) {
   try {
-    const { id } = await context.params;
+    const { id } =
+      await context.params;
 
-    const client = await prisma.client.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!client) {
+    if (!BUSINESS_ID) {
       return NextResponse.json(
-        { error: "Cliente não encontrado." },
-        { status: 404 },
+        {
+          error:
+            "Business ID não configurado.",
+        },
+        { status: 500 },
       );
     }
 
-    return NextResponse.json(client);
-  } catch (error) {
-    console.error("Erro ao buscar cliente:", error);
-
-    return NextResponse.json(
-      { error: "Erro ao buscar cliente." },
-      { status: 500 },
-    );
-  }
-}
-
-export async function PUT(
-  request: Request,
-  context: RouteContext,
-) {
-  try {
-    const { id } = await context.params;
-
     const body = await request.json();
 
-    const { name, email, phone, active } = body;
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
 
-    if (!name || !phone) {
+    const description =
+      typeof body.description === "string"
+        ? body.description.trim()
+        : null;
+
+    const price = Number(body.price);
+
+    const duration = Number(body.duration);
+
+    const active =
+      typeof body.active === "boolean"
+        ? body.active
+        : true;
+
+    if (!name) {
       return NextResponse.json(
         {
-          error: "Nome e telefone são obrigatórios.",
+          error:
+            "O nome do serviço é obrigatório.",
         },
         { status: 400 },
       );
     }
 
-    const client = await prisma.client.update({
-      where: {
-        id,
-      },
-      data: {
-        name,
-        email: email || null,
-        phone,
-        active:
-          typeof active === "boolean"
-            ? active
-            : true,
-      },
-    });
+    if (
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "O preço do serviço é inválido.",
+        },
+        { status: 400 },
+      );
+    }
 
-    return NextResponse.json(client);
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A duração do serviço é inválida.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const existing =
+      await prisma.service.findFirst({
+        where: {
+          id,
+          businessId: BUSINESS_ID,
+        },
+      });
+
+    if (!existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Serviço não encontrado.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const service =
+      await prisma.service.update({
+        where: {
+          id,
+        },
+        data: {
+          name,
+          description: description || null,
+          price,
+          duration,
+          active,
+        },
+      });
+
+    return NextResponse.json(service);
   } catch (error) {
-    console.error("Erro ao atualizar cliente:", error);
+    console.error(
+      "Erro ao atualizar serviço:",
+      error,
+    );
 
     return NextResponse.json(
-      { error: "Erro ao atualizar cliente." },
+      {
+        error:
+          "Não foi possível atualizar o serviço.",
+      },
       { status: 500 },
     );
   }
@@ -89,35 +140,58 @@ export async function DELETE(
   context: RouteContext,
 ) {
   try {
-    const { id } = await context.params;
+    const { id } =
+      await context.params;
 
-    const client = await prisma.client.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!client) {
+    if (!BUSINESS_ID) {
       return NextResponse.json(
-        { error: "Cliente não encontrado." },
+        {
+          error:
+            "Business ID não configurado.",
+        },
+        { status: 500 },
+      );
+    }
+
+    const existing =
+      await prisma.service.findFirst({
+        where: {
+          id,
+          businessId: BUSINESS_ID,
+        },
+      });
+
+    if (!existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Serviço não encontrado.",
+        },
         { status: 404 },
       );
     }
 
-    await prisma.client.delete({
+    await prisma.service.delete({
       where: {
         id,
       },
     });
 
     return NextResponse.json({
-      message: "Cliente excluído com sucesso.",
+      message:
+        "Serviço excluído com sucesso.",
     });
   } catch (error) {
-    console.error("Erro ao excluir cliente:", error);
+    console.error(
+      "Erro ao excluir serviço:",
+      error,
+    );
 
     return NextResponse.json(
-      { error: "Erro ao excluir cliente." },
+      {
+        error:
+          "Não foi possível excluir o serviço.",
+      },
       { status: 500 },
     );
   }

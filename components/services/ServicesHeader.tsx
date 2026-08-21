@@ -1,355 +1,286 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 
-export default function ServicesHeader() {
+import { X, Plus, Loader2 } from "lucide-react";
+
+import type { Service } from "@/types/service";
+
+interface ServicesHeaderProps {
+  onServiceCreated: (
+    service: Service,
+  ) => void;
+}
+
+export default function ServicesHeader({
+  onServiceCreated,
+}: ServicesHeaderProps) {
   const [open, setOpen] = useState(false);
+
+  const [name, setName] = useState("");
+  const [description, setDescription] =
+    useState("");
+  const [price, setPrice] = useState("");
+  const [duration, setDuration] =
+    useState("30");
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function resetForm() {
+    setName("");
+    setDescription("");
+    setPrice("");
+    setDuration("30");
+    setError("");
+  }
+
+  function closeModal() {
+    if (saving) return;
+
+    setOpen(false);
+    resetForm();
+  }
+
+  async function handleCreateService(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const response = await fetch(
+        "/api/services",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            name,
+            description,
+            price: Number(price),
+            duration: Number(duration),
+            active: true,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível criar o serviço.",
+        );
+      }
+
+      onServiceCreated(data);
+
+      setOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error(error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao criar serviço.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
-      {/* Header */}
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        {/* Informações */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
-              Serviços
-            </h1>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-blue-600">
+            Gestão
+          </p>
 
-            <span className="hidden rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 sm:inline-flex">
-              Gestão
-            </span>
-          </div>
+          <h1 className="mt-1 text-2xl font-bold text-gray-950">
+            Serviços
+          </h1>
 
-          <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Gerencie os serviços, preços e duração do seu estabelecimento.
+          <p className="mt-1 text-sm text-gray-500">
+            Gerencie os serviços oferecidos.
           </p>
         </div>
 
-        {/* Ação principal */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="
-            inline-flex
-            w-full
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-gray-950
-            px-5
-            py-3
-            text-sm
-            font-semibold
-            text-white
-            shadow-sm
-            transition-all
-            duration-200
-            hover:bg-gray-800
-            hover:shadow-md
-            active:scale-[0.98]
-            focus:outline-none
-            focus:ring-2
-            focus:ring-gray-950
-            focus:ring-offset-2
-            sm:w-auto
-          "
+          className="flex items-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
         >
-          <span className="text-lg leading-none">+</span>
+          <Plus size={18} />
+
           Novo serviço
         </button>
-      </header>
+      </div>
 
-      {/* Modal */}
       {open && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-gray-950/50
-            p-4
-            backdrop-blur-sm
-          "
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="
-              w-full
-              max-w-lg
-              overflow-hidden
-              rounded-2xl
-              border
-              border-gray-200
-              bg-white
-              shadow-2xl
-              animate-[fadeIn_180ms_ease-out]
-            "
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b p-6">
               <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-700">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 5v14M5 12h14"
-                      />
-                    </svg>
-                  </div>
+                <h2 className="text-lg font-bold text-gray-950">
+                  Novo serviço
+                </h2>
 
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-950">
-                      Novo serviço
-                    </h2>
-
-                    <p className="mt-0.5 text-sm text-gray-500">
-                      Adicione um novo serviço ao estabelecimento.
-                    </p>
-                  </div>
-                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Cadastre um novo serviço.
+                </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Fechar modal"
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-gray-400
-                  transition
-                  hover:bg-gray-100
-                  hover:text-gray-900
-                "
+                onClick={closeModal}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
               >
-                <span className="text-xl leading-none">×</span>
+                <X size={20} />
               </button>
             </div>
 
-            {/* Formulário */}
-            <div className="space-y-5 px-6 py-6">
-              {/* Nome */}
+            <form
+              onSubmit={handleCreateService}
+              className="space-y-5 p-6"
+            >
+              {error && (
+                <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-800">
-                  Nome do serviço
+                <label className="text-sm font-medium text-gray-700">
+                  Nome
                 </label>
 
                 <input
-                  type="text"
-                  placeholder="Ex.: Corte Premium"
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    text-gray-900
-                    placeholder:text-gray-400
-                    outline-none
-                    transition-all
-                    duration-200
-                    hover:border-gray-300
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  value={name}
+                  onChange={(event) =>
+                    setName(event.target.value)
+                  }
+                  required
+                  className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
+                  placeholder="Ex: Corte de cabelo"
                 />
               </div>
 
-              {/* Descrição */}
               <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-800">
-                    Descrição
-                  </label>
-
-                  <span className="text-xs text-gray-400">Opcional</span>
-                </div>
+                <label className="text-sm font-medium text-gray-700">
+                  Descrição
+                </label>
 
                 <textarea
-                  placeholder="Descreva brevemente o serviço..."
+                  value={description}
+                  onChange={(event) =>
+                    setDescription(
+                      event.target.value,
+                    )
+                  }
                   rows={3}
-                  className="
-                    w-full
-                    resize-none
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    leading-6
-                    text-gray-900
-                    placeholder:text-gray-400
-                    outline-none
-                    transition-all
-                    duration-200
-                    hover:border-gray-300
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="mt-1 w-full resize-none rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
+                  placeholder="Descrição do serviço"
                 />
               </div>
 
-              {/* Preço + duração */}
-              <div className="grid gap-5 sm:grid-cols-2">
-                {/* Preço */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                  <label className="text-sm font-medium text-gray-700">
                     Preço
                   </label>
 
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="10.000"
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-200
-                        bg-white
-                        px-4
-                        py-3
-                        pr-12
-                        text-sm
-                        text-gray-900
-                        placeholder:text-gray-400
-                        outline-none
-                        transition-all
-                        duration-200
-                        hover:border-gray-300
-                        focus:border-gray-900
-                        focus:ring-4
-                        focus:ring-gray-100
-                      "
-                    />
-
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
-                      Kz
-                    </span>
-                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={price}
+                    onChange={(event) =>
+                      setPrice(
+                        event.target.value,
+                      )
+                    }
+                    required
+                    className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
+                  />
                 </div>
 
-                {/* Duração */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">
+                  <label className="text-sm font-medium text-gray-700">
                     Duração
                   </label>
 
                   <select
-                    defaultValue=""
-                    className="
-                      w-full
-                      appearance-none
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-700
-                      outline-none
-                      transition-all
-                      duration-200
-                      hover:border-gray-300
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    value={duration}
+                    onChange={(event) =>
+                      setDuration(
+                        event.target.value,
+                      )
+                    }
+                    className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
                   >
-                    <option value="" disabled>
-                      Selecionar duração
+                    <option value="15">
+                      15 minutos
                     </option>
 
-                    <option value="30">30 minutos</option>
+                    <option value="30">
+                      30 minutos
+                    </option>
 
-                    <option value="45">45 minutos</option>
+                    <option value="45">
+                      45 minutos
+                    </option>
 
-                    <option value="60">1 hora</option>
+                    <option value="60">
+                      1 hora
+                    </option>
 
-                    <option value="90">1h 30min</option>
+                    <option value="90">
+                      1h30
+                    </option>
 
-                    <option value="120">2 horas</option>
+                    <option value="120">
+                      2 horas
+                    </option>
                   </select>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-5 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-white
-                  px-5
-                  py-3
-                  text-sm
-                  font-semibold
-                  text-gray-700
-                  transition-all
-                  duration-200
-                  hover:bg-gray-50
-                  hover:text-gray-900
-                  active:scale-[0.98]
-                  sm:w-auto
-                "
-              >
-                Cancelar
-              </button>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
 
-              <button
-                type="button"
-                className="
-                  w-full
-                  rounded-xl
-                  bg-gray-950
-                  px-5
-                  py-3
-                  text-sm
-                  font-semibold
-                  text-white
-                  shadow-sm
-                  transition-all
-                  duration-200
-                  hover:bg-gray-800
-                  hover:shadow-md
-                  active:scale-[0.98]
-                  sm:w-auto
-                "
-              >
-                Criar serviço
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-xl bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+                >
+                  {saving && (
+                    <Loader2
+                      size={16}
+                      className="animate-spin"
+                    />
+                  )}
+
+                  Criar serviço
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

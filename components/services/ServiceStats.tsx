@@ -1,160 +1,79 @@
+"use client";
 
-export default function ServiceStats() {
+import {
+  BriefcaseBusiness,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { Service } from "./ServicesList";
+
+interface ServiceStatsProps {
+  services: Service[];
+}
+
+export default function ServiceStats({
+  services,
+}: ServiceStatsProps) {
+  const total = services.length;
+
+  const active = services.filter(
+    (service) => service.active,
+  ).length;
+
+  const inactive = services.filter(
+    (service) => !service.active,
+  ).length;
+
   const stats = [
     {
-      label: "Total de serviços",
-      value: "12",
-      description: "+2 este mês",
-      descriptionClass: "text-emerald-600",
-      icon: "Σ",
+      label: "Total",
+      value: total,
+      icon: BriefcaseBusiness,
     },
     {
-      label: "Serviços ativos",
-      value: "10",
-      description: "83% do total",
-      descriptionClass: "text-gray-500",
-      icon: "✓",
+      label: "Ativos",
+      value: active,
+      icon: CheckCircle2,
     },
     {
-      label: "Serviços inativos",
-      value: "2",
-      description: "Atualmente",
-      descriptionClass: "text-gray-500",
-      icon: "−",
+      label: "Inativos",
+      value: inactive,
+      icon: XCircle,
     },
   ];
 
   return (
-    <section
-      className="
-        grid
-        grid-cols-1
-        gap-4
-        sm:grid-cols-2
-        xl:grid-cols-3
-      "
-    >
-      {stats.map((stat) => (
-        <div
-          key={stat.label}
-          className="
-            group
-            relative
-            overflow-hidden
-            rounded-2xl
-            border
-            border-gray-200/80
-            bg-white
-            p-5
-            shadow-sm
-            transition-all
-            duration-200
-            hover:-translate-y-0.5
-            hover:shadow-md
-          "
-        >
-          {/* Indicador lateral */}
+    <div className="grid gap-4 md:grid-cols-3">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+
+        return (
           <div
-            className="
-              absolute
-              left-0
-              top-0
-              h-full
-              w-1
-              bg-gray-900
-              opacity-0
-              transition-opacity
-              duration-200
-              group-hover:opacity-100
-            "
-          />
-
-          {/* Conteúdo principal */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p
-                className="
-                  text-sm
-                  font-medium
-                  text-gray-500
-                "
-              >
-                {stat.label}
-              </p>
-
-              <h2
-                className="
-                  mt-3
-                  text-3xl
-                  font-semibold
-                  tracking-tight
-                  text-gray-950
-                "
-              >
-                {stat.value}
-              </h2>
-            </div>
-
-            {/* Ícone */}
-            <div
-              className="
-                flex
-                h-10
-                w-10
-                shrink-0
-                items-center
-                justify-center
-                rounded-xl
-                bg-gray-50
-                text-gray-600
-                transition-colors
-                duration-200
-                group-hover:bg-gray-100
-              "
-            >
-              <span className="text-sm font-semibold">
-                {stat.icon}
-              </span>
-            </div>
-          </div>
-
-          {/* Informação inferior */}
-          <div
-            className="
-              mt-5
-              flex
-              items-center
-              justify-between
-              border-t
-              border-gray-100
-              pt-4
-            "
+            key={stat.label}
+            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
           >
-            <span
-              className={`
-                text-sm
-                font-medium
-                ${stat.descriptionClass}
-              `}
-            >
-              {stat.description}
-            </span>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">
+                  {stat.label}
+                </p>
 
-            <span
-              className="
-                text-xs
-                text-gray-400
-                transition-colors
-                duration-200
-                group-hover:text-gray-500
-              "
-            >
-              Serviços
-            </span>
+                <p className="mt-2 text-3xl font-bold text-gray-950">
+                  {stat.value}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-100 p-3">
+                <Icon
+                  size={22}
+                  className="text-gray-700"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
-    </section>
+        );
+      })}
+    </div>
   );
 }
-
