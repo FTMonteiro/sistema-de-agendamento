@@ -7,10 +7,18 @@ const globalForPrisma = globalThis as unknown as {
   pool?: Pool;
 };
 
+const databaseUrl = process.env.DIRECT_DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error(
+    "DIRECT_DATABASE_URL não está configurada no arquivo .env",
+  );
+}
+
 const pool =
   globalForPrisma.pool ??
   new Pool({
-    connectionString: process.env.DIRECT_DATABASE_URL,
+    connectionString: databaseUrl,
   });
 
 const adapter = new PrismaPg(pool);

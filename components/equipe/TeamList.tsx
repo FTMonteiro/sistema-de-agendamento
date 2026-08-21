@@ -1,15 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { Search, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { TeamMember } from "@/data/Team";
-import { TeamDetails } from "@/components/equipe/TeamDetails";
+import {
+  Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  Save,
+} from "lucide-react";
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  active: boolean;
+  emailVerified: boolean;
+  businessId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface TeamListProps {
   members: TeamMember[];
-  onUpdateMember: (member: TeamMember) => void;
-  onDeleteMember: (id: TeamMember["id"]) => void;
+
+  onUpdateMember: (
+    member: TeamMember,
+  ) => void;
+
+  onDeleteMember: (id: string) => void;
 }
 
 export default function TeamList({
@@ -17,361 +40,603 @@ export default function TeamList({
   onUpdateMember,
   onDeleteMember,
 }: TeamListProps) {
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
 
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [openMenu, setOpenMenu] =
+    useState<string | null>(null);
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [editingMember, setEditingMember] =
+    useState<TeamMember | null>(null);
 
-  const [openMenu, setOpenMenu] = useState<TeamMember["id"] | null>(null);
+  const [deletingMember, setDeletingMember] =
+    useState<TeamMember | null>(null);
 
-  /*PESQUISA*/
-  const filteredTeam = members.filter((member) => {
-    const value = search.toLowerCase().trim();
+  const [loadingId, setLoadingId] =
+    useState<string | null>(null);
 
-    return (
-      member.name.toLowerCase().includes(value) ||
-      member.role.toLowerCase().includes(value) ||
-      member.phone.toLowerCase().includes(value) ||
-      member.email.toLowerCase().includes(value)
-    );
-  });
+  const [editName, setEditName] =
+    useState("");
 
-  /*VER PERFIL*/
-  function handleView(member: TeamMember) {
+  const [editEmail, setEditEmail] =
+    useState("");
+
+  const [editPhone, setEditPhone] =
+    useState("");
+
+  const [editSpecialty, setEditSpecialty] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const filteredMembers = useMemo(() => {
+    const normalized =
+      query.trim().toLowerCase();
+
+    if (!normalized) {
+      return members;
+    }
+
+    return members.filter((member) => {
+      return (
+        member.name
+          .toLowerCase()
+          .includes(normalized) ||
+        member.email
+          .toLowerCase()
+          .includes(normalized) ||
+        member.phone
+          .toLowerCase()
+          .includes(normalized) ||
+        member.specialty
+          .toLowerCase()
+          .includes(normalized)
+      );
+    });
+  }, [members, query]);
+
+  function openEdit(member: TeamMember) {
+    setEditingMember(member);
+
+    setEditName(member.name);
+    setEditEmail(member.email);
+    setEditPhone(member.phone);
+    setEditSpecialty(member.specialty);
+
     setOpenMenu(null);
-    setIsEditing(false);
-    setSelectedMember(member);
+    setError("");
   }
 
-  /*ABRIR EDIÇÃO*/
-  function handleEdit(member: TeamMember) {
-    setOpenMenu(null);
-    setSelectedMember(member);
-    setIsEditing(true);
-  }
+  async function handleEdit() {
+    if (!editingMember) return;
 
-  /*SALVAR EDIÇÃO*/
-  function handleSaveEdit(updatedMember: TeamMember) {
-    onUpdateMember(updatedMember);
+    setError("");
 
-    setSelectedMember(updatedMember);
-    setIsEditing(false);
-  }
-  /*EXCLUIR */
-  function handleDelete(member: TeamMember) {
-    setOpenMenu(null);
+    const name = editName.trim();
+    const email = editEmail
+      .trim()
+      .toLowerCase();
 
-    onDeleteMember(member.id);
+    if (!name) {
+      setError("Digite o nome.");
+      return;
+    }
 
-    if (selectedMember?.id === member.id) {
-      setSelectedMember(null);
-      setIsEditing(false);
+    if (!email) {
+      setError("Digite o email.");
+      return;
+    }
+
+    if (!editPhone.trim()) {
+      setError("Digite o telefone.");
+      return;
+    }
+
+    if (!editSpecialty.trim()) {
+      setError("Digite a especialidade.");
+      return;
+    }
+
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      setError("Digite um email válido.");
+      return;
+    }
+
+    try {
+      setLoadingId(editingMember.id);
+
+      const response = await fetch(
+        `/api/professionals/${editingMember.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            phone: editPhone.trim(),
+            specialty: editSpecialty.trim(),
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível editar.",
+        );
+      }
+
+      onUpdateMember({
+        ...data,
+        email: data.email ?? "",
+        phone: data.phone ?? "",
+        specialty: data.specialty ?? "",
+        active: data.active === true,
+        emailVerified:
+          data.emailVerified === true,
+      });
+
+      setEditingMember(null);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao editar.",
+      );
+    } finally {
+      setLoadingId(null);
     }
   }
 
-  function handleClose() {
-    setSelectedMember(null);
-    setIsEditing(false);
+  async function handleToggleActive(
+    member: TeamMember,
+  ) {
+    try {
+      setLoadingId(member.id);
+      setOpenMenu(null);
+
+      const response = await fetch(
+        `/api/professionals/${member.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            active: !member.active,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível alterar o estado.",
+        );
+      }
+
+      onUpdateMember({
+        ...member,
+        ...data,
+        active: data.active === true,
+      });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao alterar estado.",
+      );
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deletingMember) return;
+
+    try {
+      setLoadingId(deletingMember.id);
+
+      const response = await fetch(
+        `/api/professionals/${deletingMember.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível excluir.",
+        );
+      }
+
+      onDeleteMember(deletingMember.id);
+
+      setDeletingMember(null);
+      setOpenMenu(null);
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao excluir.",
+      );
+    } finally {
+      setLoadingId(null);
+    }
   }
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-        <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Equipe</h2>
+            <h2 className="text-lg font-bold text-gray-950">
+              Profissionais
+            </h2>
 
             <p className="mt-1 text-sm text-gray-500">
               Profissionais cadastrados.
             </p>
           </div>
 
-          {/* PESQUISA */}
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <div className="relative w-full md:w-80">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
 
             <input
               type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={query}
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
               placeholder="Pesquisar profissional..."
-              className="
-                h-10
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-gray-50
-                pl-10
-                pr-4
-                text-sm
-                text-gray-900
-                outline-none
-                transition
-                placeholder:text-gray-400
-                focus:border-gray-950
-                focus:bg-white
-              "
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
         </div>
 
-        {/* TABELa*/}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/70">
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Profissional
-                </th>
+        <div className="divide-y divide-gray-100">
+          {filteredMembers.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="font-medium text-gray-700">
+                Nenhum profissional encontrado.
+              </p>
 
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Cargo
-                </th>
+              <p className="mt-1 text-sm text-gray-500">
+                Adicione um profissional ou
+                tente outra pesquisa.
+              </p>
+            </div>
+          ) : (
+            filteredMembers.map((member) => {
+              const isLoading =
+                loadingId === member.id;
 
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Telefone
-                </th>
+              return (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between gap-4 p-5 transition hover:bg-gray-50"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="font-semibold text-gray-950">
+                        {member.name}
+                      </h3>
 
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Status
-                </th>
+                      {member.active ? (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                          Inativo
+                        </span>
+                      )}
 
-                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Ações
-                </th>
-              </tr>
-            </thead>
+                      {member.email &&
+                        (member.emailVerified ? (
+                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                            Email verificado
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            Email não verificado
+                          </span>
+                        ))}
+                    </div>
 
-            <tbody>
-              {filteredTeam.map((member) => {
-                const active = member.status === "Ativo";
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                      {member.email && (
+                        <span>{member.email}</span>
+                      )}
 
-                return (
-                  <tr
-                    key={member.id}
-                    className="
-                      border-b
-                      border-gray-100
-                      last:border-0
-                      transition
-                      hover:bg-gray-50/70
-                    "
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        {/* FOTO */}
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                          {member.photo ? (
-                            <img
-                              src={member.photo}
-                              alt={`Foto de ${member.name}`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-gray-700">
-                              {member.name.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
+                      {member.phone && (
+                        <span>{member.phone}</span>
+                      )}
 
-                        {/* NOME + EMAIL */}
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {member.name}
-                          </p>
+                      {member.specialty && (
+                        <span>
+                          {member.specialty}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                          <p className="truncate text-xs text-gray-400">
-                            {member.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
+                  {/* TRÊS PONTOS */}
 
-                    {/* CARGO*/}
-                    <td className="px-5 py-4">
-                      <span className="text-sm text-gray-700">
-                        {member.role}
-                      </span>
-                    </td>
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() =>
+                        setOpenMenu(
+                          openMenu === member.id
+                            ? null
+                            : member.id,
+                        )
+                      }
+                      aria-label="Abrir ações"
+                      className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                    >
+                      <MoreHorizontal
+                        size={22}
+                      />
+                    </button>
 
-                    <td className="px-5 py-4">
-                      <span className="text-sm text-gray-700">
-                        {member.phone}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span
-                        className={`
-                          inline-flex
-                          rounded-full
-                          px-2.5
-                          py-1
-                          text-xs
-                          font-medium
-                          ${
-                            active
-                              ? "bg-green-50 text-green-700"
-                              : "bg-gray-100 text-gray-600"
-                          }
-                        `}
-                      >
-                        {member.status}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="relative flex items-center justify-end gap-2">
-                        {/* VER MAIS */}
-                        <button
-                          type="button"
-                          onClick={() => handleView(member)}
-                          className="
-                            inline-flex
-                            items-center
-                            gap-2
-                            rounded-lg
-                            border
-                            border-gray-200
-                            px-3
-                            py-2
-                            text-xs
-                            font-medium
-                            text-gray-700
-                            transition
-                            hover:bg-gray-50
-                            hover:text-gray-950
-                          "
-                        >
-                          <Eye className="h-4 w-4" />
-                          Ver mais
-                        </button>
-
-                        {/* MAIS OPÇÕES */}
+                    {openMenu === member.id && (
+                      <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
                         <button
                           type="button"
                           onClick={() =>
-                            setOpenMenu(
-                              openMenu === member.id ? null : member.id,
-                            )
+                            openEdit(member)
                           }
-                          className="
-                            flex
-                            h-9
-                            w-9
-                            items-center
-                            justify-center
-                            rounded-lg
-                            text-gray-400
-                            transition
-                            hover:bg-gray-100
-                            hover:text-gray-700
-                          "
-                          aria-label={`Mais opções para ${member.name}`}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
                         >
-                          <MoreHorizontal className="h-5 w-5" />
+                          <Pencil size={16} />
+                          Editar
                         </button>
 
-                        {/* MENU */}
-                        {openMenu === member.id && (
-                          <div
-                            className="
-                              absolute
-                              right-0
-                              top-11
-                              z-30
-                              w-40
-                              overflow-hidden
-                              rounded-xl
-                              border
-                              border-gray-200
-                              bg-white
-                              p-1
-                              shadow-xl
-                            "
-                          >
-                            {/* EDITAR */}
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(member)}
-                              className="
-                                flex
-                                w-full
-                                items-center
-                                gap-2
-                                rounded-lg
-                                px-3
-                                py-2.5
-                                text-sm
-                                text-gray-700
-                                transition
-                                hover:bg-gray-50
-                              "
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Editar
-                            </button>
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() =>
+                            handleToggleActive(
+                              member,
+                            )
+                          }
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <Power size={16} />
 
-                            {/* EXCLUIR */}
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(member)}
-                              className="
-                                flex
-                                w-full
-                                items-center
-                                gap-2
-                                rounded-lg
-                                px-3
-                                py-2.5
-                                text-sm
-                                text-red-600
-                                transition
-                                hover:bg-red-50
-                              "
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Excluir
-                            </button>
-                          </div>
-                        )}
+                          {member.active
+                            ? "Desativar"
+                            : "Ativar"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeletingMember(
+                              member,
+                            );
+                            setOpenMenu(null);
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                          Excluir
+                        </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {filteredTeam.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">
-                        Nenhum profissional encontrado
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-400">
-                        Tente pesquisar por outro nome, cargo, telefone ou
-                        email.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-      </div>
+      </section>
 
-      <TeamDetails
-        member={selectedMember}
-        isEditing={isEditing}
-        onClose={handleClose}
-        onStartEdit={handleEdit}
-        onEdit={handleSaveEdit}
-        onDelete={handleDelete}
-      />
+      {/* ==============================
+          MODAL EDITAR
+      ============================== */}
+
+      {editingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 p-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-950">
+                  Editar profissional
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Atualize os dados.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setEditingMember(null)
+                }
+                className="rounded-xl p-2 text-gray-500 hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              {error && (
+                <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Nome
+                </label>
+
+                <input
+                  value={editName}
+                  onChange={(event) =>
+                    setEditName(
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(event) =>
+                    setEditEmail(
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Telefone
+                </label>
+
+                <input
+                  value={editPhone}
+                  onChange={(event) =>
+                    setEditPhone(
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Especialidade
+                </label>
+
+                <input
+                  value={editSpecialty}
+                  onChange={(event) =>
+                    setEditSpecialty(
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
+              <button
+                type="button"
+                onClick={() =>
+                  setEditingMember(null)
+                }
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleEdit}
+                disabled={
+                  loadingId === editingMember.id
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Save size={16} />
+
+                {loadingId === editingMember.id
+                  ? "A guardar..."
+                  : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==============================
+          MODAL EXCLUIR
+      ============================== */}
+
+      {deletingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+              <Trash2
+                size={22}
+                className="text-red-600"
+              />
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-gray-950">
+              Excluir profissional?
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Tem certeza que deseja excluir{" "}
+              <strong className="text-gray-800">
+                {deletingMember.name}
+              </strong>
+              ?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setDeletingMember(null)
+                }
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={
+                  loadingId ===
+                  deletingMember.id
+                }
+                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {loadingId ===
+                deletingMember.id
+                  ? "A excluir..."
+                  : "Sim, excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

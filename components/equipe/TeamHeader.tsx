@@ -1,421 +1,384 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { useState } from "react";
+import { Plus, X, UserPlus } from "lucide-react";
 
-import { TeamMember } from "@/data/Team";
+import type { TeamMember } from "./TeamList";
 
 interface TeamHeaderProps {
-  onAddMember: (member: TeamMember) => void;
+  onMemberCreated: (member: TeamMember) => void;
 }
 
-export function TeamHeader({ onAddMember }: TeamHeaderProps) {
-  const [showModal, setShowModal] = useState(false);
+export default function TeamHeader({
+  onMemberCreated,
+}: TeamHeaderProps) {
+  const [open, setOpen] = useState(false);
 
   const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [photo, setPhoto] = useState("");
+  const [phone, setPhone] = useState("");
+  const [specialty, setSpecialty] = useState("");
 
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState("");
 
   function resetForm() {
     setName("");
-    setRole("");
-    setPhone("");
     setEmail("");
-    setPhoto("");
+    setPhone("");
+    setSpecialty("");
     setError("");
+    setSuccess("");
   }
 
   function closeModal() {
-    if (isSubmitting) return;
+    if (loading) return;
 
-    setShowModal(false);
+    setOpen(false);
     resetForm();
   }
 
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Selecione uma imagem válida.");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError("A fotografia deve ter no máximo 5 MB.");
-      return;
-    }
-
-    const imageUrl = URL.createObjectURL(file);
-
-    setPhoto(imageUrl);
-    setError("");
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
     setError("");
+    setSuccess("");
 
-    if (!name.trim()) {
-      setError("Informe o nome completo.");
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+    const cleanSpecialty = specialty.trim();
+
+    // ==============================
+    // VALIDAR CAMPOS
+    // ==============================
+
+    if (!cleanName) {
+      setError("Digite o nome do profissional.");
       return;
     }
 
-    if (!role.trim()) {
-      setError("Informe o cargo.");
+    if (!cleanEmail) {
+      setError("Digite o email do profissional.");
       return;
     }
 
-    if (!phone.trim()) {
-      setError("Informe o telefone.");
+    if (!cleanPhone) {
+      setError("Digite o telefone do profissional.");
       return;
     }
 
-    if (!email.trim()) {
-      setError("Informe o email.");
+    if (!cleanSpecialty) {
+      setError(
+        "Digite a especialidade do profissional.",
+      );
       return;
     }
 
-    setIsSubmitting(true);
+    // ==============================
+    // VALIDAR EMAIL
+    // ==============================
 
-    const member: TeamMember = {
-      id: Date.now(),
-      name: name.trim(),
-      role: role.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      photo,
-      status: "Ativo",
-    };
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Envia o novo profissional para a página
-    onAddMember(member);
+    if (!emailRegex.test(cleanEmail)) {
+      setError("Digite um email válido.");
+      return;
+    }
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowModal(false);
-      resetForm();
-    }, 250);
+    // ==============================
+    // BUSINESS ID
+    // ==============================
+
+    const businessId =
+      process.env.NEXT_PUBLIC_BUSINESS_ID;
+
+    if (!businessId) {
+      setError(
+        "Business ID não configurado.",
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        "/api/professionals",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
+            specialty: cleanSpecialty,
+            businessId,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível cadastrar o profissional.",
+        );
+      }
+
+      const professional = data.professional;
+
+      const member: TeamMember = {
+        id: String(professional.id),
+        name: String(professional.name),
+        email: professional.email ?? "",
+        phone: professional.phone ?? "",
+        specialty:
+          professional.specialty ?? "",
+        active:
+          professional.active === true,
+        emailVerified:
+          professional.emailVerified === true,
+        businessId: String(
+          professional.businessId,
+        ),
+        createdAt: String(
+          professional.createdAt,
+        ),
+        updatedAt: String(
+          professional.updatedAt,
+        ),
+      };
+
+      onMemberCreated(member);
+
+      setSuccess(
+        "Profissional cadastrado. Enviamos um email de verificação.",
+      );
+
+      setName("");
+      setEmail("");
+      setPhone("");
+      setSpecialty("");
+
+      setTimeout(() => {
+        setOpen(false);
+        setSuccess("");
+      }, 2500);
+    } catch (error) {
+      console.error(
+        "Erro ao cadastrar profissional:",
+        error,
+      );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao cadastrar profissional.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <>
-      {/* HEADER */}
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">Gestão da equipe</p>
+      {/* ==============================
+          HEADER
+      ============================== */}
 
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm font-medium text-blue-600">
+            Gestão
+          </p>
+
+          <h1 className="mt-1 text-2xl font-bold text-gray-950">
             Equipe
           </h1>
 
-          <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Gerencie os profissionais, cargos e informações da sua equipe.
+          <p className="mt-2 text-sm text-gray-500">
+            Gerencie os profissionais do seu estabelecimento.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setShowModal(true)}
-          className="
-            inline-flex
-            h-11
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-gray-950
-            px-5
-            text-sm
-            font-semibold
-            text-white
-            shadow-sm
-            transition-all
-            duration-200
-            hover:bg-gray-800
-            hover:shadow-md
-            active:scale-[0.98]
-            focus:outline-none
-            focus:ring-2
-            focus:ring-gray-950
-            focus:ring-offset-2
-          "
+          onClick={() => {
+            setError("");
+            setSuccess("");
+            setOpen(true);
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M15 14a5 5 0 0 0-10 0" />
-            <circle cx="10" cy="7" r="4" />
-            <path d="M19 8v6" />
-            <path d="M22 11h-6" />
-          </svg>
+          <Plus size={18} />
+
           Novo profissional
         </button>
-      </header>
+      </div>
 
-      {/* MODAL */}
-      {showModal && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-black/50
-            p-4
-            backdrop-blur-sm
-          "
-          onClick={closeModal}
-        >
-          <div
-            className="
-              max-h-[90vh]
-              w-full
-              max-w-lg
-              overflow-y-auto
-              rounded-2xl
-              bg-white
-              shadow-2xl
-            "
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* MODAL HEADER */}
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
-              <div>
-                <h2 className="text-xl font-bold text-gray-950">
-                  Novo profissional
-                </h2>
+      {/* ==============================
+          MODAL
+      ============================== */}
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Adicione um novo membro à sua equipe.
-                </p>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+            {/* HEADER MODAL */}
+
+            <div className="flex items-center justify-between border-b border-gray-100 p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                  <UserPlus
+                    size={21}
+                    className="text-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold text-gray-950">
+                    Novo profissional
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Preencha todos os campos.
+                  </p>
+                </div>
               </div>
 
               <button
                 type="button"
+                disabled={loading}
                 onClick={closeModal}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-900"
+                className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
+                <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-5 px-6 py-6">
-                {/* FOTOGRAFIA */}
-                <div>
-                  <label className="mb-3 block text-sm font-semibold text-gray-700">
-                    Fotografia
-                  </label>
+            {/* FORM */}
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                      {photo ? (
-                        <img
-                          src={photo}
-                          alt="Pré-visualização"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <svg
-                          width="28"
-                          height="28"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          className="text-gray-400"
-                        >
-                          <circle cx="12" cy="8" r="4" />
-                          <path d="M4 21a8 8 0 0 1 16 0" />
-                        </svg>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="team-photo"
-                        className="
-                          inline-flex
-                          cursor-pointer
-                          items-center
-                          gap-2
-                          rounded-xl
-                          border
-                          border-gray-200
-                          px-4
-                          py-2.5
-                          text-sm
-                          font-medium
-                          text-gray-700
-                          transition
-                          hover:border-gray-300
-                          hover:bg-gray-50
-                        "
-                      >
-                        <svg
-                          width="17"
-                          height="17"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M14.5 4h-5L7.8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2.8z" />
-                          <circle cx="12" cy="13" r="3" />
-                        </svg>
-
-                        {photo ? "Alterar fotografia" : "Adicionar fotografia"}
-                      </label>
-
-                      <input
-                        id="team-photo"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                      />
-
-                      <p className="mt-2 text-xs text-gray-400">
-                        JPG, PNG ou WebP · Máx. 5 MB
-                      </p>
-                    </div>
-                  </div>
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5 p-6"
+            >
+              {error && (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+                  {error}
                 </div>
+              )}
 
-                {/* NOME */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Nome completo
-                  </label>
-
-                  <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Ex: João Silva"
-                    className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
-                  />
+              {success && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+                  {success}
                 </div>
+              )}
 
-                {/* CARGO */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Cargo
-                  </label>
+              {/* NOME */}
 
-                  <input
-                    value={role}
-                    onChange={(event) => setRole(event.target.value)}
-                    placeholder="Ex: Barbeiro"
-                    className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
-                  />
-                </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Nome
+                </label>
 
-                {/* TELEFONE + EMAIL */}
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-gray-700">
-                      Telefone
-                    </label>
-
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="+244 900 000 000"
-                      className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-gray-700">
-                      Email
-                    </label>
-
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="profissional@email.com"
-                      className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-4 focus:ring-gray-100"
-                    />
-                  </div>
-                </div>
-
-                {/* ERRO */}
-                {error && (
-                  <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-                    {error}
-                  </div>
-                )}
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) =>
+                    setName(event.target.value)
+                  }
+                  placeholder="Nome completo"
+                  disabled={loading}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                />
               </div>
 
-              {/* FOOTER */}
-              <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+              {/* EMAIL */}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) =>
+                    setEmail(event.target.value)
+                  }
+                  placeholder="profissional@email.com"
+                  disabled={loading}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* TELEFONE */}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Telefone
+                </label>
+
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(event) =>
+                    setPhone(event.target.value)
+                  }
+                  placeholder="+244 9XX XXX XXX"
+                  disabled={loading}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* ESPECIALIDADE */}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Especialidade
+                </label>
+
+                <input
+                  type="text"
+                  value={specialty}
+                  onChange={(event) =>
+                    setSpecialty(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Barbeiro, cabeleireiro..."
+                  disabled={loading}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* BOTÕES */}
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={closeModal}
-                  disabled={isSubmitting}
-                  className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-xl bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
+                  disabled={loading}
+                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Adicionando...
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        width="17"
-                        height="17"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M12 5v14" />
-                        <path d="M5 12h14" />
-                      </svg>
-                      Adicionar profissional
-                    </>
-                  )}
+                  {loading
+                    ? "A cadastrar..."
+                    : "Cadastrar profissional"}
                 </button>
               </div>
             </form>

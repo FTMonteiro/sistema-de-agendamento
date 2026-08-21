@@ -15,6 +15,7 @@ model Business {
   address       String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+
   appointments  Appointment[]
   clients       Client[]
   professionals Professional[]
@@ -31,48 +32,61 @@ model User {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model Professional {
-  id           String        @id @default(cuid())
-  name         String
-  email        String?
-  phone        String?
-  specialty    String?
-  active       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  businessId   String
+  id        String  @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  specialty String?
+  active    Boolean @default(true)
+
+  emailVerified            Boolean  @default(false)
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessId String
+
   appointments Appointment[]
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model Client {
-  id           String        @id @default(cuid())
-  name         String
-  email        String?
-  phone        String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  businessId   String
-  active       Boolean       @default(true)
+  id         String   @id @default(cuid())
+  name       String
+  email      String?
+  phone      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  businessId String
+  active     Boolean  @default(true)
+
   appointments Appointment[]
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model Service {
-  id           String        @id @default(cuid())
-  name         String
-  description  String?
-  price        Decimal       @db.Decimal(10, 2)
-  duration     Int
-  active       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  businessId   String
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  duration    Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  businessId  String
+
   appointments Appointment[]
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model Appointment {
@@ -82,15 +96,18 @@ model Appointment {
   notes          String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+
   businessId     String
   clientId       String
   professionalId String
   serviceId      String
-  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  client         Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  professional   Professional      @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  service        Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  payment        Payment?
+
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  payment Payment?
 }
 
 model Payment {
@@ -101,8 +118,10 @@ model Payment {
   paidAt        DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  appointmentId String        @unique
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  appointmentId String @unique
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {
