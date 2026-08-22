@@ -1097,14 +1097,31 @@ export function AppointmentList({
                     Confirmado
                   </option>
 
-                  <option value="completed">
+                  {/* Concluído sai do pagamento, não da mão do utilizador. */}
+                  <option
+                    value="completed"
+                    disabled={
+                      editingAppointment.payment !==
+                      "paid"
+                    }
+                  >
                     Concluído
+                    {editingAppointment.payment !==
+                      "paid" &&
+                      " (requer pagamento)"}
                   </option>
 
                   <option value="cancelled">
                     Cancelado
                   </option>
                 </select>
+
+                {editingAppointment.payment !==
+                  "paid" && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    O agendamento passa a Concluído ao receber o pagamento.
+                  </p>
+                )}
               </div>
             </div>
 

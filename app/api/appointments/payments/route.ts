@@ -231,31 +231,48 @@ export async function POST(
      * =====================================================
      */
 
-    const payment =
-      await prisma.payment.create({
-        data: {
-          amount,
+    /*
+     * Pagamento e conclusao andam juntos: um agendamento pago esta concluido.
+     * Numa transacao para nao ficar pagamento registado com o agendamento
+     * ainda pendente caso a segunda escrita falhe.
+     */
+    const [payment] =
+      await prisma.$transaction([
+        prisma.payment.create({
+          data: {
+            amount,
 
-          method,
+            method,
 
-          status: "PAID",
+            status: "PAID",
 
-          paidAt: new Date(),
+            paidAt: new Date(),
 
-          appointmentId:
-            appointment.id,
-        },
+            appointmentId:
+              appointment.id,
+          },
 
-        include: {
-          appointment: {
-            include: {
-              client: true,
-              professional: true,
-              service: true,
+          include: {
+            appointment: {
+              include: {
+                client: true,
+                professional: true,
+                service: true,
+              },
             },
           },
-        },
-      });
+        }),
+
+        prisma.appointment.update({
+          where: {
+            id: appointment.id,
+          },
+
+          data: {
+            status: "COMPLETED",
+          },
+        }),
+      ]);
 
     /*
      * =====================================================

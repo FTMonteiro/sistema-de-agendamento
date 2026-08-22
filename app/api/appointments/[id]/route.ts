@@ -372,6 +372,32 @@ export async function PUT(
       "PENDING";
 
     /*
+     * Concluído significa atendimento pago. Sem pagamento registado, o estado
+     * não pode ser posto em Concluído à mão — quem conclui é o pagamento.
+     */
+    if (prismaStatus === "COMPLETED") {
+      const paid =
+        await prisma.payment.findFirst({
+          where: {
+            appointmentId: id,
+            status: "PAID",
+          },
+        });
+
+      if (!paid) {
+        return NextResponse.json(
+          {
+            error:
+              "Só é possível concluir um agendamento depois de receber o pagamento. Use \"Receber pagamento\" — o agendamento passa a Concluído automaticamente.",
+
+            reason: "payment_required",
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    /*
     |--------------------------------------------------------------------------
     | ATUALIZAR
     |--------------------------------------------------------------------------
