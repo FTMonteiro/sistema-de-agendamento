@@ -13,13 +13,16 @@ const BUSINESS_ID =
   process.env.NEXT_PUBLIC_BUSINESS_ID;
 
 /*
- * Agendamentos que ainda esperam pagamento.
+ * Agendamentos que esperam pagamento.
  *
- * A modal de receber pagamento não pode usar GET /api/appointments: essa rota
- * devolve tudo achatado para a listagem (client e service como texto, payment
- * como "pending"), e aqui é preciso o preço do serviço para preencher o valor e
- * saber se já existe registo de pagamento. Daí uma rota própria, com os
- * relacionamentos incluídos.
+ * Só entram os CONFIRMED: o fluxo é confirmar o agendamento na edição e depois
+ * receber. Os que estão por confirmar não devem aparecer para cobrança, e os
+ * pagos já saíram (pagar marca como COMPLETED).
+ *
+ * A modal não pode usar GET /api/appointments: essa rota devolve tudo achatado
+ * para a listagem (client e service como texto, payment como "pending"), e aqui
+ * é preciso o preço do serviço para preencher o valor. Daí uma rota própria,
+ * com os relacionamentos incluídos.
  */
 export async function GET() {
   try {
@@ -38,14 +41,7 @@ export async function GET() {
         where: {
           businessId: BUSINESS_ID,
 
-          /*
-           * Cancelados não entram: não há o que cobrar. Os que já têm
-           * pagamento são excluídos porque o POST rejeita duplicados de
-           * qualquer forma.
-           */
-          status: {
-            not: "CANCELLED",
-          },
+          status: "CONFIRMED",
 
           payment: null,
         },
@@ -203,6 +199,37 @@ export async function POST(
         },
         {
           status: 404,
+        },
+      );
+    }
+
+    /*
+     * =====================================================
+     * SÓ CONFIRMADOS SÃO COBRADOS
+     * =====================================================
+     */
+
+    if (
+      appointment.status !== "CONFIRMED"
+    ) {
+      const explicacao =
+        appointment.status ===
+        "COMPLETED"
+          ? "Este agendamento já está concluído."
+          : appointment.status ===
+              "CANCELLED"
+            ? "Este agendamento está cancelado."
+            : "Confirme o agendamento na edição antes de receber o pagamento.";
+
+      return NextResponse.json(
+        {
+          error: explicacao,
+
+          reason:
+            "not_confirmed",
+        },
+        {
+          status: 409,
         },
       );
     }

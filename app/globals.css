@@ -161,3 +161,46 @@ html.dark {
     transform: translateY(0);
   }
 }
+/*
+ * ---------------------------------------------------------------------------
+ * Ícones do menu lateral
+ * ---------------------------------------------------------------------------
+ * A animação é só no ícone — o rótulo fica parado. Feita com keyframes em vez
+ * de `transition`, para o ícone dar um salto e assentar, em vez de apenas
+ * crescer.
+ */
+
+@keyframes iconPop {
+  0% {
+    transform: translateY(0) scale(1)
+      rotate(0deg);
+  }
+
+  30% {
+    transform: translateY(-4px)
+      scale(1.22) rotate(-10deg);
+  }
+
+  60% {
+    transform: translateY(1px)
+      scale(1.05) rotate(6deg);
+  }
+
+  100% {
+    transform: translateY(0) scale(1.14)
+      rotate(0deg);
+  }
+}
+
+.sidebar-link:hover .sidebar-icon {
+  animation: iconPop 0.45s ease-out
+    forwards;
+}
+
+/* Quem prefere menos movimento não leva salto nenhum. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-link:hover .sidebar-icon {
+    animation: none;
+    transform: scale(1.08);
+  }
+}

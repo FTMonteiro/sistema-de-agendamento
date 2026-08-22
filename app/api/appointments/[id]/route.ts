@@ -433,57 +433,44 @@ export async function PUT(
     |--------------------------------------------------------------------------
     */
 
-    if (
-      payment === "paid" ||
-      payment === "pending"
-    ) {
-      const existingPayment =
-        await prisma.payment.findUnique({
-          where: {
-            appointmentId: id,
-          },
-        });
+    /*
+     * "Pendente" significa ausência de pagamento, não um pagamento com estado
+     * pendente. Criar uma linha PENDING (era o que acontecia aqui, a cada
+     * edição, porque a modal envia sempre payment) quebrava o recebimento: o
+     * agendamento saía da lista de cobrança e o POST recusava com "já possui
+     * um pagamento".
+     */
+    if (payment === "paid") {
+      await prisma.payment.upsert({
+        where: {
+          appointmentId: id,
+        },
 
-      const paymentStatus =
-        payment === "paid"
-          ? "PAID"
-          : "PENDING";
+        update: {
+          status: "PAID",
+          paidAt: new Date(),
+        },
 
-      const amount =
-        serviceRecord.price;
-
-      if (existingPayment) {
-        await prisma.payment.update({
-          where: {
-            appointmentId: id,
-          },
-
-          data: {
-            status:
-              paymentStatus,
-
-            amount,
-          },
-        });
-      } else {
-        await prisma.payment.create({
-          data: {
-            appointmentId: id,
-
-            amount,
-
-            method: "CASH",
-
-            status:
-              paymentStatus,
-
-            paidAt:
-              payment === "paid"
-                ? new Date()
-                : null,
-          },
-        });
-      }
+        create: {
+          appointmentId: id,
+          amount: serviceRecord.price,
+          method: "CASH",
+          status: "PAID",
+          paidAt: new Date(),
+        },
+      });
+    } else {
+      /*
+       * Limpa placeholders PENDING deixados pela versão anterior. Um pagamento
+       * PAID não é desfeito por uma edição — isso seria apagar receita como
+       * efeito secundário de mexer noutro campo.
+       */
+      await prisma.payment.deleteMany({
+        where: {
+          appointmentId: id,
+          status: "PENDING",
+        },
+      });
     }
 
     /*

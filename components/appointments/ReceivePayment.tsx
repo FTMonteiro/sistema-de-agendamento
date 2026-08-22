@@ -554,7 +554,7 @@ export function ReceivePayment({
                     {isLoading
                       ? "Carregando agendamentos..."
                       : appointments.length === 0
-                        ? "Nenhum pagamento pendente"
+                        ? "Nenhum agendamento confirmado"
                         : "Selecione o agendamento"}
                   </option>
 
@@ -575,6 +575,16 @@ export function ReceivePayment({
                     )
                   )}
                 </select>
+
+                {!isLoading &&
+                  appointments.length ===
+                    0 && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Só agendamentos confirmados entram para cobrança. Marque
+                      o agendamento como Confirmado na edição e ele aparece
+                      aqui.
+                    </p>
+                  )}
               </div>
 
               {/* DADOS DO AGENDAMENTO */}
