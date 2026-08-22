@@ -122,8 +122,6 @@ export async function POST(
 
     const method = body.method;
 
-    const amount = Number(body.amount);
-
     /*
      * =====================================================
      * VALIDAÇÕES
@@ -142,20 +140,6 @@ export async function POST(
       );
     }
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "O valor do pagamento é inválido.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
 
     if (
       !ALLOWED_METHODS.includes(method)
@@ -227,6 +211,36 @@ export async function POST(
 
           reason:
             "not_confirmed",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    /*
+     * =====================================================
+     * VALOR
+     *
+     * O valor cobrado é o preço do serviço agendado, não algo que o cliente
+     * do API escolha. Assim o que entra na receita corresponde sempre ao que
+     * está cadastrado.
+     * =====================================================
+     */
+
+    const amount = Number(
+      appointment.service.price,
+    );
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error: `O serviço ${appointment.service.name} está sem preço. Defina o preço em Serviços para poder receber o pagamento.`,
+
+          reason: "service_without_price",
         },
         {
           status: 409,

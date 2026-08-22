@@ -64,8 +64,6 @@ export function ReceivePayment({
   const [selectedAppointmentId, setSelectedAppointmentId] =
     useState("");
 
-  const [amount, setAmount] = useState("");
-
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>("CASH");
 
@@ -159,7 +157,6 @@ export function ReceivePayment({
     setError("");
     setSuccess("");
     setSelectedAppointmentId("");
-    setAmount("");
     setPaymentMethod("CASH");
 
     loadAppointments();
@@ -174,7 +171,6 @@ export function ReceivePayment({
     setError("");
     setSuccess("");
     setSelectedAppointmentId("");
-    setAmount("");
     setPaymentMethod("CASH");
   }
 
@@ -190,17 +186,6 @@ export function ReceivePayment({
     setSelectedAppointmentId(appointmentId);
     setError("");
     setSuccess("");
-
-    const appointment = appointments.find(
-      (item) => item.id === appointmentId
-    );
-
-    if (!appointment) {
-      setAmount("");
-      return;
-    }
-
-    setAmount(String(appointment.service.price));
   }
 
   async function handleSubmit(
@@ -216,13 +201,24 @@ export function ReceivePayment({
       return;
     }
 
-    const numericAmount = Number(amount);
+    /*
+     * O valor não é escolhido: é o preço do serviço agendado. A API valida o
+     * mesmo, a partir do serviço.
+     */
+    const numericAmount = Number(
+      selectedAppointment?.service.price
+    );
 
     if (
       !Number.isFinite(numericAmount) ||
       numericAmount <= 0
     ) {
-      setError("Informe um valor válido.");
+      setError(
+        `O serviço ${
+          selectedAppointment?.service
+            .name ?? ""
+        } está sem preço. Defina o preço em Serviços para poder receber.`
+      );
       return;
     }
 
@@ -250,7 +246,6 @@ export function ReceivePayment({
           },
           body: JSON.stringify({
             appointmentId: selectedAppointmentId,
-            amount: numericAmount,
             method: paymentMethod,
           }),
         }
@@ -283,7 +278,6 @@ export function ReceivePayment({
       );
 
       setSelectedAppointmentId("");
-      setAmount("");
       setPaymentMethod("CASH");
 
       /*
@@ -729,78 +723,39 @@ export function ReceivePayment({
 
               {/* VALOR */}
 
+              {/*
+               * Não é editável: o valor cobrado é o preço do serviço que foi
+               * agendado. A API usa o preço do serviço de qualquer forma e
+               * ignora o que vier do cliente.
+               */}
               <div>
-                <label
-                  htmlFor="payment-amount"
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Valor
-                </label>
+                <p className="mb-2 block text-sm font-medium text-gray-700">
+                  Valor a receber
+                </p>
 
-                <div className="relative">
-                  <Banknote
-                    className="
-                      pointer-events-none
-                      absolute
-                      left-3
-                      top-1/2
-                      h-4
-                      w-4
-                      -translate-y-1/2
-                      text-gray-400
-                    "
-                  />
+                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
 
-                  <input
-                    id="payment-amount"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={amount}
-                    onChange={(event) => {
-                      setAmount(event.target.value);
-                    }}
-                    placeholder="0"
-                    required
-                    disabled={
-                      !selectedAppointment ||
-                      isSubmitting
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      py-3
-                      pl-10
-                      pr-4
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition
-                      placeholder:text-gray-400
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                      disabled:bg-gray-50
-                    "
-                  />
+                  <span className="text-base font-semibold text-gray-900">
+                    {selectedAppointment
+                      ? formatPrice(
+                          selectedAppointment
+                            .service.price
+                        )
+                      : "—"}
+                  </span>
                 </div>
 
                 {selectedAppointment && (
-                  <p className="mt-2 text-xs text-gray-400">
-                    Valor do serviço:{" "}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Preço do serviço{" "}
                     <strong>
-                      {formatPrice(
-                        selectedAppointment.service.price
-                      )}
+                      {
+                        selectedAppointment
+                          .service.name
+                      }
                     </strong>
+                    . Para alterar, edite o serviço em Serviços.
                   </p>
                 )}
               </div>
@@ -907,7 +862,10 @@ export function ReceivePayment({
                   disabled={
                     isSubmitting ||
                     !selectedAppointmentId ||
-                    !amount
+                    Number(
+                      selectedAppointment
+                        ?.service.price
+                    ) <= 0
                   }
                   className="
                     inline-flex
