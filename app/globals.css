@@ -1,28 +1,29 @@
 @import "tailwindcss";
 
-/*
- * O tema é controlado por classe em <html> (html.dark / html.light), definida
- * pelo ThemeProvider. Esta variante liga os utilitários `dark:` do Tailwind a
- * essa classe, em vez do prefers-color-scheme padrão.
- */
+/* ============================================================
+   TAILWIND / TEMA
+============================================================ */
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-primary: #009685;
 }
 
+/* ============================================================
+   VARIÁVEIS
+============================================================ */
+
 :root {
   --background: #ffffff;
   --foreground: #232323;
+
   --card: #ffffff;
+
   --border: #e5e7eb;
+
   --muted: #6b7280;
 
-  /*
-   * `surface` é a superfície elevada (menu lateral, cartões) e
-   * `surface-secondary` o realce de hover. Faltavam, e por isso o drawer
-   * aparecia transparente.
-   */
   --surface: #ffffff;
   --surface-secondary: #f3f4f6;
 }
@@ -30,9 +31,13 @@
 html.light {
   --background: #ffffff;
   --foreground: #232323;
+
   --card: #ffffff;
+
   --border: #e5e7eb;
+
   --muted: #6b7280;
+
   --surface: #ffffff;
   --surface-secondary: #f3f4f6;
 }
@@ -40,167 +45,731 @@ html.light {
 html.dark {
   --background: #0b1120;
   --foreground: #f9fafb;
+
   --card: #1f2937;
+
   --border: #374151;
+
   --muted: #9ca3af;
+
   --surface: #111827;
   --surface-secondary: #1f2937;
 }
 
+/* ============================================================
+   HTML / BODY
+============================================================ */
+
 html,
 body {
+  min-height: 100%;
+
+  margin: 0;
+  padding: 0;
+
   background: var(--background);
   color: var(--foreground);
+
   transition:
     background-color 0.25s ease,
     color 0.25s ease;
 }
 
+body {
+  min-height: 100vh;
+}
+
+/* ============================================================
+   BOX SIZING
+============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   BORDERS
+============================================================ */
+
 * {
   border-color: var(--border);
 }
 
+/* ============================================================
+   INPUTS
+============================================================ */
+
 /*
- * ---------------------------------------------------------------------------
- * Compatibilidade de tema
- * ---------------------------------------------------------------------------
- * As telas foram escritas com cores fixas (bg-white, text-gray-900, ...).
- * Reescrever cada uma para usar variantes `dark:` seria mexer em milhares de
- * linhas, então aqui as cores neutras mais usadas são remapeadas para as
- * variáveis do tema quando o modo escuro está activo.
+ * IMPORTANTE:
  *
- * Cores de acento (azul, verde, âmbar, vermelho) ficam de fora de propósito:
- * são sinal de estado e devem manter-se reconhecíveis nos dois modos.
- *
- * Código novo deve usar as variáveis ou `dark:` directamente; isto existe
- * para as telas antigas.
+ * Os inputs da página de cadastro devem continuar brancos,
+ * mesmo quando o sistema estiver em dark mode.
  */
 
-html.dark {
-  /* Superfícies */
-  .bg-white,
-  .bg-white\/95,
-  .bg-white\/90 {
-    background-color: var(--card);
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* ============================================================
+   CADASTRO NEVRIX
+============================================================ */
+
+/*
+ * O cadastro possui duas superfícies independentes:
+ *
+ * .nevrx-register-dark
+ *    -> lado esquerdo preto
+ *
+ * .nevrx-register-light
+ *    -> lado direito branco
+ */
+
+.nevrx-register-dark {
+  background: #05070b !important;
+  color: #ffffff !important;
+}
+
+.nevrx-register-light {
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+/* ============================================================
+   INPUTS DO CADASTRO
+============================================================ */
+
+.nevrx-register-light input,
+.nevrx-register-light textarea,
+.nevrx-register-light select {
+  background: #ffffff !important;
+
+  color: #111111 !important;
+
+  border-color: #e5e7eb !important;
+}
+
+.nevrx-register-light input::placeholder,
+.nevrx-register-light textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.nevrx-register-light input:hover,
+.nevrx-register-light textarea:hover,
+.nevrx-register-light select:hover {
+  background: #ffffff !important;
+
+  border-color: #d1d5db !important;
+}
+
+.nevrx-register-light input:focus,
+.nevrx-register-light textarea:focus,
+.nevrx-register-light select:focus {
+  background: #ffffff !important;
+
+  color: #111111 !important;
+
+  border-color: #3b82f6 !important;
+
+  outline: none;
+}
+
+/* ============================================================
+   LOGO NEVRIX
+============================================================ */
+
+.nevrx-logo-box {
+  background: #05070b;
+
+  color: #3b82f6;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.12);
+
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.nevrx-logo-box:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 14px 35px rgba(37, 99, 235, 0.15);
+}
+
+/* ============================================================
+   ANIMAÇÃO DO CADASTRO
+============================================================ */
+
+@keyframes nevrxRegisterFade {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(18px)
+      scale(0.985);
   }
 
-  .bg-gray-50,
-  .bg-gray-50\/70,
-  .bg-gray-100 {
-    background-color: var(--surface-secondary);
-  }
+  to {
+    opacity: 1;
 
-  /* O cartão escuro do resumo já era escuro: passa a destacar-se do fundo. */
-  .bg-gray-900,
-  .bg-gray-950 {
-    background-color: #030712;
-  }
-
-  /* Texto */
-  .text-gray-950,
-  .text-gray-900 {
-    color: var(--foreground);
-  }
-
-  .text-gray-800,
-  .text-gray-700 {
-    color: #e5e7eb;
-  }
-
-  .text-gray-600,
-  .text-gray-500 {
-    color: var(--muted);
-  }
-
-  .text-gray-400,
-  .text-gray-300 {
-    color: #6b7280;
-  }
-
-  /* Contornos */
-  .border-gray-100,
-  .border-gray-200,
-  .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-  .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: var(--border);
-  }
-
-  .ring-gray-100,
-  .ring-gray-200 {
-    --tw-ring-color: var(--border);
-  }
-
-  /* Hover que assumia fundo claro */
-  .hover\:bg-gray-50:hover,
-  .hover\:bg-gray-50\/70:hover,
-  .hover\:bg-gray-100:hover {
-    background-color: var(--surface-secondary);
-  }
-
-  /* Campos de formulário */
-  input,
-  textarea,
-  select {
-    background-color: var(--background);
-    color: var(--foreground);
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: var(--muted);
+    transform:
+      translateY(0)
+      scale(1);
   }
 }
+
+.nevrx-register-animation {
+  animation:
+    nevrxRegisterFade
+    0.8s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* ============================================================
+   ANIMAÇÃO DO PAINEL ESQUERDO
+============================================================ */
+
+@keyframes nevrxHeroIn {
+  from {
+    opacity: 0;
+
+    transform: translateX(-25px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform: translateX(0);
+  }
+}
+
+.nevrx-hero-animation {
+  animation:
+    nevrxHeroIn
+    0.9s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* ============================================================
+   ANIMAÇÃO DO FORMULÁRIO
+============================================================ */
+
+@keyframes nevrxFormIn {
+  from {
+    opacity: 0;
+
+    transform: translateX(25px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform: translateX(0);
+  }
+}
+
+.nevrx-form-animation {
+  animation:
+    nevrxFormIn
+    0.8s
+    0.1s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* ============================================================
+   GLOW / LUZ
+============================================================ */
+
+@keyframes nevrxGlow {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+
+    opacity: 0.35;
+  }
+
+  50% {
+    transform:
+      translate3d(20px, -15px, 0)
+      scale(1.05);
+
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+
+    opacity: 0.35;
+  }
+}
+
+.nevrx-glow {
+  animation:
+    nevrxGlow
+    7s
+    ease-in-out
+    infinite;
+}
+
+/* ============================================================
+   GRID FUTURISTA
+============================================================ */
+
+.nevrx-grid {
+  background-image:
+    linear-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    );
+
+  background-size: 52px 52px;
+}
+
+/* ============================================================
+   LINHA DE LUZ
+============================================================ */
+
+@keyframes nevrxLightLine {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+.nevrx-light-line {
+  animation:
+    nevrxLightLine
+    5s
+    ease-in-out
+    infinite;
+}
+
+/* ============================================================
+   BENEFÍCIOS
+============================================================ */
+
+.nevrx-benefit {
+  opacity: 0;
+
+  animation:
+    nevrxBenefitIn
+    0.7s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    forwards;
+}
+
+@keyframes nevrxBenefitIn {
+  from {
+    opacity: 0;
+
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform: translateY(0);
+  }
+}
+
+.nevrx-benefit:nth-child(1) {
+  animation-delay: 0.2s;
+}
+
+.nevrx-benefit:nth-child(2) {
+  animation-delay: 0.35s;
+}
+
+.nevrx-benefit:nth-child(3) {
+  animation-delay: 0.5s;
+}
+
+/* ============================================================
+   ÍCONE DOS BENEFÍCIOS
+============================================================ */
+
+@keyframes nevrxIconFloat {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.nevrx-benefit:hover .nevrx-benefit-icon {
+  animation:
+    nevrxIconFloat
+    0.7s
+    ease-in-out
+    infinite;
+}
+
+/* ============================================================
+   SOCIAL BUTTONS
+============================================================ */
+
+.nevrx-social-button {
+  background: #ffffff !important;
+
+  color: #171717 !important;
+
+  border: 1px solid #e5e7eb !important;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.nevrx-social-button:hover {
+  background: #fafafa !important;
+
+  color: #111111 !important;
+
+  border-color: #d1d5db !important;
+
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.05);
+
+  transform: translateY(-1px);
+}
+
+.nevrx-social-button:active {
+  transform: scale(0.99);
+}
+
+/* ============================================================
+   GOOGLE
+============================================================ */
+
+.nevrx-google-icon {
+  display: flex;
+
+  width: 20px;
+  height: 20px;
+
+  flex-shrink: 0;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.nevrx-google-text {
+  display: inline-block;
+
+  color: #111111 !important;
+
+  font-weight: 500;
+}
+
+/* ============================================================
+   APPLE
+============================================================ */
+
+.nevrx-apple-icon {
+  display: flex;
+
+  width: 20px;
+  height: 20px;
+
+  flex-shrink: 0;
+
+  align-items: center;
+  justify-content: center;
+
+  color: #111111 !important;
+}
+
+.nevrx-apple-text {
+  display: inline-block;
+
+  color: #111111 !important;
+
+  font-weight: 500;
+}
+
+/* ============================================================
+   BOTÃO PRINCIPAL
+============================================================ */
+
+.nevrx-primary-button {
+  background: #05070b !important;
+
+  color: #ffffff !important;
+
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
+}
+
+.nevrx-primary-button:hover {
+  background: #2563eb !important;
+
+  color: #ffffff !important;
+
+  box-shadow:
+    0 12px 30px rgba(37, 99, 235, 0.18);
+
+  transform: translateY(-1px);
+}
+
+.nevrx-primary-button:active {
+  transform: scale(0.99);
+}
+
+/* ============================================================
+   FADE UP
+============================================================ */
+
 @keyframes fadeUp {
   from {
     opacity: 0;
+
     transform: translateY(18px);
   }
 
   to {
     opacity: 1;
+
     transform: translateY(0);
   }
 }
-/*
- * ---------------------------------------------------------------------------
- * Ícones do menu lateral
- * ---------------------------------------------------------------------------
- * A animação é só no ícone — o rótulo fica parado. Feita com keyframes em vez
- * de `transition`, para o ícone dar um salto e assentar, em vez de apenas
- * crescer.
- */
+
+.fade-up {
+  animation:
+    fadeUp
+    0.7s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
 
 @keyframes iconPop {
   0% {
-    transform: translateY(0) scale(1)
+    transform:
+      translateY(0)
+      scale(1)
       rotate(0deg);
   }
 
   30% {
-    transform: translateY(-4px)
-      scale(1.22) rotate(-10deg);
+    transform:
+      translateY(-4px)
+      scale(1.22)
+      rotate(-10deg);
   }
 
   60% {
-    transform: translateY(1px)
-      scale(1.05) rotate(6deg);
+    transform:
+      translateY(1px)
+      scale(1.05)
+      rotate(6deg);
   }
 
   100% {
-    transform: translateY(0) scale(1.14)
+    transform:
+      translateY(0)
+      scale(1.14)
       rotate(0deg);
   }
 }
 
 .sidebar-link:hover .sidebar-icon {
-  animation: iconPop 0.45s ease-out
+  animation:
+    iconPop
+    0.45s
+    ease-out
     forwards;
 }
 
-/* Quem prefere menos movimento não leva salto nenhum. */
+/* ============================================================
+   LOGIN
+============================================================ */
+
+@keyframes loginFade {
+  from {
+    opacity: 0;
+
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform: translateY(0);
+  }
+}
+
+.login-fade {
+  animation:
+    loginFade
+    0.7s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.login-form {
+  animation:
+    loginFade
+    0.8s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.login-dashboard {
+  animation:
+    loginFade
+    0.9s
+    0.15s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* ============================================================
+   DARK MODE
+============================================================ */
+
+/*
+ * IMPORTANTE:
+ *
+ * Não vamos mais fazer:
+ *
+ * html.dark .bg-white {
+ *   background: ...
+ * }
+ *
+ * porque isso interfere diretamente na página de cadastro.
+ *
+ * As páginas novas devem controlar explicitamente as próprias
+ * superfícies.
+ */
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* ============================================================
+   DARK MODE — ELEMENTOS GENÉRICOS ANTIGOS
+============================================================ */
+
+html.dark .bg-gray-50 {
+  background-color: var(--surface-secondary);
+}
+
+html.dark .bg-gray-100 {
+  background-color: var(--surface-secondary);
+}
+
+html.dark .bg-gray-900,
+html.dark .bg-gray-950 {
+  background-color: #030712;
+}
+
+html.dark .text-gray-950,
+html.dark .text-gray-900 {
+  color: var(--foreground);
+}
+
+html.dark .text-gray-800,
+html.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: var(--muted);
+}
+
+html.dark .text-gray-400,
+html.dark .text-gray-300 {
+  color: #6b7280;
+}
+
+html.dark .border-gray-100,
+html.dark .border-gray-200 {
+  border-color: var(--border);
+}
+
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border);
+}
+
+html.dark .ring-gray-100,
+html.dark .ring-gray-200 {
+  --tw-ring-color: var(--border);
+}
+
+html.dark .hover\:bg-gray-50:hover {
+  background-color: var(--surface-secondary);
+}
+
+html.dark .hover\:bg-gray-100:hover {
+  background-color: var(--surface-secondary);
+}
+
+/* ============================================================
+   REDUÇÃO DE MOVIMENTO
+============================================================ */
+
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-link:hover .sidebar-icon {
-    animation: none;
-    transform: scale(1.08);
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+
+    animation-iteration-count: 1 !important;
+
+    animation-delay: 0ms !important;
+
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   MOBILE
+============================================================ */
+
+@media (max-width: 1023px) {
+  .nevrx-register-light {
+    min-height: 100vh;
   }
 }

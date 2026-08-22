@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -11,10 +11,10 @@ import {
   EyeOff,
   Lock,
   Mail,
-  Scissors,
   Users,
   Loader2,
-  Sparkles,
+  BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -26,6 +26,10 @@ export default function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!email || !password) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -34,7 +38,22 @@ export default function LoginPage() {
         password,
       });
 
+      // Futuramente:
+      //
+      // const response = await fetch("/api/auth/login", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     email,
+      //     password,
+      //   }),
+      // });
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error("Erro ao fazer login:", error);
     } finally {
       setLoading(false);
     }
@@ -49,495 +68,417 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-neutral-950">
-      <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-
+    <main className="min-h-screen overflow-hidden bg-white text-neutral-950">
+      <div className="grid min-h-screen lg:grid-cols-[1.06fr_0.94fr]">
         {/* =====================================================
-            LEFT — BRAND
+            PAINEL ESQUERDO
         ===================================================== */}
 
-        <section className="relative hidden min-h-screen overflow-hidden bg-[#050914] lg:block">
+        <section className="login-panel relative hidden min-h-screen overflow-hidden bg-[#05070b] lg:flex">
+          {/* Atmosfera */}
 
-          {/* Background glow */}
+          <div
+            aria-hidden="true"
+            className="login-orb login-orb-one"
+          />
 
-          <div className="absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-blue-600/[0.10] blur-[140px]" />
+          <div
+            aria-hidden="true"
+            className="login-orb login-orb-two"
+          />
 
-          <div className="absolute -bottom-48 -right-40 h-[560px] w-[560px] rounded-full bg-indigo-600/[0.08] blur-[150px]" />
+          <div
+            aria-hidden="true"
+            className="login-orb login-orb-three"
+          />
 
           {/* Grid */}
 
           <div
-            className="absolute inset-0 opacity-[0.035]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)",
-              backgroundSize: "52px 52px",
-            }}
+            aria-hidden="true"
+            className="login-grid absolute inset-0"
           />
 
-          {/* Decorative line */}
+          {/* Linha vertical */}
 
-          <div className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-blue-500/40 to-transparent" />
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-blue-500/30 to-transparent"
+          />
 
-          {/* Content */}
+          {/* Conteúdo */}
 
-          <div className="relative z-10 flex min-h-screen flex-col px-12 py-10 xl:px-16">
+          <div className="relative z-10 flex min-h-screen w-full flex-col px-10 py-9 xl:px-16">
+            {/* BRAND */}
 
-            {/* =================================================
-                LOGO
-            ================================================= */}
-
-            <div className="login-fade login-delay-1">
-
+            <div className="login-enter login-delay-1">
               <Link
                 href="/"
                 className="group inline-flex items-center gap-3"
+                aria-label="NEVRIX"
               >
-
-                {/* NEVRIX MARK */}
-
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-[0_8px_30px_rgba(37,99,235,.28)] transition-all duration-300 group-hover:scale-105 group-hover:bg-blue-500">
-
-                  <span className="text-[17px] font-black tracking-[-0.08em] text-white">
+                <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-white shadow-[0_10px_35px_rgba(0,0,0,0.25)] transition-all duration-500 group-hover:-translate-y-0.5 group-hover:shadow-[0_14px_40px_rgba(37,99,235,0.2)]">
+                  <span className="relative z-10 text-[15px] font-black tracking-[-0.08em] text-blue-600">
                     N
                   </span>
 
-                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#050914] bg-blue-400" />
-
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-blue-100/80 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                  />
                 </div>
 
-                <div className="leading-none">
-
-                  <p className="text-[16px] font-bold tracking-[0.20em] text-white">
-                    NEVRIX
-                  </p>
-
-                  <p className="mt-1 text-[8px] font-medium uppercase tracking-[0.25em] text-slate-500">
-                    Business Management
-                  </p>
-
-                </div>
-
+                <span className="text-[15px] font-bold tracking-[0.24em] text-white">
+                  NEVRIX
+                </span>
               </Link>
-
             </div>
 
-            {/* =================================================
-                HERO
-            ================================================= */}
+            {/* HERO */}
 
             <div className="flex flex-1 items-center">
+              <div className="w-full max-w-[680px]">
+                {/* Eyebrow */}
 
-              <div className="w-full max-w-[650px]">
+                <div className="login-enter login-delay-2 mb-7 flex items-center gap-3">
+                  <span className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
 
-                {/* Badge */}
-
-                <div className="login-fade login-delay-2 mb-7">
-
-                  <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/[0.07] px-3.5 py-2">
-
-                    <Sparkles
-                      size={13}
-                      className="text-blue-400"
-                    />
-
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-400">
-                      Gestão inteligente
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-400" />
                     </span>
 
-                  </div>
-
+                    Plataforma inteligente
+                  </span>
                 </div>
 
-                {/* Title */}
+                {/* Título */}
 
-                <h1 className="login-fade login-delay-3 max-w-[620px] text-[48px] font-semibold leading-[1.04] tracking-[-0.045em] text-white xl:text-[62px]">
-
-                  O seu negócio.
-
+                <h1 className="login-enter login-delay-3 max-w-[650px] text-[48px] font-semibold leading-[0.98] tracking-[-0.055em] text-white xl:text-[68px]">
+                  Tudo o que o seu
                   <br />
-
-                  <span className="bg-gradient-to-r from-white via-slate-200 to-blue-400 bg-clip-text text-transparent">
-                    Mais simples.
+                  negócio precisa.
+                  <br />
+                  <span className="login-gradient-text">
+                    Num só lugar.
                   </span>
-
                 </h1>
 
-                {/* Description */}
+                {/* Descrição */}
 
-                <p className="login-fade login-delay-4 mt-7 max-w-[540px] text-[15px] leading-7 text-slate-400 xl:text-base">
-                  Uma plataforma completa para gerir clientes,
-                  profissionais, serviços, agendamentos e pagamentos
-                  num único lugar.
+                <p className="login-enter login-delay-4 mt-7 max-w-[570px] text-[15px] leading-7 text-slate-400 xl:text-[16px]">
+                  Centralize operações, clientes, equipas, serviços,
+                  agendamentos e pagamentos numa experiência simples,
+                  inteligente e preparada para crescer.
                 </p>
 
-                {/* =================================================
-                    DASHBOARD PREVIEW
-                ================================================= */}
+                {/* MOCKUP */}
 
-                <div className="login-dashboard relative mt-12 h-[205px] max-w-[570px]">
+                <div className="login-dashboard relative mt-12 h-[205px] max-w-[590px]">
+                  {/* Glow */}
 
-                  {/* Main card */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute left-[20%] top-[30%] h-32 w-64 rounded-full bg-blue-600/10 blur-[70px]"
+                  />
 
-                  <div className="absolute left-0 top-0 w-[315px] rounded-2xl border border-white/[0.08] bg-white/[0.045] p-4 shadow-2xl backdrop-blur-xl">
+                  {/* Card principal */}
 
+                  <div className="login-card-main absolute left-0 top-0 w-[325px] rounded-[18px] border border-white/[0.09] bg-white/[0.045] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
                     <div className="flex items-center justify-between">
-
                       <div>
-
-                        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
                           Visão geral
                         </p>
 
-                        <p className="mt-1 text-sm font-semibold text-white">
-                          Hoje
+                        <p className="mt-1 text-[13px] font-semibold text-white">
+                          Desempenho
                         </p>
-
                       </div>
 
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-                        <CalendarDays size={15} />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400/10 bg-blue-500/[0.08] text-blue-400">
+                        <BarChart3 size={14} />
                       </div>
-
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3">
+                    {/* Métricas */}
 
-                      <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                    <div className="mt-5 grid grid-cols-3 gap-2">
+                      <MiniMetric
+                        icon={<Users size={12} />}
+                        label="Clientes"
+                        value="120"
+                      />
 
-                        <div className="flex items-center gap-2">
+                      <MiniMetric
+                        icon={<CalendarDays size={12} />}
+                        label="Agenda"
+                        value="24"
+                      />
 
-                          <Users
-                            size={13}
-                            className="text-blue-400"
-                          />
-
-                          <span className="text-[10px] text-slate-500">
-                            Clientes
-                          </span>
-
-                        </div>
-
-                        <p className="mt-2 text-xl font-semibold text-white">
-                          120
-                        </p>
-
-                      </div>
-
-                      <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-
-                        <div className="flex items-center gap-2">
-
-                          <Clock3
-                            size={13}
-                            className="text-blue-400"
-                          />
-
-                          <span className="text-[10px] text-slate-500">
-                            Agenda
-                          </span>
-
-                        </div>
-
-                        <p className="mt-2 text-xl font-semibold text-white">
-                          24
-                        </p>
-
-                      </div>
-
+                      <MiniMetric
+                        icon={<Clock3 size={12} />}
+                        label="Hoje"
+                        value="18"
+                      />
                     </div>
 
+                    {/* Barra */}
+
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] text-slate-600">
+                          Atividade
+                        </span>
+
+                        <span className="text-[9px] font-medium text-emerald-400">
+                          +18,4%
+                        </span>
+                      </div>
+
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                        <div className="login-progress h-full w-[76%] rounded-full bg-gradient-to-r from-blue-600 to-blue-400" />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Floating card */}
+                  {/* Card secundário */}
 
-                  <div className="login-float absolute right-0 top-14 w-[225px] rounded-2xl border border-white/[0.09] bg-[#0b1220]/95 p-4 shadow-2xl backdrop-blur-xl">
-
+                  <div className="login-card-secondary absolute right-0 top-[58px] w-[230px] rounded-[18px] border border-white/[0.09] bg-[#0b1018]/90 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
                     <div className="flex items-center justify-between">
-
                       <div className="flex items-center gap-2">
-
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-                          <Scissors size={14} />
+                          <CalendarDays size={14} />
                         </div>
 
                         <div>
-
-                          <p className="text-[9px] text-slate-500">
+                          <p className="text-[9px] text-slate-600">
                             Próximo
                           </p>
 
-                          <p className="text-xs font-medium text-white">
-                            Corte + Barba
+                          <p className="text-[11px] font-medium text-white">
+                            Agendamento
                           </p>
-
                         </div>
-
                       </div>
 
-                      <span className="text-[10px] font-medium text-blue-400">
+                      <span className="text-[9px] font-medium text-blue-400">
                         14:30
                       </span>
-
                     </div>
 
-                    <div className="mt-4 h-px bg-white/[0.06]" />
+                    <div className="my-3 h-px bg-white/[0.06]" />
 
-                    <div className="mt-3 flex items-center gap-2">
-
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-[8px] font-bold text-white">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full border border-blue-400/20 bg-blue-500 text-[8px] font-bold text-white">
                         FM
                       </div>
 
-                      <span className="text-[10px] text-slate-400">
-                        Cliente confirmado
-                      </span>
+                      <div>
+                        <p className="text-[9px] font-medium text-slate-300">
+                          Cliente confirmado
+                        </p>
 
-                      <Check
-                        size={12}
-                        className="ml-auto text-emerald-400"
-                      />
+                        <p className="text-[8px] text-slate-600">
+                          Hoje · 14:30
+                        </p>
+                      </div>
 
+                      <div className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10">
+                        <Check
+                          size={11}
+                          className="text-emerald-400"
+                        />
+                      </div>
                     </div>
-
                   </div>
-
                 </div>
 
-                {/* Features */}
+                {/* FEATURES */}
 
-                <div className="login-fade login-delay-5 mt-6 flex flex-wrap gap-8">
-
+                <div className="login-enter login-delay-5 mt-8 flex flex-wrap gap-x-10 gap-y-5">
                   <Feature
                     number="01"
-                    title="Clientes"
-                    description="organizados"
+                    title="Operações"
+                    description="mais eficientes"
                   />
 
                   <Feature
                     number="02"
-                    title="Agenda"
-                    description="inteligente"
+                    title="Experiência"
+                    description="mais inteligente"
                   />
 
                   <Feature
                     number="03"
-                    title="Gestão"
-                    description="simplificada"
+                    title="Crescimento"
+                    description="mais controlado"
                   />
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* Footer */}
+            {/* FOOTER */}
 
-            <div className="flex items-center justify-between">
-
-              <p className="text-[10px] tracking-wide text-slate-600">
+            <div className="login-enter login-delay-6 flex items-center justify-between">
+              <p className="text-[9px] tracking-wide text-slate-700">
                 © {new Date().getFullYear()} NEVRIX. Todos os direitos
                 reservados.
               </p>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-600">
-
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-                Plataforma operacional
-
+              <div className="hidden items-center gap-2 text-[9px] text-slate-700 xl:flex">
+                <ShieldCheck size={12} />
+                Ambiente seguro
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =====================================================
-            RIGHT — LOGIN
+            PAINEL DIREITO
         ===================================================== */}
 
-        <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
-
+        <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-10 sm:px-10">
           {/* Background */}
 
-          <div className="absolute -right-32 -top-32 h-[400px] w-[400px] rounded-full bg-blue-500/[0.045] blur-[120px]" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-40 -top-40 h-[450px] w-[450px] rounded-full bg-blue-500/[0.035] blur-[120px]"
+          />
 
-          <div className="absolute -bottom-32 -left-32 h-[350px] w-[350px] rounded-full bg-slate-200/50 blur-[110px]" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-slate-200/50 blur-[120px]"
+          />
+
+          {/* Linha decorativa */}
+
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-neutral-200/60 to-transparent"
+          />
 
           <div className="relative z-10 w-full max-w-[430px]">
+            {/* MOBILE BRAND */}
 
-            {/* Mobile logo */}
-
-            <div className="mb-12 lg:hidden">
-
+            <div className="login-enter login-delay-1 mb-12 lg:hidden">
               <Link
                 href="/"
-                className="inline-flex items-center gap-3"
+                className="group inline-flex items-center gap-3"
               >
+                <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
+                  N
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-lg">
-                  <span className="text-[17px] font-black tracking-[-0.08em] text-white">
-                    N
-                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                  />
                 </div>
 
-                <div>
-
-                  <p className="text-[16px] font-bold tracking-[0.20em] text-neutral-950">
-                    NEVRIX
-                  </p>
-
-                  <p className="mt-1 text-[8px] uppercase tracking-[0.2em] text-neutral-400">
-                    Business Management
-                  </p>
-
-                </div>
-
+                <span className="text-[15px] font-bold tracking-[0.24em] text-neutral-950">
+                  NEVRIX
+                </span>
               </Link>
-
             </div>
 
-            {/* Header */}
+            {/* HEADER */}
 
-            <div className="login-form login-delay-1 mb-9">
-
-              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
-                <Lock size={18} />
+            <div className="login-enter login-delay-2 mb-9">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[12px] border border-neutral-200 bg-neutral-50 text-neutral-700 shadow-sm">
+                <Lock
+                  size={16}
+                  strokeWidth={1.8}
+                />
               </div>
 
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">
-                Área reservada
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-blue-600">
+                Acesso à plataforma
               </p>
 
-              <h2 className="text-[30px] font-semibold tracking-[-0.035em] text-neutral-950">
-                Bem-vindo de volta
+              <h2 className="text-[30px] font-semibold tracking-[-0.04em] text-neutral-950">
+                Bem-vindo de volta.
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Entre na sua conta para continuar a gerir o seu negócio.
+              <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-neutral-500">
+                Aceda ao seu espaço de gestão e continue de onde ficou.
               </p>
-
             </div>
 
-            {/* Form */}
+            {/* FORM */}
 
             <form
               onSubmit={handleSubmit}
-              className="login-form login-delay-2"
+              className="login-enter login-delay-3"
             >
-
-              {/* Email */}
+              {/* EMAIL */}
 
               <div>
-
                 <label
                   htmlFor="email"
-                  className="mb-2 block text-xs font-semibold text-neutral-800"
+                  className="mb-2 block text-[11px] font-semibold text-neutral-800"
                 >
                   Email
                 </label>
 
                 <div className="group relative">
-
                   <Mail
-                    size={17}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors group-focus-within:text-blue-600"
+                    size={16}
+                    strokeWidth={1.8}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
                   />
 
                   <input
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
                     placeholder="seu@email.com"
                     required
                     autoComplete="email"
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-xl
-                      border
-                      border-neutral-200
-                      bg-white
-                      pl-11
-                      pr-4
-                      text-sm
-                      text-neutral-900
-                      outline-none
-                      transition-all
-                      duration-200
-                      placeholder:text-neutral-400
-                      hover:border-neutral-300
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
+                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-4 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
-
                 </div>
-
               </div>
 
-              {/* Password */}
+              {/* PASSWORD */}
 
               <div className="mt-5">
-
                 <div className="mb-2 flex items-center justify-between">
-
                   <label
                     htmlFor="password"
-                    className="text-xs font-semibold text-neutral-800"
+                    className="block text-[11px] font-semibold text-neutral-800"
                   >
                     Palavra-passe
                   </label>
 
                   <Link
                     href="/recuperar-password"
-                    className="text-[11px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
+                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
                   >
                     Esqueceu a palavra-passe?
                   </Link>
-
                 </div>
 
                 <div className="group relative">
-
                   <Lock
-                    size={17}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors group-focus-within:text-blue-600"
+                    size={16}
+                    strokeWidth={1.8}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
                   />
 
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) =>
+                      setPassword(event.target.value)
+                    }
                     placeholder="Digite sua palavra-passe"
                     required
                     autoComplete="current-password"
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-xl
-                      border
-                      border-neutral-200
-                      bg-white
-                      pl-11
-                      pr-12
-                      text-sm
-                      text-neutral-900
-                      outline-none
-                      transition-all
-                      duration-200
-                      placeholder:text-neutral-400
-                      hover:border-neutral-300
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-                    "
+                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-12 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
 
                   <button
@@ -545,22 +486,7 @@ export default function LoginPage() {
                     onClick={() =>
                       setShowPassword((value) => !value)
                     }
-                    className="
-                      absolute
-                      right-2
-                      top-1/2
-                      flex
-                      h-8
-                      w-8
-                      -translate-y-1/2
-                      items-center
-                      justify-center
-                      rounded-lg
-                      text-neutral-400
-                      transition
-                      hover:bg-neutral-100
-                      hover:text-neutral-700
-                    "
+                    className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     aria-label={
                       showPassword
                         ? "Ocultar palavra-passe"
@@ -568,58 +494,32 @@ export default function LoginPage() {
                     }
                   >
                     {showPassword ? (
-                      <EyeOff size={17} />
+                      <EyeOff size={16} />
                     ) : (
-                      <Eye size={17} />
+                      <Eye size={16} />
                     )}
                   </button>
-
                 </div>
-
               </div>
 
-              {/* Submit */}
+              {/* BOTÃO */}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="
-                  login-button
-                  group
-                  relative
-                  mt-6
-                  flex
-                  h-[52px]
-                  w-full
-                  items-center
-                  justify-center
-                  gap-2
-                  overflow-hidden
-                  rounded-xl
-                  bg-neutral-950
-                  text-sm
-                  font-semibold
-                  text-white
-                  shadow-[0_8px_24px_rgba(0,0,0,.08)]
-                  transition-all
-                  duration-300
-                  hover:bg-blue-600
-                  hover:shadow-[0_12px_30px_rgba(37,99,235,.20)]
-                  active:scale-[.99]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-70
-                "
+                className="login-submit group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-blue-600 hover:shadow-[0_12px_30px_rgba(37,99,235,0.18)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-70"
               >
-
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <span
+                  aria-hidden="true"
+                  className="login-button-shine absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.13] to-transparent"
+                />
 
                 {loading ? (
                   <>
                     <Loader2
-                      size={17}
+                      size={16}
                       className="animate-spin"
                     />
-
                     A entrar...
                   </>
                 ) : (
@@ -632,179 +532,77 @@ export default function LoginPage() {
                     />
                   </>
                 )}
-
               </button>
-
             </form>
 
-            {/* Divider */}
+            {/* DIVISOR */}
 
-            <div className="my-7 flex items-center gap-4">
-
+            <div className="login-enter login-delay-4 my-7 flex items-center gap-4">
               <div className="h-px flex-1 bg-neutral-200" />
 
-              <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">
+              <span className="whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400">
                 ou continuar com
               </span>
 
               <div className="h-px flex-1 bg-neutral-200" />
-
             </div>
 
-            {/* Social */}
+            {/* SOCIAL */}
 
-            <div className="login-form login-delay-3">
-
-              {/* Google */}
-
+            <div className="login-enter login-delay-5">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="
-                  flex
-                  h-[52px]
-                  w-full
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-xl
-                  border
-                  border-neutral-200
-                  bg-white
-                  text-sm
-                  font-medium
-                  text-neutral-800
-                  transition-all
-                  duration-200
-                  hover:border-neutral-300
-                  hover:bg-neutral-50
-                  hover:shadow-sm
-                  active:scale-[.99]
-                "
+                className="group flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
               >
-
                 <GoogleIcon />
 
-                <span>
-                  Continuar com Google
-                </span>
-
+                <span>Continuar com Google</span>
               </button>
-
-              {/* Apple */}
 
               <button
                 type="button"
                 onClick={handleAppleLogin}
-                className="
-                  mt-3
-                  flex
-                  h-[52px]
-                  w-full
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-xl
-                  border
-                  border-neutral-200
-                  bg-white
-                  text-sm
-                  font-medium
-                  text-neutral-800
-                  transition-all
-                  duration-200
-                  hover:border-neutral-300
-                  hover:bg-neutral-50
-                  hover:shadow-sm
-                  active:scale-[.99]
-                "
+                className="group mt-3 flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
               >
-
                 <AppleIcon />
 
-                <span>
-                  Continuar com Apple
-                </span>
-
+                <span>Continuar com Apple</span>
               </button>
-
             </div>
 
-            {/* Register */}
+            {/* CADASTRO */}
 
-            <p className="login-fade login-delay-4 mt-8 text-center text-sm text-neutral-500">
-
+            <p className="login-enter login-delay-6 mt-8 text-center text-[13px] text-neutral-500">
               Ainda não tem uma conta?{" "}
 
               <Link
                 href="/cadastro"
-                className="font-semibold text-neutral-950 transition-colors hover:text-blue-600"
+                className="font-semibold text-neutral-950 transition-colors duration-200 hover:text-blue-600"
               >
                 Criar conta
               </Link>
-
             </p>
 
-            {/* Security */}
+            {/* SEGURANÇA */}
 
-            <div className="login-fade login-delay-5 mt-7 flex items-center justify-center gap-2 text-[10px] text-neutral-400">
-
-              <Lock size={11} />
+            <div className="login-enter login-delay-6 mt-7 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
+              <ShieldCheck size={11} />
 
               <span>
-                Os seus dados são protegidos com segurança.
+                A sua informação permanece protegida.
               </span>
-
             </div>
-
           </div>
-
         </section>
-
       </div>
 
       {/* =====================================================
-          ANIMAÇÕES
+          ANIMAÇÕES E ESTILOS
       ===================================================== */}
 
-      <style>{`
-        .login-fade {
-          animation: loginFade 700ms cubic-bezier(.22,1,.36,1) both;
-        }
-
-        .login-form {
-          animation: loginForm 650ms cubic-bezier(.22,1,.36,1) both;
-        }
-
-        .login-dashboard {
-          animation: dashboardIn 900ms cubic-bezier(.22,1,.36,1) both;
-        }
-
-        .login-float {
-          animation: floatingCard 5s ease-in-out infinite;
-        }
-
-        .login-delay-1 {
-          animation-delay: 80ms;
-        }
-
-        .login-delay-2 {
-          animation-delay: 160ms;
-        }
-
-        .login-delay-3 {
-          animation-delay: 240ms;
-        }
-
-        .login-delay-4 {
-          animation-delay: 320ms;
-        }
-
-        .login-delay-5 {
-          animation-delay: 400ms;
-        }
-
-        @keyframes loginFade {
+      <style jsx global>{`
+        @keyframes loginEnter {
           from {
             opacity: 0;
             transform: translateY(14px);
@@ -820,7 +618,7 @@ export default function LoginPage() {
           from {
             opacity: 0;
             transform: translateY(18px);
-            filter: blur(3px);
+            filter: blur(4px);
           }
 
           to {
@@ -830,39 +628,184 @@ export default function LoginPage() {
           }
         }
 
-        @keyframes dashboardIn {
-          from {
-            opacity: 0;
-            transform: translateY(22px) scale(.97);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes floatingCard {
+        @keyframes loginOrbOne {
           0%,
           100% {
-            transform: translateY(0);
+            transform: translate3d(0, 0, 0) scale(1);
           }
 
           50% {
-            transform: translateY(-6px);
+            transform: translate3d(30px, 20px, 0) scale(1.08);
           }
+        }
+
+        @keyframes loginOrbTwo {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+
+          50% {
+            transform: translate3d(-25px, -20px, 0) scale(1.06);
+          }
+        }
+
+        @keyframes loginOrbThree {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0);
+          }
+
+          50% {
+            transform: translate3d(15px, -25px, 0);
+          }
+        }
+
+        @keyframes loginProgress {
+          from {
+            width: 0;
+          }
+
+          to {
+            width: 76%;
+          }
+        }
+
+        @keyframes loginButtonShine {
+          0% {
+            transform: translateX(-100%);
+          }
+
+          100% {
+            transform: translateX(100%);
+          }
+        }
+
+        .login-enter {
+          animation: loginEnter 0.7s
+            cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .login-delay-1 {
+          animation-delay: 0.05s;
+        }
+
+        .login-delay-2 {
+          animation-delay: 0.12s;
+        }
+
+        .login-delay-3 {
+          animation-delay: 0.19s;
+        }
+
+        .login-delay-4 {
+          animation-delay: 0.26s;
+        }
+
+        .login-delay-5 {
+          animation-delay: 0.33s;
+        }
+
+        .login-delay-6 {
+          animation-delay: 0.4s;
+        }
+
+        .login-panel {
+          isolation: isolate;
+        }
+
+        .login-orb {
+          pointer-events: none;
+          position: absolute;
+          border-radius: 9999px;
+          filter: blur(100px);
+          z-index: 0;
+        }
+
+        .login-orb-one {
+          left: -160px;
+          top: -150px;
+          width: 500px;
+          height: 500px;
+          background: rgba(37, 99, 235, 0.09);
+          animation: loginOrbOne 10s ease-in-out infinite;
+        }
+
+        .login-orb-two {
+          right: -170px;
+          bottom: -180px;
+          width: 500px;
+          height: 500px;
+          background: rgba(79, 70, 229, 0.07);
+          animation: loginOrbTwo 12s ease-in-out infinite;
+        }
+
+        .login-orb-three {
+          left: 45%;
+          top: 35%;
+          width: 260px;
+          height: 260px;
+          background: rgba(37, 99, 235, 0.035);
+          animation: loginOrbThree 8s ease-in-out infinite;
+        }
+
+        .login-grid {
+          opacity: 0.035;
+          background-image:
+            linear-gradient(
+              rgba(255, 255, 255, 0.8) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0.8) 1px,
+              transparent 1px
+            );
+          background-size: 52px 52px;
+        }
+
+        .login-gradient-text {
+          background: linear-gradient(
+            90deg,
+            #ffffff 0%,
+            #f1f5f9 48%,
+            #60a5fa 100%
+          );
+          background-clip: text;
+          -webkit-background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .login-progress {
+          animation: loginProgress 1.5s
+            cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+        }
+
+        .login-button-shine {
+          animation: loginButtonShine 2.8s ease-in-out 1s infinite;
+        }
+
+        .login-card-main {
+          animation: loginEnter 0.9s
+            cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+        }
+
+        .login-card-secondary {
+          animation: loginEnter 0.9s
+            cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .login-fade,
-          .login-form,
-          .login-dashboard,
-          .login-float {
-            animation: none !important;
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.01ms !important;
+            animation-delay: 0ms !important;
+            transition-duration: 0.01ms !important;
           }
         }
       `}</style>
-
     </main>
   );
 }
@@ -882,37 +825,64 @@ function Feature({
 }) {
   return (
     <div className="group flex items-start gap-3">
-
-      <span className="text-[11px] font-bold tracking-wider text-blue-400 transition-colors group-hover:text-blue-300">
+      <span className="pt-0.5 text-[10px] font-semibold tracking-[0.12em] text-blue-400 transition-colors duration-300 group-hover:text-blue-300">
         {number}
       </span>
 
       <div>
-
-        <p className="text-[11px] font-semibold text-slate-300">
+        <p className="text-[10px] font-medium text-slate-300 transition-colors duration-300 group-hover:text-white">
           {title}
         </p>
 
-        <p className="mt-0.5 text-[10px] text-slate-600">
+        <p className="mt-0.5 text-[9px] text-slate-600">
           {description}
         </p>
-
       </div>
-
     </div>
   );
 }
 
 /* ============================================================
-   GOOGLE
+   MINI METRIC
+============================================================ */
+
+function MiniMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/[0.055] bg-black/20 p-2.5">
+      <div className="flex items-center gap-1.5 text-blue-400">
+        {icon}
+
+        <span className="text-[8px] text-slate-600">
+          {label}
+        </span>
+      </div>
+
+      <p className="mt-1.5 text-[15px] font-semibold text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   GOOGLE ICON
 ============================================================ */
 
 function GoogleIcon() {
   return (
     <svg
-      width="19"
-      height="19"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
+      fill="none"
       aria-hidden="true"
     >
       <path
@@ -932,21 +902,21 @@ function GoogleIcon() {
 
       <path
         fill="#EA4335"
-        d="M12 6.1c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.16 14.63 2.18 12 2.18A9.75 9.75 0 0 0 3.3 7.6l3.24 2.53c.77-2.31 2.92-4.03 5.46-4.03Z"
+        d="M12 6.1c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.16 14.63 2.18 12 2.18A9.75 9.75 0 0 0 3.3 7.6l3.24 2.53C7.31 7.82 9.46 6.1 12 6.1Z"
       />
     </svg>
   );
 }
 
 /* ============================================================
-   APPLE
+   APPLE ICON
 ============================================================ */
 
 function AppleIcon() {
   return (
     <svg
-      width="19"
-      height="19"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden="true"
