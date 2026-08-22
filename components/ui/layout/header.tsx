@@ -12,6 +12,8 @@ import {
   LogOut,
   User,
   Loader2,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -86,6 +88,9 @@ export function Header({
   const [openProfile, setOpenProfile] =
     useState(false);
 
+  const [showLogoutModal, setShowLogoutModal] =
+    useState(false);
+
   const [loggingOut, setLoggingOut] =
     useState(false);
 
@@ -149,9 +154,6 @@ export function Header({
   /*
    * =====================================================
    * ATUALIZAR HEADER IMEDIATAMENTE
-   *
-   * Quando a logo for alterada em Configurações,
-   * SettingsPage dispara este evento.
    * =====================================================
    */
 
@@ -231,6 +233,39 @@ export function Header({
 
   /*
    * =====================================================
+   * FECHAR MODAL COM ESC
+   * =====================================================
+   */
+
+  useEffect(() => {
+    function handleEscape(
+      event: KeyboardEvent,
+    ) {
+      if (
+        event.key === "Escape" &&
+        !loggingOut
+      ) {
+        setShowLogoutModal(false);
+      }
+    }
+
+    if (showLogoutModal) {
+      document.addEventListener(
+        "keydown",
+        handleEscape,
+      );
+    }
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
+    };
+  }, [showLogoutModal, loggingOut]);
+
+  /*
+   * =====================================================
    * TÍTULO
    * =====================================================
    */
@@ -292,20 +327,22 @@ export function Header({
 
   /*
    * =====================================================
-   * LOGOUT
+   * ABRIR MODAL DE LOGOUT
    * =====================================================
    */
 
-  async function handleLogout() {
-    const confirmed =
-      window.confirm(
-        "Tem a certeza de que deseja terminar a sessão?",
-      );
+  function handleLogout() {
+    setOpenProfile(false);
+    setShowLogoutModal(true);
+  }
 
-    if (!confirmed) {
-      return;
-    }
+  /*
+   * =====================================================
+   * CONFIRMAR LOGOUT
+   * =====================================================
+   */
 
+  async function confirmLogout() {
     try {
       setLoggingOut(true);
 
@@ -367,244 +404,354 @@ export function Header({
    */
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
-      <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+    <>
+      <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
+        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
 
-        {/* ESQUERDA */}
+          {/* ESQUERDA */}
 
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
 
-          <button
-            type="button"
-            onClick={onOpenMenu}
-            aria-label="Abrir menu"
-            aria-controls="menu-lateral"
-            className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--muted)] transition-colors hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] active:scale-95 lg:hidden"
-          >
-            <Menu size={22} />
-          </button>
+            <button
+              type="button"
+              onClick={onOpenMenu}
+              aria-label="Abrir menu"
+              aria-controls="menu-lateral"
+              className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--muted)] transition-colors hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] active:scale-95 lg:hidden"
+            >
+              <Menu size={22} />
+            </button>
 
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-lg">
-              {page.title}
-            </h2>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-lg">
+                {page.title}
+              </h2>
 
-            <p className="hidden truncate text-xs text-[var(--muted)] sm:block">
-              {page.subtitle}
-            </p>
+              <p className="hidden truncate text-xs text-[var(--muted)] sm:block">
+                {page.subtitle}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* DIREITA */}
+          {/* DIREITA */}
 
-        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
 
-          {/* TEMA */}
+            {/* TEMA */}
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={
-              theme === "dark"
-                ? "Mudar para modo claro"
-                : "Mudar para modo escuro"
-            }
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted)] transition-all duration-200 hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] active:scale-95"
-          >
-            {theme === "dark" ? (
-              <Sun size={19} />
-            ) : (
-              <Moon size={19} />
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={
+                theme === "dark"
+                  ? "Mudar para modo claro"
+                  : "Mudar para modo escuro"
+              }
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted)] transition-all duration-200 hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] active:scale-95"
+            >
+              {theme === "dark" ? (
+                <Sun size={19} />
+              ) : (
+                <Moon size={19} />
+              )}
+            </button>
 
-          {/* NOTIFICAÇÕES */}
+            {/* NOTIFICAÇÕES */}
 
-          <NotificationsBell />
+            <NotificationsBell />
 
-          <div className="mx-1 hidden h-8 w-px bg-[var(--border)] sm:block" />
+            <div className="mx-1 hidden h-8 w-px bg-[var(--border)] sm:block" />
 
-          {/* UTILIZADOR */}
+            {/* UTILIZADOR */}
 
-          <div
-            ref={profileRef}
-            className="relative"
-          >
-            {loadingUser ? (
-              <div className="flex items-center gap-2 p-1.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100">
-                  <Loader2
-                    size={17}
-                    className="animate-spin text-gray-400"
-                  />
-                </div>
-
-                <div className="hidden sm:block">
-                  <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
-
-                  <div className="mt-1.5 h-2.5 w-14 animate-pulse rounded bg-gray-100" />
-                </div>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenProfile(
-                      (value) => !value,
-                    )
-                  }
-                  aria-expanded={openProfile}
-                  className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-secondary)]"
-                >
-
-                  {/* AVATAR / LOGO */}
-
-                  {user?.logo ? (
-                    <img
-                      src={user.logo}
-                      alt={`Foto de ${userName}`}
-                      className="h-9 w-9 shrink-0 rounded-full object-cover shadow-sm"
+            <div
+              ref={profileRef}
+              className="relative"
+            >
+              {loadingUser ? (
+                <div className="flex items-center gap-2 p-1.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100">
+                    <Loader2
+                      size={17}
+                      className="animate-spin text-gray-400"
                     />
-                  ) : (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white shadow-sm">
-                      {avatarLetter}
-                    </div>
-                  )}
-
-                  {/* NOME E CARGO */}
-
-                  <div className="hidden text-left sm:block">
-                    <p className="max-w-[140px] truncate text-sm font-semibold leading-4 text-[var(--foreground)]">
-                      {userName}
-                    </p>
-
-                    <p className="mt-1 text-xs leading-3 text-[var(--muted)]">
-                      {formatRole(user?.role)}
-                    </p>
                   </div>
 
-                  <ChevronDown
-                    size={16}
-                    className={`hidden text-[var(--muted)] transition-transform duration-200 sm:block ${
-                      openProfile
-                        ? "rotate-180"
-                        : ""
-                    }`}
-                  />
-                </button>
+                  <div className="hidden sm:block">
+                    <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
 
-                {/* DROPDOWN */}
+                    <div className="mt-1.5 h-2.5 w-14 animate-pulse rounded bg-gray-100" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenProfile(
+                        (value) => !value,
+                      )
+                    }
+                    aria-expanded={openProfile}
+                    className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-secondary)]"
+                  >
 
-                {openProfile && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
+                    {/* AVATAR / LOGO */}
 
-                    {/* PERFIL */}
+                    {user?.logo ? (
+                      <img
+                        src={user.logo}
+                        alt={`Foto de ${userName}`}
+                        className="h-9 w-9 shrink-0 rounded-full object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white shadow-sm">
+                        {avatarLetter}
+                      </div>
+                    )}
 
-                    <div className="border-b border-[var(--border)] p-4">
-                      <div className="flex items-center gap-3">
+                    {/* NOME E CARGO */}
 
-                        {user?.logo ? (
-                          <img
-                            src={user.logo}
-                            alt={`Foto de ${userName}`}
-                            className="h-11 w-11 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                            {avatarLetter}
+                    <div className="hidden text-left sm:block">
+                      <p className="max-w-[140px] truncate text-sm font-semibold leading-4 text-[var(--foreground)]">
+                        {userName}
+                      </p>
+
+                      <p className="mt-1 text-xs leading-3 text-[var(--muted)]">
+                        {formatRole(user?.role)}
+                      </p>
+                    </div>
+
+                    <ChevronDown
+                      size={16}
+                      className={`hidden text-[var(--muted)] transition-transform duration-200 sm:block ${
+                        openProfile
+                          ? "rotate-180"
+                          : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* DROPDOWN */}
+
+                  {openProfile && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
+
+                      {/* PERFIL */}
+
+                      <div className="border-b border-[var(--border)] p-4">
+                        <div className="flex items-center gap-3">
+
+                          {user?.logo ? (
+                            <img
+                              src={user.logo}
+                              alt={`Foto de ${userName}`}
+                              className="h-11 w-11 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                              {avatarLetter}
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-[var(--foreground)]">
+                              {userName}
+                            </p>
+
+                            <p className="truncate text-xs text-[var(--muted)]">
+                              {user?.email || ""}
+                            </p>
+
+                            <p className="mt-1 text-xs font-medium text-blue-600">
+                              {formatRole(user?.role)}
+                            </p>
                           </div>
-                        )}
 
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[var(--foreground)]">
-                            {userName}
-                          </p>
-
-                          <p className="truncate text-xs text-[var(--muted)]">
-                            {user?.email || ""}
-                          </p>
-
-                          <p className="mt-1 text-xs font-medium text-blue-600">
-                            {formatRole(user?.role)}
-                          </p>
                         </div>
+                      </div>
 
+                      {/* OPÇÕES */}
+
+                      <div className="p-2">
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenProfile(false);
+
+                            window.location.href =
+                              "/configuracoes";
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)]"
+                        >
+                          <Settings
+                            size={18}
+                            className="text-[var(--muted)]"
+                          />
+
+                          Configurações
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenProfile(false);
+
+                            window.location.href =
+                              "/configuracoes";
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)]"
+                        >
+                          <User
+                            size={18}
+                            className="text-[var(--muted)]"
+                          />
+
+                          Meu perfil
+                        </button>
+                      </div>
+
+                      {/* LOGOUT */}
+
+                      <div className="border-t border-[var(--border)] p-2">
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          disabled={loggingOut}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <LogOut size={18} />
+
+                          Terminar sessão
+                        </button>
                       </div>
                     </div>
-
-                    {/* OPÇÕES */}
-
-                    <div className="p-2">
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenProfile(false);
-
-                          window.location.href =
-                            "/configuracoes";
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)]"
-                      >
-                        <Settings
-                          size={18}
-                          className="text-[var(--muted)]"
-                        />
-
-                        Configurações
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenProfile(false);
-
-                          window.location.href =
-                            "/configuracoes";
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)]"
-                      >
-                        <User
-                          size={18}
-                          className="text-[var(--muted)]"
-                        />
-
-                        Meu perfil
-                      </button>
-                    </div>
-
-                    {/* LOGOUT */}
-
-                    <div className="border-t border-[var(--border)] p-2">
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={loggingOut}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {loggingOut ? (
-                          <Loader2
-                            size={18}
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <LogOut size={18} />
-                        )}
-
-                        {loggingOut
-                          ? "A terminar sessão..."
-                          : "Terminar sessão"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* =====================================================
+          MODAL DE CONFIRMAÇÃO DE LOGOUT
+          ===================================================== */}
+
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !loggingOut
+            ) {
+              setShowLogoutModal(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+          >
+
+            {/* HEADER DA MODAL */}
+
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
+                  <AlertTriangle size={21} />
+                </div>
+
+                <div>
+                  <h2
+                    id="logout-title"
+                    className="text-base font-semibold text-[var(--foreground)]"
+                  >
+                    Terminar sessão
+                  </h2>
+
+                  <p className="text-xs text-[var(--muted)]">
+                    Confirmação necessária
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowLogoutModal(false)
+                }
+                disabled={loggingOut}
+                aria-label="Fechar"
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:opacity-50"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            {/* CONTEÚDO */}
+
+            <div className="px-6 py-6">
+              <p className="text-sm leading-6 text-[var(--muted)]">
+                Tem a certeza de que deseja
+                terminar a sessão?
+              </p>
+
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Será necessário iniciar sessão
+                novamente para voltar a utilizar
+                o sistema.
+              </p>
+            </div>
+
+            {/* BOTÕES */}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-[var(--border)] px-6 py-5 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowLogoutModal(false)
+                }
+                disabled={loggingOut}
+                className="w-full rounded-xl border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmLogout}
+                disabled={loggingOut}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {loggingOut ? (
+                  <>
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+
+                    A terminar sessão...
+                  </>
+                ) : (
+                  <>
+                    <LogOut size={17} />
+
+                    Terminar sessão
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

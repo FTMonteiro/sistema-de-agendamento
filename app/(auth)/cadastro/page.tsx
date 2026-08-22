@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Building2,
+  CheckCircle2,
   Eye,
   EyeOff,
   Loader2,
@@ -13,6 +14,8 @@ import {
   Mail,
   ShieldCheck,
   UserRound,
+  Info,
+  XCircle,
 } from "lucide-react";
 
 const inputClass =
@@ -35,10 +38,22 @@ export default function CadastroPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+
+  function clearMessages() {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setInfoMessage("");
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    clearMessages();
 
     if (
       !name.trim() ||
@@ -47,24 +62,28 @@ export default function CadastroPage() {
       !password ||
       !confirmPassword
     ) {
-      alert("Preencha todos os campos.");
+      setErrorMessage(
+        "Preencha todos os campos obrigatórios."
+      );
       return;
     }
 
     if (!acceptedTerms) {
-      alert(
+      setErrorMessage(
         "É necessário aceitar os Termos de utilização e a Política de privacidade."
       );
       return;
     }
 
     if (password !== confirmPassword) {
-      alert("As palavras-passe não coincidem.");
+      setErrorMessage(
+        "As palavras-passe não coincidem."
+      );
       return;
     }
 
     if (password.length < 8) {
-      alert(
+      setErrorMessage(
         "A palavra-passe deve ter pelo menos 8 caracteres."
       );
       return;
@@ -91,17 +110,29 @@ export default function CadastroPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Não foi possível criar a conta."
+          data?.error ||
+            "Não foi possível criar a conta."
         );
       }
 
-      alert("Conta criada com sucesso!");
+      setSuccessMessage(
+        "Conta criada com sucesso! A redirecionar para o login..."
+      );
 
-      window.location.href = "/login";
+      setName("");
+      setCompany("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setAcceptedTerms(false);
+
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1800);
     } catch (error) {
       console.error("Erro ao criar conta:", error);
 
-      alert(
+      setErrorMessage(
         error instanceof Error
           ? error.message
           : "Não foi possível criar a conta."
@@ -112,11 +143,19 @@ export default function CadastroPage() {
   }
 
   function handleGoogleRegister() {
-    alert("O cadastro com Google ainda não está configurado.");
+    clearMessages();
+
+    setInfoMessage(
+      "O cadastro com Google ainda não está disponível. Estamos a preparar esta opção."
+    );
   }
 
   function handleAppleRegister() {
-    alert("O cadastro com Apple ainda não está configurado.");
+    clearMessages();
+
+    setInfoMessage(
+      "O cadastro com Apple ainda não está disponível. Estamos a preparar esta opção."
+    );
   }
 
   return (
@@ -141,15 +180,12 @@ export default function CadastroPage() {
           />
 
           <div className="relative z-10 flex w-full flex-col px-10 py-9 xl:px-16">
-            {/* LOGO */}
-
             <Link
               href="/"
               className="inline-flex w-fit items-center gap-3"
               aria-label="NEVRIX"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-white text-[15px] font-black tracking-[-0.08em] text-blue-600"
-              >
+              <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-white text-[15px] font-black tracking-[-0.08em] text-blue-600">
                 N
               </div>
 
@@ -157,8 +193,6 @@ export default function CadastroPage() {
                 NEVRIX
               </span>
             </Link>
-
-            {/* CONTEÚDO */}
 
             <div className="flex flex-1 items-center">
               <div className="max-w-[600px]">
@@ -257,6 +291,70 @@ export default function CadastroPage() {
               </p>
             </div>
 
+            {/* MENSAGENS */}
+
+            <div
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {successMessage && (
+                <div className="mb-5 flex items-start gap-3 rounded-[12px] border border-green-200 bg-green-50 px-4 py-3 text-[12px] text-green-700 shadow-sm">
+                  <CheckCircle2
+                    size={17}
+                    className="mt-0.5 shrink-0 text-green-600"
+                  />
+
+                  <div>
+                    <p className="font-semibold">
+                      Conta criada
+                    </p>
+
+                    <p className="mt-1 leading-5">
+                      {successMessage}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {errorMessage && (
+                <div className="mb-5 flex items-start gap-3 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] text-red-700 shadow-sm">
+                  <XCircle
+                    size={17}
+                    className="mt-0.5 shrink-0 text-red-600"
+                  />
+
+                  <div>
+                    <p className="font-semibold">
+                      Não foi possível continuar
+                    </p>
+
+                    <p className="mt-1 leading-5">
+                      {errorMessage}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {infoMessage && (
+                <div className="mb-5 flex items-start gap-3 rounded-[12px] border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-700 shadow-sm">
+                  <Info
+                    size={17}
+                    className="mt-0.5 shrink-0 text-blue-600"
+                  />
+
+                  <div>
+                    <p className="font-semibold">
+                      Informação
+                    </p>
+
+                    <p className="mt-1 leading-5">
+                      {infoMessage}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* FORMULÁRIO */}
 
             <form onSubmit={handleSubmit}>
@@ -280,9 +378,10 @@ export default function CadastroPage() {
                     id="name"
                     type="text"
                     value={name}
-                    onChange={(event) =>
-                      setName(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setErrorMessage("");
+                    }}
                     placeholder="O seu nome completo"
                     autoComplete="name"
                     required
@@ -311,9 +410,10 @@ export default function CadastroPage() {
                     id="company"
                     type="text"
                     value={company}
-                    onChange={(event) =>
-                      setCompany(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setCompany(event.target.value);
+                      setErrorMessage("");
+                    }}
                     placeholder="Nome da sua empresa"
                     autoComplete="organization"
                     required
@@ -342,9 +442,10 @@ export default function CadastroPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setErrorMessage("");
+                    }}
                     placeholder="seu@email.com"
                     autoComplete="email"
                     required
@@ -375,9 +476,10 @@ export default function CadastroPage() {
                       showPassword ? "text" : "password"
                     }
                     value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setErrorMessage("");
+                    }}
                     placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
                     required
@@ -431,11 +533,12 @@ export default function CadastroPage() {
                         : "password"
                     }
                     value={confirmPassword}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setConfirmPassword(
                         event.target.value
-                      )
-                    }
+                      );
+                      setErrorMessage("");
+                    }}
                     placeholder="Repita a palavra-passe"
                     autoComplete="new-password"
                     required
@@ -472,11 +575,12 @@ export default function CadastroPage() {
                   id="terms"
                   type="checkbox"
                   checked={acceptedTerms}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setAcceptedTerms(
                       event.target.checked
-                    )
-                  }
+                    );
+                    setErrorMessage("");
+                  }}
                   required
                   className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
                 />
@@ -535,6 +639,7 @@ export default function CadastroPage() {
                   ) : (
                     <>
                       Criar conta
+
                       <ArrowRight
                         size={16}
                         className="transition-transform duration-300 group-hover:translate-x-1"
@@ -565,7 +670,10 @@ export default function CadastroPage() {
               className={socialButtonClass}
             >
               <GoogleIcon />
-              <span>Continuar com Google</span>
+
+              <span>
+                Continuar com Google
+              </span>
             </button>
 
             {/* APPLE */}
@@ -576,13 +684,17 @@ export default function CadastroPage() {
               className={`${socialButtonClass} mt-3`}
             >
               <AppleIcon />
-              <span>Continuar com Apple</span>
+
+              <span>
+                Continuar com Apple
+              </span>
             </button>
 
             {/* LOGIN */}
 
             <p className="mt-7 text-center text-[13px] text-neutral-500">
               Já tem uma conta?{" "}
+
               <Link
                 href="/login"
                 className="font-semibold text-neutral-950 hover:text-blue-600"
@@ -606,10 +718,6 @@ export default function CadastroPage() {
     </main>
   );
 }
-
-/* ============================================================
-   BENEFIT
-============================================================ */
 
 function Benefit({
   title,
@@ -636,10 +744,6 @@ function Benefit({
     </div>
   );
 }
-
-/* ============================================================
-   GOOGLE ICON
-============================================================ */
 
 function GoogleIcon() {
   return (
@@ -673,10 +777,6 @@ function GoogleIcon() {
   );
 }
 
-/* ============================================================
-   APPLE ICON
-============================================================ */
-
 function AppleIcon() {
   return (
     <svg
@@ -690,3 +790,4 @@ function AppleIcon() {
     </svg>
   );
 }
+
