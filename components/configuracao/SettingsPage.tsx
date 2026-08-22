@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -58,10 +59,6 @@ export function SettingsPage() {
   const [business, setBusiness] =
     useState<BusinessForm>(EMPTY_FORM);
 
-  /*
-   * Guardamos o que veio do banco para saber se há alterações pendentes e
-   * para o botão Cancelar poder voltar atrás.
-   */
   const [saved, setSaved] =
     useState<BusinessForm>(EMPTY_FORM);
 
@@ -98,8 +95,23 @@ export function SettingsPage() {
 
       const response = await fetch(
         "/api/business",
-        { cache: "no-store" },
+        {
+          cache: "no-store",
+        },
       );
+
+      const contentType =
+        response.headers.get("content-type");
+
+      if (
+        !contentType?.includes(
+          "application/json",
+        )
+      ) {
+        throw new Error(
+          "A API /api/business não devolveu JSON.",
+        );
+      }
 
       const data =
         await response.json();
@@ -137,14 +149,36 @@ export function SettingsPage() {
 
       setBusiness(form);
       setSaved(form);
+
       setHours(loadedHours);
       setSavedHours(loadedHours);
-      setCounts(data._count ?? null);
+
+      setCounts(
+        data._count ?? null,
+      );
+
       setCreatedAt(
         data.createdAt ?? null,
       );
+
       setUpdatedAt(
         data.updatedAt ?? null,
+      );
+
+      /*
+       * Atualiza também o Header quando
+       * os dados são carregados.
+       */
+      window.dispatchEvent(
+        new CustomEvent(
+          "business-profile-updated",
+          {
+            detail: {
+              logo: form.logo || null,
+              name: form.name,
+            },
+          },
+        ),
       );
     } catch (caught) {
       console.error(caught);
@@ -174,7 +208,9 @@ export function SettingsPage() {
       toast.error(
         "O nome do estabelecimento é obrigatório.",
       );
+
       setTab("dados");
+
       return;
     }
 
@@ -187,7 +223,9 @@ export function SettingsPage() {
       toast.error(
         "A hora de fecho tem de ser depois da hora de abertura.",
       );
+
       setTab("horario");
+
       return;
     }
 
@@ -197,7 +235,9 @@ export function SettingsPage() {
       toast.error(
         "Escolha pelo menos um dia de funcionamento.",
       );
+
       setTab("horario");
+
       return;
     }
 
@@ -208,16 +248,31 @@ export function SettingsPage() {
         "/api/business",
         {
           method: "PUT",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
             ...business,
             ...hours,
           }),
         },
       );
+
+      const contentType =
+        response.headers.get("content-type");
+
+      if (
+        !contentType?.includes(
+          "application/json",
+        )
+      ) {
+        throw new Error(
+          "A API /api/business não devolveu JSON.",
+        );
+      }
 
       const data =
         await response.json();
@@ -228,6 +283,12 @@ export function SettingsPage() {
             "Não foi possível salvar.",
         );
       }
+
+      /*
+       * =================================================
+       * DADOS SALVOS
+       * =================================================
+       */
 
       const form: BusinessForm = {
         name: data.name ?? "",
@@ -240,31 +301,76 @@ export function SettingsPage() {
       const savedFormHours: HoursForm = {
         openingTime:
           data.openingTime ?? "",
+
         closingTime:
           data.closingTime ?? "",
+
         workingDays: Array.isArray(
           data.workingDays,
         )
           ? data.workingDays
           : EMPTY_HOURS.workingDays,
+
         slotInterval:
           Number(data.slotInterval) ||
           EMPTY_HOURS.slotInterval,
+
         rules: data.rules ?? "",
       };
 
+      /*
+       * =================================================
+       * ATUALIZAR SETTINGS
+       * =================================================
+       */
+
       setBusiness(form);
       setSaved(form);
+
       setHours(savedFormHours);
       setSavedHours(savedFormHours);
+
       setUpdatedAt(
         data.updatedAt ?? null,
       );
+
+      /*
+       * =================================================
+       * ATUALIZAR HEADER IMEDIATAMENTE
+       *
+       * Aqui está a alteração principal.
+       * O Header recebe a nova logo sem precisar
+       * atualizar o navegador.
+       * =================================================
+       */
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "business-profile-updated",
+          {
+            detail: {
+              logo: data.logo ?? null,
+              name: data.name ?? "",
+            },
+          },
+        ),
+      );
+
+      /*
+       * =================================================
+       * SUCESSO
+       * =================================================
+       */
 
       toast.success(
         "Alterações salvas.",
       );
     } catch (caught) {
+      console.error(
+        "Erro ao salvar configurações:",
+        caught,
+      );
+
       toast.error(
         caught instanceof Error
           ? caught.message
@@ -315,6 +421,7 @@ export function SettingsPage() {
         )}
 
         {/* DADOS CADASTRADOS */}
+
         {counts && (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <CountCard
@@ -374,7 +481,9 @@ export function SettingsPage() {
             onClick={() =>
               setTab("horario")
             }
-            icon={<Clock size={17} />}
+            icon={
+              <Clock size={17} />
+            }
             label="Horário e regras"
           />
         </div>
@@ -396,6 +505,7 @@ export function SettingsPage() {
         )}
 
         {/* METADADOS */}
+
         {(createdAt || updatedAt) && (
           <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
             {createdAt && (
@@ -430,6 +540,7 @@ export function SettingsPage() {
       </div>
 
       {/* BARRA INFERIOR */}
+
       <div className="sticky bottom-0 z-20 -mx-4 mt-8 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur sm:-mx-6">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="text-sm text-[var(--muted)]">
@@ -546,3 +657,4 @@ function formatDateTime(value: string) {
     timeStyle: "short",
   });
 }
+

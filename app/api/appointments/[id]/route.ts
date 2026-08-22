@@ -1,224 +1,67 @@
-import { NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
-function toMinutes(time: string) {
-  const [hours, minutes] = time
-    .split(":")
-    .map(Number);
-
-  return hours * 60 + minutes;
-}
-
-const WEEKDAYS = [
-  "domingo",
-  "segunda-feira",
-  "terça-feira",
-  "quarta-feira",
-  "quinta-feira",
-  "sexta-feira",
-  "sábado",
-];
-
-/*
- * As mesmas regras de horário aplicadas na criação. Sem isto, editar um
- * agendamento contornava o horário de funcionamento.
- */
-async function checkBusinessHours(
-  businessId: string,
-  date: string,
-  time: string,
-): Promise<string | null> {
-  const business =
-    await prisma.business.findUnique({
-      where: { id: businessId },
-
-      select: {
-        openingTime: true,
-        closingTime: true,
-        workingDays: true,
-        slotInterval: true,
-      },
-    });
-
-  if (!business) {
-    return null;
-  }
-
-  const weekday = new Date(
-    `${date}T00:00:00`,
-  ).getDay();
-
-  if (
-    business.workingDays.length > 0 &&
-    !business.workingDays.includes(
-      weekday,
-    )
-  ) {
-    return `O estabelecimento não abre ${WEEKDAYS[weekday]}. Escolha outro dia.`;
-  }
-
-  const requested = toMinutes(time);
-
-  if (
-    business.openingTime &&
-    requested <
-      toMinutes(business.openingTime)
-  ) {
-    return `O estabelecimento abre às ${business.openingTime}.`;
-  }
-
-  if (
-    business.closingTime &&
-    requested >=
-      toMinutes(business.closingTime)
-  ) {
-    return `O estabelecimento fecha às ${business.closingTime}.`;
-  }
-
-  if (
-    business.slotInterval > 0 &&
-    requested % business.slotInterval !==
-      0
-  ) {
-    return `Os agendamentos são de ${business.slotInterval} em ${business.slotInterval} minutos.`;
-  }
-
-  return null;
-}
-
-
-interface RouteContext {
+type RouteContext = {
   params: Promise<{
     id: string;
   }>;
-}
+};
 
-function formatAppointment(
-  appointment: any,
-) {
-  const date =
-    new Date(appointment.date);
+// ============================================================
+// GET - BUSCAR PROFISSIONAL
+// ============================================================
 
-  const paymentStatus =
-    appointment.payment?.status?.toLowerCase() ??
-    "pending";
-
-  let payment:
-    | "pending"
-    | "partial"
-    | "paid" = "pending";
-
-  if (paymentStatus === "paid") {
-    payment = "paid";
-  }
-
-  if (paymentStatus === "partial") {
-    payment = "partial";
-  }
-
-  return {
-    id: appointment.id,
-
-    client:
-      appointment.client?.name ?? "",
-
-    service:
-      appointment.service?.name ?? "",
-
-    professional:
-      appointment.professional?.name ?? "",
-
-    date: date
-      .toISOString()
-      .split("T")[0],
-
-    time: date
-      .toTimeString()
-      .slice(0, 5),
-
-    price: Number(
-      appointment.payment?.amount ??
-        appointment.service?.price ??
-        0,
-    ),
-
-    payment,
-
-    status:
-      appointment.status?.toLowerCase() ??
-      "pending",
-
-    notes:
-      appointment.notes ?? null,
-  };
-}
-
-/*
-|--------------------------------------------------------------------------
-| PUT
-|--------------------------------------------------------------------------
-*/
-
-export async function PUT(
-  request: Request,
+export async function GET(
+  _request: NextRequest,
   context: RouteContext,
 ) {
   try {
-    const { id } =
-      await context.params;
+    const user = await getCurrentUser();
 
-    const body =
-      await request.json();
-
-    const {
-      client,
-      service,
-      professional,
-      date,
-      time,
-      payment,
-      status,
-      notes,
-    } = body;
-
-    if (
-      !client?.trim() ||
-      !service?.trim() ||
-      !professional?.trim() ||
-      !date ||
-      !time
-    ) {
+    if (!user) {
       return NextResponse.json(
         {
-          error:
-            "Cliente, serviço, profissional, data e horário são obrigatórios.",
+          error: "Não autenticado.",
         },
         {
-          status: 400,
+          status: 401,
         },
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | BUSCAR AGENDAMENTO
-    |--------------------------------------------------------------------------
-    */
-
-    const existing =
-      await prisma.appointment.findUnique(
-        {
-          where: {
-            id,
-          },
-        },
-      );
-
-    if (!existing) {
+    if (!user.businessId) {
       return NextResponse.json(
         {
           error:
-            "Agendamento não encontrado.",
+            "O utilizador não está associado a nenhum estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    const { id } =
+      await context.params;
+
+    const professional =
+      await prisma.professional.findFirst({
+        where: {
+          id,
+          businessId: user.businessId,
+        },
+      });
+
+    if (!professional) {
+      return NextResponse.json(
+        {
+          error:
+            "Profissional não encontrado.",
         },
         {
           status: 404,
@@ -226,291 +69,19 @@ export async function PUT(
       );
     }
 
-    const hoursError =
-      await checkBusinessHours(
-        existing.businessId,
-        String(date),
-        String(time),
-      );
-
-    if (hoursError) {
-      return NextResponse.json(
-        { error: hoursError },
-        { status: 400 },
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CLIENTE
-    |--------------------------------------------------------------------------
-    */
-
-    let clientRecord =
-      await prisma.client.findFirst({
-        where: {
-          name: client.trim(),
-          businessId:
-            existing.businessId,
-        },
-      });
-
-    if (!clientRecord) {
-      clientRecord =
-        await prisma.client.create({
-          data: {
-            name: client.trim(),
-            phone: "",
-            businessId:
-              existing.businessId,
-          },
-        });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PROFISSIONAL
-    |--------------------------------------------------------------------------
-    */
-
-    let professionalRecord =
-      await prisma.professional.findFirst({
-        where: {
-          name: professional.trim(),
-          businessId:
-            existing.businessId,
-        },
-      });
-
-    if (!professionalRecord) {
-      professionalRecord =
-        await prisma.professional.create({
-          data: {
-            name: professional.trim(),
-            businessId:
-              existing.businessId,
-          },
-        });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | SERVIÇO
-    |--------------------------------------------------------------------------
-    */
-
-    let serviceRecord =
-      await prisma.service.findFirst({
-        where: {
-          name: service.trim(),
-          businessId:
-            existing.businessId,
-        },
-      });
-
-    if (!serviceRecord) {
-      serviceRecord =
-        await prisma.service.create({
-          data: {
-            name: service.trim(),
-            price: 0,
-            duration: 60,
-            businessId:
-              existing.businessId,
-          },
-        });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATA
-    |--------------------------------------------------------------------------
-    */
-
-    const appointmentDate =
-      new Date(`${date}T${time}:00`);
-
-    if (
-      Number.isNaN(
-        appointmentDate.getTime(),
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Data ou horário inválido.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | STATUS
-    |--------------------------------------------------------------------------
-    */
-
-    const statusMap: Record<
-      string,
-      | "PENDING"
-      | "CONFIRMED"
-      | "COMPLETED"
-      | "CANCELLED"
-      | "NO_SHOW"
-    > = {
-      pending: "PENDING",
-      confirmed: "CONFIRMED",
-      completed: "COMPLETED",
-      cancelled: "CANCELLED",
-      no_show: "NO_SHOW",
-    };
-
-    const prismaStatus =
-      statusMap[status] ??
-      "PENDING";
-
-    /*
-     * Concluído significa atendimento pago. Sem pagamento registado, o estado
-     * não pode ser posto em Concluído à mão — quem conclui é o pagamento.
-     */
-    if (prismaStatus === "COMPLETED") {
-      const paid =
-        await prisma.payment.findFirst({
-          where: {
-            appointmentId: id,
-            status: "PAID",
-          },
-        });
-
-      if (!paid) {
-        return NextResponse.json(
-          {
-            error:
-              "Só é possível concluir um agendamento depois de receber o pagamento. Use \"Receber pagamento\" — o agendamento passa a Concluído automaticamente.",
-
-            reason: "payment_required",
-          },
-          { status: 409 },
-        );
-      }
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | ATUALIZAR
-    |--------------------------------------------------------------------------
-    */
-
-    await prisma.appointment.update({
-      where: {
-        id,
-      },
-
-      data: {
-        date: appointmentDate,
-
-        status: prismaStatus,
-
-        notes:
-          notes?.trim() || null,
-
-        clientId:
-          clientRecord.id,
-
-        professionalId:
-          professionalRecord.id,
-
-        serviceId:
-          serviceRecord.id,
-      },
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | PAGAMENTO
-    |--------------------------------------------------------------------------
-    */
-
-    /*
-     * "Pendente" significa ausência de pagamento, não um pagamento com estado
-     * pendente. Criar uma linha PENDING (era o que acontecia aqui, a cada
-     * edição, porque a modal envia sempre payment) quebrava o recebimento: o
-     * agendamento saía da lista de cobrança e o POST recusava com "já possui
-     * um pagamento".
-     */
-    if (payment === "paid") {
-      await prisma.payment.upsert({
-        where: {
-          appointmentId: id,
-        },
-
-        update: {
-          status: "PAID",
-          paidAt: new Date(),
-        },
-
-        create: {
-          appointmentId: id,
-          amount: serviceRecord.price,
-          method: "CASH",
-          status: "PAID",
-          paidAt: new Date(),
-        },
-      });
-    } else {
-      /*
-       * Limpa placeholders PENDING deixados pela versão anterior. Um pagamento
-       * PAID não é desfeito por uma edição — isso seria apagar receita como
-       * efeito secundário de mexer noutro campo.
-       */
-      await prisma.payment.deleteMany({
-        where: {
-          appointmentId: id,
-          status: "PENDING",
-        },
-      });
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | BUSCAR ATUALIZADO
-    |--------------------------------------------------------------------------
-    */
-
-    const updated =
-      await prisma.appointment.findUnique(
-        {
-          where: {
-            id,
-          },
-
-          include: {
-            client: true,
-            professional: true,
-            service: true,
-            payment: true,
-          },
-        },
-      );
-
-    return NextResponse.json({
-      appointment:
-        formatAppointment(updated),
-    });
+    return NextResponse.json(
+      professional,
+    );
   } catch (error) {
     console.error(
-      "PUT /api/appointments/[id]:",
+      "Erro ao buscar profissional:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Erro ao atualizar agendamento.",
+          "Erro ao buscar profissional.",
       },
       {
         status: 500,
@@ -519,34 +90,111 @@ export async function PUT(
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| DELETE
-|--------------------------------------------------------------------------
-*/
+// ============================================================
+// PUT - EDITAR PROFISSIONAL
+// ============================================================
 
-export async function DELETE(
-  request: Request,
+export async function PUT(
+  request: NextRequest,
   context: RouteContext,
 ) {
   try {
-    const { id } =
-      await context.params;
+    const user = await getCurrentUser();
 
-    const appointment =
-      await prisma.appointment.findUnique(
+    if (!user) {
+      return NextResponse.json(
         {
-          where: {
-            id,
-          },
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
         },
       );
+    }
 
-    if (!appointment) {
+    if (!user.businessId) {
       return NextResponse.json(
         {
           error:
-            "Agendamento não encontrado.",
+            "O utilizador não está associado a nenhum estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    const { id } =
+      await context.params;
+
+    const body =
+      await request.json();
+
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
+
+    const email =
+      typeof body.email === "string"
+        ? body.email.trim().toLowerCase()
+        : "";
+
+    const phone =
+      typeof body.phone === "string"
+        ? body.phone.trim()
+        : "";
+
+    const specialty =
+      typeof body.specialty === "string"
+        ? body.specialty.trim()
+        : "";
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !specialty
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Todos os campos são obrigatórios.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        {
+          error:
+            "Digite um email válido.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const existing =
+      await prisma.professional.findFirst({
+        where: {
+          id,
+          businessId: user.businessId,
+        },
+      });
+
+    if (!existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Profissional não encontrado.",
         },
         {
           status: 404,
@@ -554,7 +202,271 @@ export async function DELETE(
       );
     }
 
-    await prisma.appointment.delete({
+    if (email !== existing.email) {
+      const emailUsed =
+        await prisma.professional.findFirst({
+          where: {
+            email,
+            businessId: user.businessId,
+
+            NOT: {
+              id,
+            },
+          },
+        });
+
+      if (emailUsed) {
+        return NextResponse.json(
+          {
+            error:
+              "Este email já está sendo usado.",
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+    }
+
+    const emailChanged =
+      email !== existing.email;
+
+    const updated =
+      await prisma.professional.update({
+        where: {
+          id,
+        },
+
+        data: {
+          name,
+          email,
+          phone,
+          specialty,
+
+          ...(emailChanged && {
+            emailVerified: false,
+            emailVerificationToken:
+              null,
+            emailVerificationExpires:
+              null,
+          }),
+        },
+      });
+
+    return NextResponse.json(
+      updated,
+    );
+  } catch (error) {
+    console.error(
+      "Erro ao editar profissional:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Não foi possível editar o profissional.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+
+// ============================================================
+// PATCH - ATIVAR / DESATIVAR
+// ============================================================
+
+export async function PATCH(
+  request: NextRequest,
+  context: RouteContext,
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a nenhum estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    const { id } =
+      await context.params;
+
+    const body =
+      await request.json();
+
+    if (
+      typeof body.active !== "boolean"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "O campo active deve ser booleano.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const existing =
+      await prisma.professional.findFirst({
+        where: {
+          id,
+          businessId: user.businessId,
+        },
+      });
+
+    if (!existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Profissional não encontrado.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const updated =
+      await prisma.professional.update({
+        where: {
+          id,
+        },
+
+        data: {
+          active: body.active,
+        },
+      });
+
+    return NextResponse.json(
+      updated,
+    );
+  } catch (error) {
+    console.error(
+      "Erro ao alterar estado:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Não foi possível alterar o estado.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+
+// ============================================================
+// DELETE - EXCLUIR
+// ============================================================
+
+export async function DELETE(
+  _request: NextRequest,
+  context: RouteContext,
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a nenhum estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    const { id } =
+      await context.params;
+
+    const existing =
+      await prisma.professional.findFirst({
+        where: {
+          id,
+          businessId: user.businessId,
+        },
+      });
+
+    if (!existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Profissional não encontrado.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const appointments =
+      await prisma.appointment.count({
+        where: {
+          professionalId: id,
+        },
+      });
+
+    if (appointments > 0) {
+      const registros =
+        appointments === 1
+          ? "1 agendamento registrado"
+          : `${appointments} agendamentos registrados`;
+
+      return NextResponse.json(
+        {
+          error:
+            `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Desativar" — o profissional deixa de aparecer em novos agendamentos e os anteriores permanecem.`,
+
+          reason:
+            "has_appointments",
+
+          appointments,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    await prisma.professional.delete({
       where: {
         id,
       },
@@ -562,19 +474,19 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
+      message:
+        "Profissional excluído com sucesso.",
     });
   } catch (error) {
     console.error(
-      "DELETE /api/appointments/[id]:",
+      "Erro ao excluir profissional:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Erro ao excluir agendamento.",
+          "Não foi possível excluir o profissional.",
       },
       {
         status: 500,

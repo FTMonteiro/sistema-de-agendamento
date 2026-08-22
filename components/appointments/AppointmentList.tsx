@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Appointment } from "@/types/appointment";
 
 import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
@@ -18,8 +19,6 @@ import {
   Save,
   AlertTriangle,
 } from "lucide-react";
-
-import { Appointment } from "@/types/appointment";
 
 interface AppointmentListProps {
   appointments?: Appointment[];
@@ -47,18 +46,16 @@ export function AppointmentList({
   const [deletingAppointment, setDeletingAppointment] =
     useState<Appointment | null>(null);
 
-  const { notify } = useNotifications();
-
-  const [openMenu, setOpenMenu] = useState<string | null>(
-    null,
-  );
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
   const [validationError, setValidationError] =
-    useState<string>("");
+    useState("");
+
+  const { notify } = useNotifications();
 
   /*
   |--------------------------------------------------------------------------
@@ -70,12 +67,10 @@ export function AppointmentList({
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "/api/appointments",
-        {
-          cache: "no-store",
-        },
-      );
+      const response = await fetch("/api/appointments", {
+        method: "GET",
+        cache: "no-store",
+      });
 
       const text = await response.text();
 
@@ -101,13 +96,17 @@ export function AppointmentList({
         );
       }
 
-      setAppointments(
-        data.appointments ?? [],
-      );
+      setAppointments(data.appointments ?? []);
     } catch (error) {
       console.error(
         "Erro ao buscar agendamentos:",
         error,
+      );
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Erro ao carregar agendamentos.",
       );
     } finally {
       setLoading(false);
@@ -128,14 +127,6 @@ export function AppointmentList({
   |--------------------------------------------------------------------------
   | ATUALIZAÇÃO DINÂMICA
   |--------------------------------------------------------------------------
-  |
-  | Quando outro componente criar/editar/excluir,
-  | ele vai disparar:
-  |
-  | window.dispatchEvent(
-  |   new Event("appointments:changed")
-  | )
-  |
   */
 
   useEffect(() => {
@@ -163,17 +154,12 @@ export function AppointmentList({
   */
 
   useEffect(() => {
-    if (
-      externalAppointments &&
-      externalAppointments.length !== appointments.length
-    ) {
-      setAppointments(
-        externalAppointments,
-      );
+    if (!externalAppointments) {
+      return;
     }
-  }, [
-    externalAppointments,
-  ]);
+
+    setAppointments(externalAppointments);
+  }, [externalAppointments]);
 
   /*
   |--------------------------------------------------------------------------
@@ -185,12 +171,10 @@ export function AppointmentList({
     appointment: Appointment,
   ) {
     setOpenMenu(null);
-
+    setSelectedAppointment(null);
     setValidationError("");
 
-    setDeletingAppointment(
-      appointment,
-    );
+    setDeletingAppointment(appointment);
   }
 
   async function confirmDelete() {
@@ -200,7 +184,6 @@ export function AppointmentList({
 
     try {
       setIsDeleting(true);
-
       setValidationError("");
 
       const response = await fetch(
@@ -235,23 +218,20 @@ export function AppointmentList({
       }
 
       /*
-      |------------------------------------------------------------
-      | ATUALIZA IMEDIATAMENTE
-      |------------------------------------------------------------
+      |--------------------------------------------------------------------------
+      | ATUALIZAR LISTA IMEDIATAMENTE
+      |--------------------------------------------------------------------------
       */
 
-      setAppointments(
-        (current) =>
-          current.filter(
-            (item) =>
-              item.id !==
-              deletingAppointment.id,
-          ),
+      const deletedId = deletingAppointment.id;
+
+      setAppointments((current) =>
+        current.filter(
+          (item) => item.id !== deletedId,
+        ),
       );
 
-      onDelete?.(
-        deletingAppointment.id,
-      );
+      onDelete?.(deletedId);
 
       notify({
         kind: "deleted",
@@ -264,15 +244,13 @@ export function AppointmentList({
       );
 
       /*
-      |------------------------------------------------------------
-      | AVISA OUTROS COMPONENTES
-      |------------------------------------------------------------
+      |--------------------------------------------------------------------------
+      | AVISAR OUTROS COMPONENTES
+      |--------------------------------------------------------------------------
       */
 
       window.dispatchEvent(
-        new Event(
-          "appointments:changed",
-        ),
+        new Event("appointments:changed"),
       );
 
       setDeletingAppointment(null);
@@ -282,11 +260,14 @@ export function AppointmentList({
         error,
       );
 
-      setValidationError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Erro ao excluir agendamento.",
-      );
+          : "Erro ao excluir agendamento.";
+
+      setValidationError(message);
+
+      toast.error(message);
     } finally {
       setIsDeleting(false);
     }
@@ -302,16 +283,13 @@ export function AppointmentList({
     appointment: Appointment,
   ) {
     setOpenMenu(null);
-
+    setSelectedAppointment(null);
     setValidationError("");
 
     /*
-    |------------------------------------------------------------
-    | IMPORTANTE
-    |------------------------------------------------------------
-    | Não vamos mais depender do onEdit do pai
-    | para abrir a edição.
-    */
+     * Criamos uma cópia para não alterar a lista antes
+     * do utilizador clicar em Salvar.
+     */
 
     setEditingAppointment({
       ...appointment,
@@ -330,56 +308,58 @@ export function AppointmentList({
     }
 
     /*
-    |------------------------------------------------------------
-    | VALIDAÇÃO
-    |------------------------------------------------------------
+    |--------------------------------------------------------------------------
+    | VALIDAÇÃO DO FORMULÁRIO
+    |--------------------------------------------------------------------------
     */
 
-    if (
-      !editingAppointment.client?.trim()
-    ) {
+    if (!editingAppointment.client?.trim()) {
       setValidationError(
         "Preencha o nome do cliente.",
       );
-
       return;
     }
 
-    if (
-      !editingAppointment.service?.trim()
-    ) {
+    if (!editingAppointment.service?.trim()) {
       setValidationError(
         "Preencha o serviço.",
       );
-
       return;
     }
 
-    if (
-      !editingAppointment.professional?.trim()
-    ) {
+    if (!editingAppointment.professional?.trim()) {
       setValidationError(
         "Preencha o profissional.",
       );
-
       return;
     }
 
-    if (
-      !editingAppointment.date
-    ) {
+    if (!editingAppointment.date) {
       setValidationError(
         "Selecione a data.",
       );
-
       return;
     }
 
-    if (
-      !editingAppointment.time
-    ) {
+    if (!editingAppointment.time) {
       setValidationError(
         "Selecione o horário.",
+      );
+      return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO PERMITIR CONCLUÍDO MANUALMENTE
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      editingAppointment.status === "completed" &&
+      editingAppointment.payment !== "paid"
+    ) {
+      setValidationError(
+        'Só é possível concluir o agendamento depois do pagamento. Use "Receber pagamento".',
       );
 
       return;
@@ -387,8 +367,13 @@ export function AppointmentList({
 
     try {
       setIsSaving(true);
-
       setValidationError("");
+
+      /*
+      |--------------------------------------------------------------------------
+      | ENVIAR PARA API
+      |--------------------------------------------------------------------------
+      */
 
       const response = await fetch(
         `/api/appointments/${editingAppointment.id}`,
@@ -396,31 +381,46 @@ export function AppointmentList({
           method: "PUT",
 
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
             client:
-              editingAppointment.client,
+              editingAppointment.client.trim(),
 
             service:
-              editingAppointment.service,
+              editingAppointment.service.trim(),
 
             professional:
-              editingAppointment.professional,
+              editingAppointment.professional.trim(),
 
-            date:
-              editingAppointment.date,
+            date: editingAppointment.date,
 
-            time:
-              editingAppointment.time,
+            time: editingAppointment.time,
 
-            status:
-              editingAppointment.status,
+            status: editingAppointment.status,
+
+            /*
+             * IMPORTANTE:
+             *
+             * Não enviamos "pending" como pagamento para criar
+             * pagamentos pendentes.
+             *
+             * A API PUT trata:
+             *
+             * paid -> mantém/cria pagamento PAID
+             * qualquer outra coisa -> não cria pagamento
+             */
 
             payment:
-              editingAppointment.payment,
+              editingAppointment.payment ===
+              "paid"
+                ? "paid"
+                : undefined,
+
+            notes:
+              editingAppointment.notes?.trim() ||
+              null,
           }),
         },
       );
@@ -430,6 +430,7 @@ export function AppointmentList({
       let data: {
         appointment?: Appointment;
         error?: string;
+        reason?: string;
       } = {};
 
       if (text.trim()) {
@@ -442,6 +443,12 @@ export function AppointmentList({
         }
       }
 
+      /*
+      |--------------------------------------------------------------------------
+      | ERRO DA API
+      |--------------------------------------------------------------------------
+      */
+
       if (!response.ok) {
         throw new Error(
           data.error ||
@@ -450,84 +457,73 @@ export function AppointmentList({
       }
 
       /*
-      |------------------------------------------------------------
-      | ATUALIZA IMEDIATAMENTE
-      |------------------------------------------------------------
+      |--------------------------------------------------------------------------
+      | AGENDAMENTO ATUALIZADO
+      |--------------------------------------------------------------------------
       */
 
-      if (data.appointment) {
-        setAppointments(
-          (current) =>
-            current.map(
-              (item) =>
-                item.id ===
-                data.appointment!.id
-                  ? data.appointment!
-                  : item,
-            ),
-        );
-      } else {
-        /*
-        |----------------------------------------------------------
-        | FALLBACK
-        |----------------------------------------------------------
-        */
+      const savedAppointment =
+        data.appointment ??
+        editingAppointment;
 
-        setAppointments(
-          (current) =>
-            current.map(
-              (item) =>
-                item.id ===
-                editingAppointment.id
-                  ? editingAppointment
-                  : item,
-            ),
-        );
-      }
-
-      /*
-      |------------------------------------------------------------
-      | AVISA OUTROS COMPONENTES
-      |------------------------------------------------------------
-      */
-
-      window.dispatchEvent(
-        new Event(
-          "appointments:changed",
+      setAppointments((current) =>
+        current.map((item) =>
+          item.id === savedAppointment.id
+            ? savedAppointment
+            : item,
         ),
       );
 
-      onEdit?.(
-        data.appointment ??
-          editingAppointment,
+      /*
+      |--------------------------------------------------------------------------
+      | AVISAR COMPONENTES
+      |--------------------------------------------------------------------------
+      */
+
+      window.dispatchEvent(
+        new Event("appointments:changed"),
       );
 
-      const saved =
-        data.appointment ??
-        editingAppointment;
+      onEdit?.(savedAppointment);
+
+      /*
+      |--------------------------------------------------------------------------
+      | NOTIFICAÇÃO
+      |--------------------------------------------------------------------------
+      */
 
       notify({
         kind: "updated",
         title: "Agendamento editado",
-        description: `${saved.client} — ${saved.date} às ${saved.time}`,
+        description: `${savedAppointment.client} — ${savedAppointment.date} às ${savedAppointment.time}`,
       });
 
       toast.success(
         "Agendamento atualizado.",
       );
 
+      /*
+      |--------------------------------------------------------------------------
+      | FECHAR MODAL
+      |--------------------------------------------------------------------------
+      */
+
       setEditingAppointment(null);
+      setValidationError("");
     } catch (error) {
       console.error(
         "Erro ao editar:",
         error,
       );
 
-      setValidationError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Erro ao atualizar agendamento.",
-      );
+          : "Erro ao atualizar agendamento.";
+
+      setValidationError(message);
+
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -552,6 +548,9 @@ export function AppointmentList({
       case "cancelled":
         return "Cancelado";
 
+      case "no_show":
+        return "Não compareceu";
+
       default:
         return "Aguardando";
     }
@@ -570,6 +569,9 @@ export function AppointmentList({
       case "cancelled":
         return "bg-red-50 text-red-700";
 
+      case "no_show":
+        return "bg-gray-100 text-gray-700";
+
       default:
         return "bg-amber-50 text-amber-700";
     }
@@ -577,13 +579,11 @@ export function AppointmentList({
 
   /*
   |--------------------------------------------------------------------------
-  | DATA
+  | FORMATAR DATA
   |--------------------------------------------------------------------------
   */
 
-  function formatDate(
-    date: string,
-  ) {
+  function formatDate(date: string) {
     if (!date) {
       return "-";
     }
@@ -594,11 +594,7 @@ export function AppointmentList({
       day,
     ] = date.split("-");
 
-    if (
-      !year ||
-      !month ||
-      !day
-    ) {
+    if (!year || !month || !day) {
       return date;
     }
 
@@ -611,22 +607,19 @@ export function AppointmentList({
   |--------------------------------------------------------------------------
   */
 
-  const sortedAppointments =
-    useMemo(() => {
-      return [...appointments].sort(
-        (a, b) => {
-          const dateA =
-            `${a.date} ${a.time}`;
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort(
+      (a, b) => {
+        const dateA =
+          `${a.date} ${a.time}`;
 
-          const dateB =
-            `${b.date} ${b.time}`;
+        const dateB =
+          `${b.date} ${b.time}`;
 
-          return dateA.localeCompare(
-            dateB,
-          );
-        },
-      );
-    }, [appointments]);
+        return dateA.localeCompare(dateB);
+      },
+    );
+  }, [appointments]);
 
   /*
   |--------------------------------------------------------------------------
@@ -652,8 +645,7 @@ export function AppointmentList({
 
   return (
     <>
-      {sortedAppointments.length ===
-      0 ? (
+      {sortedAppointments.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
           <CalendarDays className="mx-auto h-10 w-10 text-gray-300" />
 
@@ -678,9 +670,7 @@ export function AppointmentList({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate text-base font-semibold text-gray-950">
-                        {
-                          appointment.client
-                        }
+                        {appointment.client}
                       </h3>
 
                       <span
@@ -692,6 +682,13 @@ export function AppointmentList({
                           appointment.status,
                         )}
                       </span>
+
+                      {appointment.payment ===
+                        "paid" && (
+                        <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                          Pago
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 grid gap-2 text-sm text-gray-500 sm:grid-cols-2 xl:grid-cols-4">
@@ -699,9 +696,7 @@ export function AppointmentList({
                         <Scissors className="h-4 w-4 text-gray-400" />
 
                         <span className="truncate">
-                          {
-                            appointment.service
-                          }
+                          {appointment.service}
                         </span>
                       </div>
 
@@ -729,9 +724,7 @@ export function AppointmentList({
                         <Clock className="h-4 w-4 text-gray-400" />
 
                         <span>
-                          {
-                            appointment.time
-                          }
+                          {appointment.time}
                         </span>
                       </div>
                     </div>
@@ -761,10 +754,7 @@ export function AppointmentList({
                         <button
                           type="button"
                           onClick={() => {
-                            setOpenMenu(
-                              null,
-                            );
-
+                            setOpenMenu(null);
                             setSelectedAppointment(
                               appointment,
                             );
@@ -841,9 +831,7 @@ export function AppointmentList({
               <button
                 type="button"
                 onClick={() =>
-                  setSelectedAppointment(
-                    null,
-                  )
+                  setSelectedAppointment(null)
                 }
                 className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
               >
@@ -902,6 +890,19 @@ export function AppointmentList({
                 }
               />
 
+              <Detail
+                icon={
+                  <Save className="h-4 w-4" />
+                }
+                label="Pagamento"
+                value={
+                  selectedAppointment.payment ===
+                  "paid"
+                    ? "Pago"
+                    : "Pendente"
+                }
+              />
+
               {selectedAppointment.notes && (
                 <div className="rounded-xl bg-gray-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -909,9 +910,7 @@ export function AppointmentList({
                   </p>
 
                   <p className="mt-2 text-sm text-gray-700">
-                    {
-                      selectedAppointment.notes
-                    }
+                    {selectedAppointment.notes}
                   </p>
                 </div>
               )}
@@ -929,9 +928,7 @@ export function AppointmentList({
           className="fixed inset-0 z-[9998] flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-sm"
           onClick={() => {
             if (!isSaving) {
-              setEditingAppointment(
-                null,
-              );
+              setEditingAppointment(null);
               setValidationError("");
             }
           }}
@@ -957,28 +954,23 @@ export function AppointmentList({
                 type="button"
                 disabled={isSaving}
                 onClick={() => {
-                  setEditingAppointment(
-                    null,
-                  );
-
+                  setEditingAppointment(null);
                   setValidationError("");
                 }}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="space-y-4 p-6">
-              {/* ERRO DENTRO DO MODAL */}
-
               {validationError && (
                 <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
 
                   <div>
                     <p className="text-sm font-semibold text-red-800">
-                      Verifique os dados
+                      Não foi possível salvar
                     </p>
 
                     <p className="mt-1 text-sm text-red-700">
@@ -996,10 +988,15 @@ export function AppointmentList({
                 onChange={(value) => {
                   setValidationError("");
 
-                  setEditingAppointment({
-                    ...editingAppointment,
-                    client: value,
-                  });
+                  setEditingAppointment(
+                    (current) =>
+                      current
+                        ? {
+                            ...current,
+                            client: value,
+                          }
+                        : null,
+                  );
                 }}
               />
 
@@ -1011,10 +1008,15 @@ export function AppointmentList({
                 onChange={(value) => {
                   setValidationError("");
 
-                  setEditingAppointment({
-                    ...editingAppointment,
-                    service: value,
-                  });
+                  setEditingAppointment(
+                    (current) =>
+                      current
+                        ? {
+                            ...current,
+                            service: value,
+                          }
+                        : null,
+                  );
                 }}
               />
 
@@ -1026,11 +1028,16 @@ export function AppointmentList({
                 onChange={(value) => {
                   setValidationError("");
 
-                  setEditingAppointment({
-                    ...editingAppointment,
-                    professional:
-                      value,
-                  });
+                  setEditingAppointment(
+                    (current) =>
+                      current
+                        ? {
+                            ...current,
+                            professional:
+                              value,
+                          }
+                        : null,
+                  );
                 }}
               />
 
@@ -1044,10 +1051,15 @@ export function AppointmentList({
                   onChange={(value) => {
                     setValidationError("");
 
-                    setEditingAppointment({
-                      ...editingAppointment,
-                      date: value,
-                    });
+                    setEditingAppointment(
+                      (current) =>
+                        current
+                          ? {
+                              ...current,
+                              date: value,
+                            }
+                          : null,
+                    );
                   }}
                 />
 
@@ -1060,10 +1072,15 @@ export function AppointmentList({
                   onChange={(value) => {
                     setValidationError("");
 
-                    setEditingAppointment({
-                      ...editingAppointment,
-                      time: value,
-                    });
+                    setEditingAppointment(
+                      (current) =>
+                        current
+                          ? {
+                              ...current,
+                              time: value,
+                            }
+                          : null,
+                    );
                   }}
                 />
               </div>
@@ -1078,14 +1095,38 @@ export function AppointmentList({
                     editingAppointment.status
                   }
                   onChange={(event) => {
+                    const newStatus =
+                      event.target.value as Appointment["status"];
+
+                    /*
+                     * Nunca permitir completed sem pagamento.
+                     */
+
+                    if (
+                      newStatus ===
+                        "completed" &&
+                      editingAppointment.payment !==
+                        "paid"
+                    ) {
+                      setValidationError(
+                        'Para concluir, primeiro use "Receber pagamento".',
+                      );
+
+                      return;
+                    }
+
                     setValidationError("");
 
-                    setEditingAppointment({
-                      ...editingAppointment,
-                      status:
-                        event.target
-                          .value as Appointment["status"],
-                    });
+                    setEditingAppointment(
+                      (current) =>
+                        current
+                          ? {
+                              ...current,
+                              status:
+                                newStatus,
+                            }
+                          : null,
+                    );
                   }}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 >
@@ -1097,7 +1138,6 @@ export function AppointmentList({
                     Confirmado
                   </option>
 
-                  {/* Concluído sai do pagamento, não da mão do utilizador. */}
                   <option
                     value="completed"
                     disabled={
@@ -1114,15 +1154,48 @@ export function AppointmentList({
                   <option value="cancelled">
                     Cancelado
                   </option>
+
+                  <option value="no_show">
+                    Não compareceu
+                  </option>
                 </select>
 
                 {editingAppointment.payment !==
                   "paid" && (
                   <p className="mt-2 text-xs text-gray-500">
-                    O agendamento passa a Concluído ao receber o pagamento.
+                    O agendamento passa automaticamente
+                    para Concluído quando o pagamento
+                    for recebido.
+                  </p>
+                )}
+
+                {editingAppointment.payment ===
+                  "paid" && (
+                  <p className="mt-2 text-xs text-green-600">
+                    Este agendamento já está pago.
                   </p>
                 )}
               </div>
+
+              <EditField
+                label="Observações"
+                value={
+                  editingAppointment.notes ?? ""
+                }
+                onChange={(value) => {
+                  setValidationError("");
+
+                  setEditingAppointment(
+                    (current) =>
+                      current
+                        ? {
+                            ...current,
+                            notes: value,
+                          }
+                        : null,
+                  );
+                }}
+              />
             </div>
 
             <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
@@ -1130,13 +1203,10 @@ export function AppointmentList({
                 type="button"
                 disabled={isSaving}
                 onClick={() => {
-                  setEditingAppointment(
-                    null,
-                  );
-
+                  setEditingAppointment(null);
                   setValidationError("");
                 }}
-                className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -1167,9 +1237,8 @@ export function AppointmentList({
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm"
           onClick={() => {
             if (!isDeleting) {
-              setDeletingAppointment(
-                null,
-              );
+              setDeletingAppointment(null);
+              setValidationError("");
             }
           }}
         >
@@ -1201,15 +1270,11 @@ export function AppointmentList({
 
               <div className="mt-5 rounded-xl bg-gray-50 p-4">
                 <p className="font-semibold text-gray-900">
-                  {
-                    deletingAppointment.client
-                  }
+                  {deletingAppointment.client}
                 </p>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  {
-                    deletingAppointment.service
-                  }
+                  {deletingAppointment.service}
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
@@ -1224,24 +1289,27 @@ export function AppointmentList({
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
 
-                    {
-                      deletingAppointment.time
-                    }
+                    {deletingAppointment.time}
                   </span>
                 </div>
               </div>
+
+              {validationError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {validationError}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={isDeleting}
-                onClick={() =>
-                  setDeletingAppointment(
-                    null,
-                  )
-                }
-                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  setDeletingAppointment(null);
+                  setValidationError("");
+                }}
+                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -1327,9 +1395,7 @@ function EditField({
         type={type}
         value={value ?? ""}
         onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
+          onChange(event.target.value)
         }
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
       />

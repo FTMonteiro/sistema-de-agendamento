@@ -1,14 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
+import { getSessionUserId } from "@/lib/auth";
+
+async function getBusinessId() {
+  const userId = await getSessionUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      businessId: true,
+    },
+  });
+
+  return user?.businessId ?? null;
+}
 
 export async function GET() {
   try {
-    const businessId = process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const businessId = await getBusinessId();
 
     if (!businessId) {
       return NextResponse.json(
-        { error: "Business ID não configurado." },
-        { status: 500 },
+        {
+          error: "Sessão inválida ou empresa não encontrada.",
+        },
+        { status: 401 },
       );
     }
 
@@ -36,16 +59,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    const businessId = process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const businessId = await getBusinessId();
 
     if (!businessId) {
       return NextResponse.json(
-        { error: "Business ID não configurado." },
-        { status: 500 },
+        {
+          error: "Sessão inválida ou empresa não encontrada.",
+        },
+        { status: 401 },
       );
     }
+
+    const body = await request.json();
 
     const name =
       typeof body.name === "string"
@@ -75,8 +100,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Preço 0 nao e servico valido: Number("") tambem da 0, entao um campo
-    // vazio passava por aqui antes.
     if (!Number.isFinite(price) || price <= 0) {
       return NextResponse.json(
         {
@@ -110,10 +133,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      service,
-      { status: 201 },
-    );
+    return NextResponse.json(service, {
+      status: 201,
+    });
   } catch (error) {
     console.error("Erro ao criar serviço:", error);
 

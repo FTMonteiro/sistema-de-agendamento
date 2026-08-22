@@ -2,7 +2,8 @@ export type AppointmentStatus =
   | "pending"
   | "confirmed"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "no_show";
 
 export type AppointmentPayment =
   | "pending"
@@ -11,6 +12,12 @@ export type AppointmentPayment =
 
 export interface Appointment {
   id: string;
+
+  clientId: string;
+
+  serviceId: string;
+
+  professionalId: string;
 
   client: string;
 
@@ -26,7 +33,6 @@ export interface Appointment {
 
   payment: AppointmentPayment;
 
-  /** Valor efectivamente recebido; 0 enquanto não houver pagamento. */
   paidAmount?: number;
 
   status: AppointmentStatus;

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -52,9 +53,9 @@ export default function TeamHeader({
     const cleanPhone = phone.trim();
     const cleanSpecialty = specialty.trim();
 
-    // ==============================
+    // ========================================================
     // VALIDAR CAMPOS
-    // ==============================
+    // ========================================================
 
     if (!cleanName) {
       setError("Digite o nome do profissional.");
@@ -78,9 +79,9 @@ export default function TeamHeader({
       return;
     }
 
-    // ==============================
+    // ========================================================
     // VALIDAR EMAIL
-    // ==============================
+    // ========================================================
 
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -90,19 +91,16 @@ export default function TeamHeader({
       return;
     }
 
-    // ==============================
-    // BUSINESS ID
-    // ==============================
-
-    const businessId =
-      process.env.NEXT_PUBLIC_BUSINESS_ID;
-
-    if (!businessId) {
-      setError(
-        "Business ID não configurado.",
-      );
-      return;
-    }
+    // ========================================================
+    // ENVIAR PARA A API
+    // ========================================================
+    //
+    // NÃO enviamos businessId.
+    //
+    // A API pega o businessId através do utilizador
+    // autenticado pela sessão.
+    //
+    // ========================================================
 
     try {
       setLoading(true);
@@ -119,12 +117,15 @@ export default function TeamHeader({
             email: cleanEmail,
             phone: cleanPhone,
             specialty: cleanSpecialty,
-            businessId,
           }),
         },
       );
 
       const data = await response.json();
+
+      // ======================================================
+      // ERRO DA API
+      // ======================================================
 
       if (!response.ok) {
         throw new Error(
@@ -133,41 +134,84 @@ export default function TeamHeader({
         );
       }
 
-      const professional = data.professional;
+      // ======================================================
+      // PROFISSIONAL CRIADO
+      // ======================================================
+
+      const professional =
+        data?.professional;
+
+      if (!professional) {
+        throw new Error(
+          "A API não retornou os dados do profissional.",
+        );
+      }
+
+      // ======================================================
+      // NORMALIZAR PARA TeamMember
+      // ======================================================
 
       const member: TeamMember = {
-        id: String(professional.id),
-        name: String(professional.name),
-        email: professional.email ?? "",
-        phone: professional.phone ?? "",
-        specialty:
+        id: String(
+          professional.id ?? "",
+        ),
+
+        name: String(
+          professional.name ?? "",
+        ),
+
+        email: String(
+          professional.email ?? "",
+        ),
+
+        phone: String(
+          professional.phone ?? "",
+        ),
+
+        specialty: String(
           professional.specialty ?? "",
+        ),
+
         active:
           professional.active === true,
+
         emailVerified:
           professional.emailVerified === true,
+
         businessId: String(
-          professional.businessId,
+          professional.businessId ?? "",
         ),
+
         createdAt: String(
-          professional.createdAt,
+          professional.createdAt ?? "",
         ),
+
         updatedAt: String(
-          professional.updatedAt,
+          professional.updatedAt ?? "",
         ),
       };
 
+      // ======================================================
+      // ATUALIZAR LISTA
+      // ======================================================
+
       onMemberCreated(member);
 
+      // ======================================================
+      // SUCESSO
+      // ======================================================
+
       setSuccess(
-        "Profissional cadastrado. Enviamos um email de verificação.",
+        "Profissional cadastrado com sucesso.",
       );
 
+      // Limpar campos
       setName("");
       setEmail("");
       setPhone("");
       setSpecialty("");
 
+      // Fechar modal depois de um pequeno intervalo
       setTimeout(() => {
         setOpen(false);
         setSuccess("");
@@ -190,9 +234,9 @@ export default function TeamHeader({
 
   return (
     <>
-      {/* ==============================
+      {/* ======================================================
           HEADER
-      ============================== */}
+      ====================================================== */}
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -224,14 +268,17 @@ export default function TeamHeader({
         </button>
       </div>
 
-      {/* ==============================
+      {/* ======================================================
           MODAL
-      ============================== */}
+      ====================================================== */}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
-            {/* HEADER MODAL */}
+
+            {/* ==================================================
+                HEADER DO MODAL
+            ================================================== */}
 
             <div className="flex items-center justify-between border-b border-gray-100 p-6">
               <div className="flex items-center gap-3">
@@ -263,17 +310,23 @@ export default function TeamHeader({
               </button>
             </div>
 
-            {/* FORM */}
+            {/* ==================================================
+                FORMULÁRIO
+            ================================================== */}
 
             <form
               onSubmit={handleSubmit}
               className="space-y-5 p-6"
             >
+              {/* ERRO */}
+
               {error && (
                 <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
                   {error}
                 </div>
               )}
+
+              {/* SUCESSO */}
 
               {success && (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
@@ -281,7 +334,9 @@ export default function TeamHeader({
                 </div>
               )}
 
-              {/* NOME */}
+              {/* ==================================================
+                  NOME
+              ================================================== */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -296,11 +351,14 @@ export default function TeamHeader({
                   }
                   placeholder="Nome completo"
                   disabled={loading}
+                  autoComplete="name"
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
 
-              {/* EMAIL */}
+              {/* ==================================================
+                  EMAIL
+              ================================================== */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -315,11 +373,14 @@ export default function TeamHeader({
                   }
                   placeholder="profissional@email.com"
                   disabled={loading}
+                  autoComplete="email"
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
 
-              {/* TELEFONE */}
+              {/* ==================================================
+                  TELEFONE
+              ================================================== */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -334,11 +395,14 @@ export default function TeamHeader({
                   }
                   placeholder="+244 9XX XXX XXX"
                   disabled={loading}
+                  autoComplete="tel"
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
 
-              {/* ESPECIALIDADE */}
+              {/* ==================================================
+                  ESPECIALIDADE
+              ================================================== */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -359,7 +423,9 @@ export default function TeamHeader({
                 />
               </div>
 
-              {/* BOTÕES */}
+              {/* ==================================================
+                  BOTÕES
+              ================================================== */}
 
               <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
                 <button
@@ -388,3 +454,4 @@ export default function TeamHeader({
     </>
   );
 }
+

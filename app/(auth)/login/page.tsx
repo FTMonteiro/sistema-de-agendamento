@@ -22,49 +22,73 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!email || !password) {
+    setError("");
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setError("Preencha o email e a palavra-passe.");
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log({
-        email,
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+        }),
       });
 
-      // Futuramente:
-      //
-      // const response = await fetch("/api/auth/login", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     email,
-      //     password,
-      //   }),
-      // });
+      const data = await response.json();
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "Email ou palavra-passe incorretos."
+        );
+      }
+
+      console.log("Login realizado:", data.user);
+
+      /*
+       * A API já criou o cookie:
+       *
+       * nevrix_session
+       *
+       * Agora enviamos o utilizador para o dashboard.
+       */
+
+      window.location.href = "/dashboard";
     } catch (error) {
       console.error("Erro ao fazer login:", error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível realizar o login."
+      );
     } finally {
       setLoading(false);
     }
   }
 
   function handleGoogleLogin() {
-    console.log("Login com Google");
+    alert("O login com Google ainda não está configurado.");
   }
 
   function handleAppleLogin() {
-    console.log("Login com Apple");
+    alert("O login com Apple ainda não está configurado.");
   }
 
   return (
@@ -75,8 +99,6 @@ export default function LoginPage() {
         ===================================================== */}
 
         <section className="login-panel relative hidden min-h-screen overflow-hidden bg-[#05070b] lg:flex">
-          {/* Atmosfera */}
-
           <div
             aria-hidden="true"
             className="login-orb login-orb-one"
@@ -92,21 +114,15 @@ export default function LoginPage() {
             className="login-orb login-orb-three"
           />
 
-          {/* Grid */}
-
           <div
             aria-hidden="true"
             className="login-grid absolute inset-0"
           />
 
-          {/* Linha vertical */}
-
           <div
             aria-hidden="true"
             className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-blue-500/30 to-transparent"
           />
-
-          {/* Conteúdo */}
 
           <div className="relative z-10 flex min-h-screen w-full flex-col px-10 py-9 xl:px-16">
             {/* BRAND */}
@@ -138,21 +154,16 @@ export default function LoginPage() {
 
             <div className="flex flex-1 items-center">
               <div className="w-full max-w-[680px]">
-                {/* Eyebrow */}
-
                 <div className="login-enter login-delay-2 mb-7 flex items-center gap-3">
                   <span className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
-
                       <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-400" />
                     </span>
 
                     Plataforma inteligente
                   </span>
                 </div>
-
-                {/* Título */}
 
                 <h1 className="login-enter login-delay-3 max-w-[650px] text-[48px] font-semibold leading-[0.98] tracking-[-0.055em] text-white xl:text-[68px]">
                   Tudo o que o seu
@@ -164,8 +175,6 @@ export default function LoginPage() {
                   </span>
                 </h1>
 
-                {/* Descrição */}
-
                 <p className="login-enter login-delay-4 mt-7 max-w-[570px] text-[15px] leading-7 text-slate-400 xl:text-[16px]">
                   Centralize operações, clientes, equipas, serviços,
                   agendamentos e pagamentos numa experiência simples,
@@ -175,14 +184,10 @@ export default function LoginPage() {
                 {/* MOCKUP */}
 
                 <div className="login-dashboard relative mt-12 h-[205px] max-w-[590px]">
-                  {/* Glow */}
-
                   <div
                     aria-hidden="true"
                     className="absolute left-[20%] top-[30%] h-32 w-64 rounded-full bg-blue-600/10 blur-[70px]"
                   />
-
-                  {/* Card principal */}
 
                   <div className="login-card-main absolute left-0 top-0 w-[325px] rounded-[18px] border border-white/[0.09] bg-white/[0.045] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
                     <div className="flex items-center justify-between">
@@ -200,8 +205,6 @@ export default function LoginPage() {
                         <BarChart3 size={14} />
                       </div>
                     </div>
-
-                    {/* Métricas */}
 
                     <div className="mt-5 grid grid-cols-3 gap-2">
                       <MiniMetric
@@ -223,8 +226,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* Barra */}
-
                     <div className="mt-4">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] text-slate-600">
@@ -241,8 +242,6 @@ export default function LoginPage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Card secundário */}
 
                   <div className="login-card-secondary absolute right-0 top-[58px] w-[230px] rounded-[18px] border border-white/[0.09] bg-[#0b1018]/90 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
                     <div className="flex items-center justify-between">
@@ -339,8 +338,6 @@ export default function LoginPage() {
         ===================================================== */}
 
         <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-10 sm:px-10">
-          {/* Background */}
-
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-40 -top-40 h-[450px] w-[450px] rounded-full bg-blue-500/[0.035] blur-[120px]"
@@ -350,8 +347,6 @@ export default function LoginPage() {
             aria-hidden="true"
             className="pointer-events-none absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-slate-200/50 blur-[120px]"
           />
-
-          {/* Linha decorativa */}
 
           <div
             aria-hidden="true"
@@ -385,10 +380,7 @@ export default function LoginPage() {
 
             <div className="login-enter login-delay-2 mb-9">
               <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[12px] border border-neutral-200 bg-neutral-50 text-neutral-700 shadow-sm">
-                <Lock
-                  size={16}
-                  strokeWidth={1.8}
-                />
+                <Lock size={16} strokeWidth={1.8} />
               </div>
 
               <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-blue-600">
@@ -502,6 +494,14 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* ERRO */}
+
+              {error && (
+                <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-3 text-[11px] leading-5 text-red-600">
+                  {error}
+                </div>
+              )}
+
               {/* BOTÃO */}
 
               <button
@@ -611,20 +611,6 @@ export default function LoginPage() {
           to {
             opacity: 1;
             transform: translateY(0);
-          }
-        }
-
-        @keyframes loginForm {
-          from {
-            opacity: 0;
-            transform: translateY(18px);
-            filter: blur(4px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-            filter: blur(0);
           }
         }
 

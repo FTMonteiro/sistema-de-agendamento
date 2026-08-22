@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 const ALLOWED_METHODS = [
   "CASH",
@@ -9,37 +10,43 @@ const ALLOWED_METHODS = [
   "MOBILE_MONEY",
 ] as const;
 
-const BUSINESS_ID =
-  process.env.NEXT_PUBLIC_BUSINESS_ID;
-
 /*
- * Agendamentos que esperam pagamento.
- *
- * Só entram os CONFIRMED: o fluxo é confirmar o agendamento na edição e depois
- * receber. Os que estão por confirmar não devem aparecer para cobrança, e os
- * pagos já saíram (pagar marca como COMPLETED).
- *
- * A modal não pode usar GET /api/appointments: essa rota devolve tudo achatado
- * para a listagem (client e service como texto, payment como "pending"), e aqui
- * é preciso o preço do serviço para preencher o valor. Daí uma rota própria,
- * com os relacionamentos incluídos.
- */
+|--------------------------------------------------------------------------
+| GET
+|--------------------------------------------------------------------------
+*/
+
 export async function GET() {
   try {
-    if (!BUSINESS_ID) {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (!user.businessId) {
       return NextResponse.json(
         {
           error:
-            "Business ID não configurado.",
+            "O utilizador não está associado a uma empresa.",
         },
-        { status: 500 },
+        {
+          status: 400,
+        },
       );
     }
 
     const appointments =
       await prisma.appointment.findMany({
         where: {
-          businessId: BUSINESS_ID,
+          businessId: user.businessId,
 
           status: "CONFIRMED",
 
@@ -79,19 +86,20 @@ export async function GET() {
       });
 
     return NextResponse.json({
-      appointments: appointments.map(
-        (appointment) => ({
-          ...appointment,
+      appointments:
+        appointments.map(
+          (appointment) => ({
+            ...appointment,
 
-          // Decimal do Prisma não sobrevive ao JSON como número.
-          service: {
-            ...appointment.service,
-            price: Number(
-              appointment.service.price,
-            ),
-          },
-        }),
-      ),
+            service: {
+              ...appointment.service,
+
+              price: Number(
+                appointment.service.price,
+              ),
+            },
+          }),
+        ),
     });
   } catch (error) {
     console.error(
@@ -102,31 +110,69 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          "Não foi possível carregar os agendamentos.",
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os agendamentos.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
+
+/*
+|--------------------------------------------------------------------------
+| POST
+|--------------------------------------------------------------------------
+*/
 
 export async function POST(
   request: NextRequest,
 ) {
   try {
-    const body = await request.json();
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a uma empresa.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const body =
+      await request.json();
 
     const appointmentId =
-      typeof body.appointmentId === "string"
+      typeof body.appointmentId ===
+      "string"
         ? body.appointmentId.trim()
         : "";
 
-    const method = body.method;
+    const method =
+      body.method;
 
     /*
-     * =====================================================
-     * VALIDAÇÕES
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | VALIDAÇÃO
+    |--------------------------------------------------------------------------
+    */
 
     if (!appointmentId) {
       return NextResponse.json(
@@ -140,9 +186,10 @@ export async function POST(
       );
     }
 
-
     if (
-      !ALLOWED_METHODS.includes(method)
+      !ALLOWED_METHODS.includes(
+        method,
+      )
     ) {
       return NextResponse.json(
         {
@@ -156,15 +203,18 @@ export async function POST(
     }
 
     /*
-     * =====================================================
-     * BUSCAR AGENDAMENTO REAL
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | BUSCAR AGENDAMENTO
+    |--------------------------------------------------------------------------
+    */
 
     const appointment =
-      await prisma.appointment.findUnique({
+      await prisma.appointment.findFirst({
         where: {
           id: appointmentId,
+
+          businessId:
+            user.businessId,
         },
 
         include: {
@@ -188,26 +238,37 @@ export async function POST(
     }
 
     /*
-     * =====================================================
-     * SÓ CONFIRMADOS SÃO COBRADOS
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | STATUS
+    |--------------------------------------------------------------------------
+    */
 
     if (
-      appointment.status !== "CONFIRMED"
+      appointment.status !==
+      "CONFIRMED"
     ) {
-      const explicacao =
+      let error =
+        "Confirme o agendamento antes de receber o pagamento.";
+
+      if (
         appointment.status ===
         "COMPLETED"
-          ? "Este agendamento já está concluído."
-          : appointment.status ===
-              "CANCELLED"
-            ? "Este agendamento está cancelado."
-            : "Confirme o agendamento na edição antes de receber o pagamento.";
+      ) {
+        error =
+          "Este agendamento já está concluído.";
+      }
+
+      if (
+        appointment.status ===
+        "CANCELLED"
+      ) {
+        error =
+          "Este agendamento está cancelado.";
+      }
 
       return NextResponse.json(
         {
-          error: explicacao,
+          error,
 
           reason:
             "not_confirmed",
@@ -219,40 +280,10 @@ export async function POST(
     }
 
     /*
-     * =====================================================
-     * VALOR
-     *
-     * O valor cobrado é o preço do serviço agendado, não algo que o cliente
-     * do API escolha. Assim o que entra na receita corresponde sempre ao que
-     * está cadastrado.
-     * =====================================================
-     */
-
-    const amount = Number(
-      appointment.service.price,
-    );
-
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error: `O serviço ${appointment.service.name} está sem preço. Defina o preço em Serviços para poder receber o pagamento.`,
-
-          reason: "service_without_price",
-        },
-        {
-          status: 409,
-        },
-      );
-    }
-
-    /*
-     * =====================================================
-     * VERIFICAR PAGAMENTO EXISTENTE
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | PAGAMENTO DUPLICADO
+    |--------------------------------------------------------------------------
+    */
 
     if (appointment.payment) {
       return NextResponse.json(
@@ -267,66 +298,99 @@ export async function POST(
     }
 
     /*
-     * =====================================================
-     * CRIAR PAGAMENTO
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | VALOR
+    |--------------------------------------------------------------------------
+    */
+
+    const amount = Number(
+      appointment.service.price,
+    );
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error: `O serviço ${appointment.service.name} está sem preço. Defina o preço em Serviços para poder receber o pagamento.`,
+
+          reason:
+            "service_without_price",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
 
     /*
-     * Pagamento e conclusao andam juntos: um agendamento pago esta concluido.
-     * Numa transacao para nao ficar pagamento registado com o agendamento
-     * ainda pendente caso a segunda escrita falhe.
-     */
-    const [payment] =
-      await prisma.$transaction([
-        prisma.payment.create({
-          data: {
-            amount,
+    |--------------------------------------------------------------------------
+    | PAGAMENTO + CONCLUSÃO
+    |--------------------------------------------------------------------------
+    */
 
-            method,
+    const result =
+      await prisma.$transaction(
+        async (tx) => {
+          const payment =
+            await tx.payment.create({
+              data: {
+                amount,
 
-            status: "PAID",
+                method,
 
-            paidAt: new Date(),
+                status: "PAID",
 
-            appointmentId:
-              appointment.id,
-          },
+                paidAt: new Date(),
 
-          include: {
-            appointment: {
+                appointmentId:
+                  appointment.id,
+              },
+            });
+
+          const updatedAppointment =
+            await tx.appointment.update({
+              where: {
+                id: appointment.id,
+              },
+
+              data: {
+                status: "COMPLETED",
+              },
+
               include: {
                 client: true,
                 professional: true,
                 service: true,
+                payment: true,
               },
-            },
-          },
-        }),
+            });
 
-        prisma.appointment.update({
-          where: {
-            id: appointment.id,
-          },
-
-          data: {
-            status: "COMPLETED",
-          },
-        }),
-      ]);
+          return {
+            payment,
+            appointment:
+              updatedAppointment,
+          };
+        },
+      );
 
     /*
-     * =====================================================
-     * RESPOSTA
-     * =====================================================
-     */
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
 
     return NextResponse.json(
       {
         message:
           "Pagamento registrado com sucesso.",
 
-        payment,
+        payment:
+          result.payment,
+
+        appointment:
+          result.appointment,
       },
       {
         status: 201,
@@ -341,7 +405,9 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "Não foi possível registrar o pagamento.",
+          error instanceof Error
+            ? error.message
+            : "Não foi possível registrar o pagamento.",
       },
       {
         status: 500,

@@ -1,9 +1,11 @@
+
 import {
   NextRequest,
   NextResponse,
 } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -11,9 +13,9 @@ type RouteContext = {
   }>;
 };
 
-// ==========================================
+// ============================================================
 // GET
-// ==========================================
+// ============================================================
 
 export async function GET(
   _request: NextRequest,
@@ -22,16 +24,30 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    const businessId =
-      process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json(
         {
           error:
-            "Business ID não configurado.",
+            "O utilizador autenticado não possui um estabelecimento.",
         },
-        { status: 500 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -49,7 +65,9 @@ export async function GET(
           error:
             "Profissional não encontrado.",
         },
-        { status: 404 },
+        {
+          status: 404,
+        },
       );
     }
 
@@ -57,21 +75,26 @@ export async function GET(
       professional,
     );
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erro ao buscar profissional:",
+      error,
+    );
 
     return NextResponse.json(
       {
         error:
           "Erro ao buscar profissional.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
 
-// ==========================================
+// ============================================================
 // PUT - EDITAR
-// ==========================================
+// ============================================================
 
 export async function PUT(
   request: NextRequest,
@@ -80,16 +103,30 @@ export async function PUT(
   try {
     const { id } = await context.params;
 
-    const businessId =
-      process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json(
         {
           error:
-            "Business ID não configurado.",
+            "O utilizador autenticado não possui um estabelecimento.",
         },
-        { status: 500 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -126,7 +163,9 @@ export async function PUT(
           error:
             "Todos os campos são obrigatórios.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -139,9 +178,15 @@ export async function PUT(
           error:
             "Digite um email válido.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
+
+    // IMPORTANTE:
+    // O ID só é aceito se pertencer ao business
+    // do utilizador autenticado.
 
     const existing =
       await prisma.professional.findFirst({
@@ -157,7 +202,9 @@ export async function PUT(
           error:
             "Profissional não encontrado.",
         },
-        { status: 404 },
+        {
+          status: 404,
+        },
       );
     }
 
@@ -179,7 +226,9 @@ export async function PUT(
             error:
               "Este email já está sendo usado.",
           },
-          { status: 409 },
+          {
+            status: 409,
+          },
         );
       }
     }
@@ -206,23 +255,30 @@ export async function PUT(
         },
       });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(
+      updated,
+    );
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erro ao editar profissional:",
+      error,
+    );
 
     return NextResponse.json(
       {
         error:
           "Não foi possível editar o profissional.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
 
-// ==========================================
+// ============================================================
 // PATCH - ATIVAR / DESATIVAR
-// ==========================================
+// ============================================================
 
 export async function PATCH(
   request: NextRequest,
@@ -231,16 +287,30 @@ export async function PATCH(
   try {
     const { id } = await context.params;
 
-    const businessId =
-      process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json(
         {
           error:
-            "Business ID não configurado.",
+            "O utilizador autenticado não possui um estabelecimento.",
         },
-        { status: 500 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -254,7 +324,9 @@ export async function PATCH(
           error:
             "O campo active deve ser booleano.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -272,7 +344,9 @@ export async function PATCH(
           error:
             "Profissional não encontrado.",
         },
-        { status: 404 },
+        {
+          status: 404,
+        },
       );
     }
 
@@ -286,23 +360,30 @@ export async function PATCH(
         },
       });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(
+      updated,
+    );
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erro ao alterar estado:",
+      error,
+    );
 
     return NextResponse.json(
       {
         error:
           "Não foi possível alterar o estado.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
 
-// ==========================================
+// ============================================================
 // DELETE - EXCLUIR
-// ==========================================
+// ============================================================
 
 export async function DELETE(
   _request: NextRequest,
@@ -311,16 +392,30 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    const businessId =
-      process.env.NEXT_PUBLIC_BUSINESS_ID;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json(
         {
           error:
-            "Business ID não configurado.",
+            "O utilizador autenticado não possui um estabelecimento.",
         },
-        { status: 500 },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -338,7 +433,9 @@ export async function DELETE(
           error:
             "Profissional não encontrado.",
         },
-        { status: 404 },
+        {
+          status: 404,
+        },
       );
     }
 
@@ -350,9 +447,6 @@ export async function DELETE(
       });
 
     if (appointments > 0) {
-      // Excluir apagaria os agendamentos em cascata (onDelete: Cascade no
-      // schema), levando embora o historico do estabelecimento. Por isso a
-      // exclusao e bloqueada e sugerimos desativar.
       const registros =
         appointments === 1
           ? "1 agendamento registrado"
@@ -360,13 +454,17 @@ export async function DELETE(
 
       return NextResponse.json(
         {
-          error: `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Desativar" — o profissional deixa de aparecer em novos agendamentos e os anteriores permanecem.`,
+          error:
+            `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Desativar".`,
 
-          reason: "has_appointments",
+          reason:
+            "has_appointments",
 
           appointments,
         },
-        { status: 409 },
+        {
+          status: 409,
+        },
       );
     }
 
@@ -382,14 +480,20 @@ export async function DELETE(
         "Profissional excluído com sucesso.",
     });
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Erro ao excluir profissional:",
+      error,
+    );
 
     return NextResponse.json(
       {
         error:
           "Não foi possível excluir o profissional.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
+

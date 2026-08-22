@@ -1,5 +1,7 @@
+
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "nevrix_session";
 
@@ -12,6 +14,12 @@ function getSecretKey() {
 
   return new TextEncoder().encode(secret);
 }
+
+/*
+|--------------------------------------------------------------------------
+| CRIAR SESSÃO
+|--------------------------------------------------------------------------
+*/
 
 export async function createSession(userId: string) {
   const token = await new SignJWT({
@@ -35,6 +43,12 @@ export async function createSession(userId: string) {
   });
 }
 
+/*
+|--------------------------------------------------------------------------
+| PEGAR ID DO UTILIZADOR DA SESSÃO
+|--------------------------------------------------------------------------
+*/
+
 export async function getSessionUserId() {
   const cookieStore = await cookies();
 
@@ -47,12 +61,10 @@ export async function getSessionUserId() {
   try {
     const { payload } = await jwtVerify(
       token,
-      getSecretKey(),
+      getSecretKey()
     );
 
-    if (
-      typeof payload.userId !== "string"
-    ) {
+    if (typeof payload.userId !== "string") {
       return null;
     }
 
@@ -62,8 +74,44 @@ export async function getSessionUserId() {
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| PEGAR UTILIZADOR AUTENTICADO
+|--------------------------------------------------------------------------
+*/
+
+export async function getCurrentUser() {
+  const userId = await getSessionUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      businessId: true,
+    },
+  });
+
+  return user;
+}
+
+/*
+|--------------------------------------------------------------------------
+| DESTRUIR SESSÃO
+|--------------------------------------------------------------------------
+*/
+
 export async function destroySession() {
   const cookieStore = await cookies();
 
   cookieStore.delete(SESSION_COOKIE);
 }
+

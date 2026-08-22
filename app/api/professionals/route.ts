@@ -1,6 +1,8 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 // ============================================================
 // GET - LISTAR PROFISSIONAIS
@@ -8,37 +10,71 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const businessId = process.env.NEXT_PUBLIC_BUSINESS_ID;
+    // ========================================================
+    // UTILIZADOR AUTENTICADO
+    // ========================================================
 
-    if (!businessId) {
+    const user = await getCurrentUser();
+
+    if (!user) {
       return NextResponse.json(
         {
-          error: "Business ID não configurado.",
+          error: "Não autenticado.",
         },
         {
-          status: 500,
+          status: 401,
         },
       );
     }
 
-    const professionals = await prisma.professional.findMany({
-      where: {
-        businessId,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    // ========================================================
+    // BUSINESS ID VEM DA SESSÃO
+    // ========================================================
 
-    return NextResponse.json(professionals, {
-      status: 200,
-    });
+    const businessId = user.businessId;
+
+    if (!businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador autenticado não possui um estabelecimento.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // ========================================================
+    // BUSCAR PROFISSIONAIS
+    // ========================================================
+
+    const professionals =
+      await prisma.professional.findMany({
+        where: {
+          businessId,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+    return NextResponse.json(
+      professionals,
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
-    console.error("Erro ao listar profissionais:", error);
+    console.error(
+      "Erro ao listar profissionais:",
+      error,
+    );
 
     return NextResponse.json(
       {
-        error: "Erro ao carregar profissionais.",
+        error:
+          "Erro ao carregar profissionais.",
       },
       {
         status: 500,
@@ -51,17 +87,51 @@ export async function GET() {
 // POST - CADASTRAR PROFISSIONAL
 // ============================================================
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+) {
   try {
     // ========================================================
-    // LER BODY
+    // UTILIZADOR AUTENTICADO
+    // ========================================================
+
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    // ========================================================
+    // BUSINESS ID VEM DA SESSÃO
+    // NÃO VEM DO FRONTEND
+    // ========================================================
+
+    const businessId = user.businessId;
+
+    if (!businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador autenticado não possui um estabelecimento.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // ========================================================
+    // BODY
     // ========================================================
 
     const body = await request.json();
-
-    // ========================================================
-    // RECEBER DADOS
-    // ========================================================
 
     const name =
       typeof body.name === "string"
@@ -84,33 +154,6 @@ export async function POST(request: NextRequest) {
         : "";
 
     // ========================================================
-    // BUSINESS ID
-    // ========================================================
-    //
-    // Primeiro tenta pegar do body.
-    // Se não existir, usa o .env.
-    //
-
-    const businessId =
-      typeof body.businessId === "string" &&
-      body.businessId.trim()
-        ? body.businessId.trim()
-        : process.env.NEXT_PUBLIC_BUSINESS_ID?.trim() || "";
-
-    // ========================================================
-    // LOG DOS DADOS
-    // ========================================================
-
-    console.log("========================================");
-    console.log("CADASTRO DE PROFISSIONAL");
-    console.log("Nome:", name);
-    console.log("Email:", email);
-    console.log("Telefone:", phone);
-    console.log("Especialidade:", specialty);
-    console.log("Business ID:", businessId);
-    console.log("========================================");
-
-    // ========================================================
     // VALIDAR CAMPOS
     // ========================================================
 
@@ -118,12 +161,12 @@ export async function POST(request: NextRequest) {
       !name ||
       !email ||
       !phone ||
-      !specialty ||
-      !businessId
+      !specialty
     ) {
       return NextResponse.json(
         {
-          error: "Todos os campos são obrigatórios.",
+          error:
+            "Todos os campos são obrigatórios.",
         },
         {
           status: 400,
@@ -153,16 +196,18 @@ export async function POST(request: NextRequest) {
     // VERIFICAR BUSINESS
     // ========================================================
 
-    const business = await prisma.business.findUnique({
-      where: {
-        id: businessId,
-      },
-    });
+    const business =
+      await prisma.business.findUnique({
+        where: {
+          id: businessId,
+        },
+      });
 
     if (!business) {
       return NextResponse.json(
         {
-          error: "Estabelecimento não encontrado.",
+          error:
+            "Estabelecimento não encontrado.",
         },
         {
           status: 404,
@@ -171,15 +216,16 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================
-    // VERIFICAR EMAIL EXISTENTE
+    // VERIFICAR EMAIL
     // ========================================================
 
-    const existing = await prisma.professional.findFirst({
-      where: {
-        email,
-        businessId,
-      },
-    });
+    const existing =
+      await prisma.professional.findFirst({
+        where: {
+          email,
+          businessId,
+        },
+      });
 
     if (existing) {
       return NextResponse.json(
@@ -204,54 +250,37 @@ export async function POST(request: NextRequest) {
           email,
           phone,
           specialty,
-
           active: true,
-
           emailVerified: false,
-
           businessId,
         },
       });
 
-    console.log(
-      "Profissional criado:",
-      professional.id,
-    );
-
     // ========================================================
-    // RETORNAR PROFISSIONAL
+    // RESPOSTA
     // ========================================================
 
     return NextResponse.json(
       {
-        message: "Profissional cadastrado.",
+        message:
+          "Profissional cadastrado.",
 
         professional: {
           id: professional.id,
-
           name: professional.name,
-
           email: professional.email,
-
           phone: professional.phone,
-
           specialty:
             professional.specialty,
-
-          active:
-            professional.active,
-
+          active: professional.active,
           emailVerified:
             professional.emailVerified,
-
-          createdAt:
-            professional.createdAt,
-
-          updatedAt:
-            professional.updatedAt,
-
           businessId:
             professional.businessId,
+          createdAt:
+            professional.createdAt,
+          updatedAt:
+            professional.updatedAt,
         },
       },
       {
@@ -259,36 +288,15 @@ export async function POST(request: NextRequest) {
       },
     );
   } catch (error) {
-    // ========================================================
-    // ERRO GERAL
-    // ========================================================
-
     console.error(
-      "========================================",
-    );
-
-    console.error(
-      "ERRO INTERNO AO CADASTRAR PROFISSIONAL:",
-    );
-
-    console.error(error);
-
-    console.error(
-      "========================================",
+      "Erro ao cadastrar profissional:",
+      error,
     );
 
     return NextResponse.json(
       {
         error:
           "Erro interno ao cadastrar profissional.",
-
-        details:
-          process.env.NODE_ENV ===
-          "development"
-            ? error instanceof Error
-              ? error.message
-              : String(error)
-            : undefined,
       },
       {
         status: 500,
@@ -296,3 +304,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

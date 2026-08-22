@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -26,16 +27,16 @@ export async function POST(request: NextRequest) {
         ? body.password
         : "";
 
-    // ============================================================
-    // VALIDAÇÃO
-    // ============================================================
+    // ==============================
+    // VALIDAÇÕES
+    // ==============================
 
     if (!name) {
       return NextResponse.json(
         {
           error: "O nome completo é obrigatório.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
         {
           error: "O nome da empresa é obrigatório.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -53,19 +54,18 @@ export async function POST(request: NextRequest) {
         {
           error: "O email é obrigatório.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         {
           error: "Informe um email válido.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         {
           error: "A palavra-passe é obrigatória.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -84,75 +84,70 @@ export async function POST(request: NextRequest) {
           error:
             "A palavra-passe deve ter pelo menos 8 caracteres.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    // ============================================================
+    // ==============================
     // VERIFICAR EMAIL
-    // ============================================================
+    // ==============================
 
-    const existingUser =
-      await prisma.user.findUnique({
-        where: {
-          email,
-        },
-      });
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
     if (existingUser) {
       return NextResponse.json(
         {
-          error:
-            "Já existe uma conta com este email.",
+          error: "Já existe uma conta com este email.",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
-    // ============================================================
-    // HASH DA PASSWORD
-    // ============================================================
+    // ==============================
+    // CRIAR HASH DA PASSWORD
+    // ==============================
 
-    const hashedPassword =
-      await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    // ============================================================
-    // CRIAR BUSINESS + USER
-    // ============================================================
+    // ==============================
+    // CRIAR EMPRESA + UTILIZADOR
+    // ==============================
 
-    const result =
-      await prisma.$transaction(
-        async (transaction) => {
-          const business =
-            await transaction.business.create({
-              data: {
-                name: company,
-                email,
-              },
-            });
+    const result = await prisma.$transaction(
+      async (transaction) => {
+        const business =
+          await transaction.business.create({
+            data: {
+              name: company,
+              email,
+            },
+          });
 
-          const user =
-            await transaction.user.create({
-              data: {
-                name,
-                email,
-                password: hashedPassword,
-                role: "OWNER",
-                businessId: business.id,
-              },
-            });
+        const user =
+          await transaction.user.create({
+            data: {
+              name,
+              email,
+              password: hashedPassword,
+              role: "OWNER",
+              businessId: business.id,
+            },
+          });
 
-          return {
-            business,
-            user,
-          };
-        },
-      );
+        return {
+          business,
+          user,
+        };
+      }
+    );
 
-    // ============================================================
+    // ==============================
     // RESPOSTA
-    // Nunca enviar a password para o frontend
-    // ============================================================
+    // ==============================
 
     return NextResponse.json(
       {
@@ -172,20 +167,17 @@ export async function POST(request: NextRequest) {
           email: result.business.email,
         },
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
-    console.error(
-      "Erro ao criar conta:",
-      error,
-    );
+    console.error("Erro ao criar conta:", error);
 
     return NextResponse.json(
       {
-        error:
-          "Não foi possível criar a conta.",
+        error: "Não foi possível criar a conta.",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
+
