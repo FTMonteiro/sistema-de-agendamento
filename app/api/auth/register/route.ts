@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ==============================
-    // CRIAR HASH DA PASSWORD
+    // HASH DA PALAVRA-PASSE
     // ==============================
 
     const hashedPassword = await bcrypt.hash(password, 12);

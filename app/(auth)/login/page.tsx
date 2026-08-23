@@ -446,6 +446,7 @@ export default function LoginPage() {
                   </label>
 
                   
+                </div>
 
                 <div className="group relative">
                   <Lock

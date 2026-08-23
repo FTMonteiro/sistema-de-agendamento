@@ -8,12 +8,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const databaseUrl = process.env.DIRECT_DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
-    throw new Error("DIRECT_DATABASE_URL não está configurada");
-  }
-
+  throw new Error("DATABASE_URL não está configurada");
+}
   const pool =
     globalForPrisma.pool ??
     new Pool({
