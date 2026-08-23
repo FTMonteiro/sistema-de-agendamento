@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, ReactNode, useState } from "react";
@@ -59,16 +60,6 @@ export default function LoginPage() {
         );
       }
 
-      console.log("Login realizado:", data.user);
-
-      /*
-       * A API já criou o cookie:
-       *
-       * nevrix_session
-       *
-       * Agora enviamos o utilizador para o dashboard.
-       */
-
       window.location.href = "/dashboard";
     } catch (error) {
       console.error("Erro ao fazer login:", error);
@@ -94,6 +85,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-white text-neutral-950">
       <div className="grid min-h-screen lg:grid-cols-[1.06fr_0.94fr]">
+
         {/* =====================================================
             PAINEL ESQUERDO
         ===================================================== */}
@@ -125,6 +117,7 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 flex min-h-screen w-full flex-col px-10 py-9 xl:px-16">
+
             {/* BRAND */}
 
             <div className="login-enter login-delay-1">
@@ -154,6 +147,7 @@ export default function LoginPage() {
 
             <div className="flex flex-1 items-center">
               <div className="w-full max-w-[680px]">
+
                 <div className="login-enter login-delay-2 mb-7 flex items-center gap-3">
                   <span className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md">
                     <span className="relative flex h-1.5 w-1.5">
@@ -190,6 +184,7 @@ export default function LoginPage() {
                   />
 
                   <div className="login-card-main absolute left-0 top-0 w-[325px] rounded-[18px] border border-white/[0.09] bg-white/[0.045] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
@@ -244,8 +239,10 @@ export default function LoginPage() {
                   </div>
 
                   <div className="login-card-secondary absolute right-0 top-[58px] w-[230px] rounded-[18px] border border-white/[0.09] bg-[#0b1018]/90 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
                           <CalendarDays size={14} />
                         </div>
@@ -269,6 +266,7 @@ export default function LoginPage() {
                     <div className="my-3 h-px bg-white/[0.06]" />
 
                     <div className="flex items-center gap-2">
+
                       <div className="flex h-6 w-6 items-center justify-center rounded-full border border-blue-400/20 bg-blue-500 text-[8px] font-bold text-white">
                         FM
                       </div>
@@ -289,6 +287,7 @@ export default function LoginPage() {
                           className="text-emerald-400"
                         />
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -296,6 +295,7 @@ export default function LoginPage() {
                 {/* FEATURES */}
 
                 <div className="login-enter login-delay-5 mt-8 flex flex-wrap gap-x-10 gap-y-5">
+
                   <Feature
                     number="01"
                     title="Operações"
@@ -313,6 +313,7 @@ export default function LoginPage() {
                     title="Crescimento"
                     description="mais controlado"
                   />
+
                 </div>
               </div>
             </div>
@@ -320,6 +321,7 @@ export default function LoginPage() {
             {/* FOOTER */}
 
             <div className="login-enter login-delay-6 flex items-center justify-between">
+
               <p className="text-[9px] tracking-wide text-slate-700">
                 © {new Date().getFullYear()} NEVRIX. Todos os direitos
                 reservados.
@@ -329,6 +331,7 @@ export default function LoginPage() {
                 <ShieldCheck size={12} />
                 Ambiente seguro
               </div>
+
             </div>
           </div>
         </section>
@@ -338,6 +341,7 @@ export default function LoginPage() {
         ===================================================== */}
 
         <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-10 sm:px-10">
+
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-40 -top-40 h-[450px] w-[450px] rounded-full bg-blue-500/[0.035] blur-[120px]"
@@ -354,13 +358,16 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 w-full max-w-[430px]">
+
             {/* MOBILE BRAND */}
 
             <div className="login-enter login-delay-1 mb-12 lg:hidden">
+
               <Link
                 href="/"
                 className="group inline-flex items-center gap-3"
               >
+
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
                   N
 
@@ -373,12 +380,14 @@ export default function LoginPage() {
                 <span className="text-[15px] font-bold tracking-[0.24em] text-neutral-950">
                   NEVRIX
                 </span>
+
               </Link>
             </div>
 
             {/* HEADER */}
 
             <div className="login-enter login-delay-2 mb-9">
+
               <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[12px] border border-neutral-200 bg-neutral-50 text-neutral-700 shadow-sm">
                 <Lock size={16} strokeWidth={1.8} />
               </div>
@@ -394,6 +403,7 @@ export default function LoginPage() {
               <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-neutral-500">
                 Aceda ao seu espaço de gestão e continue de onde ficou.
               </p>
+
             </div>
 
             {/* FORM */}
@@ -402,9 +412,11 @@ export default function LoginPage() {
               onSubmit={handleSubmit}
               className="login-enter login-delay-3"
             >
+
               {/* EMAIL */}
 
               <div>
+
                 <label
                   htmlFor="email"
                   className="mb-2 block text-[11px] font-semibold text-neutral-800"
@@ -413,10 +425,11 @@ export default function LoginPage() {
                 </label>
 
                 <div className="group relative">
+
                   <Mail
                     size={16}
                     strokeWidth={1.8}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
                   />
 
                   <input
@@ -431,13 +444,18 @@ export default function LoginPage() {
                     autoComplete="email"
                     className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-4 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
+
                 </div>
               </div>
 
               {/* PASSWORD */}
 
               <div className="mt-5">
+
+                {/* LABEL + RECUPERAR */}
+
                 <div className="mb-2 flex items-center justify-between">
+
                   <label
                     htmlFor="password"
                     className="block text-[11px] font-semibold text-neutral-800"
@@ -445,14 +463,25 @@ export default function LoginPage() {
                     Palavra-passe
                   </label>
 
-                  
+                  <Link
+                    href="/recuperar-password"
+                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
+                  >
+                    Esqueceu a palavra-passe?
+                  </Link>
+
                 </div>
 
+                {/* INPUT */}
+
                 <div className="group relative">
+
+                  {/* LOCK */}
+
                   <Lock
                     size={16}
                     strokeWidth={1.8}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
+                    className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-neutral-400 transition-all duration-300 group-focus-within:scale-105 group-focus-within:text-blue-600"
                   />
 
                   <input
@@ -468,19 +497,14 @@ export default function LoginPage() {
                     className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-12 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
 
-                   <Link
-                    href="/recuperar-password"
-                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
-                  >
-                    Esqueceu a palavra-passe?
-                  </Link>
+                  {/* EYE */}
 
                   <button
                     type="button"
                     onClick={() =>
                       setShowPassword((value) => !value)
                     }
-                    className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="absolute right-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     aria-label={
                       showPassword
                         ? "Ocultar palavra-passe"
@@ -493,6 +517,7 @@ export default function LoginPage() {
                       <Eye size={16} />
                     )}
                   </button>
+
                 </div>
               </div>
 
@@ -511,6 +536,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="login-submit group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-blue-600 hover:shadow-[0_12px_30px_rgba(37,99,235,0.18)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-70"
               >
+
                 <span
                   aria-hidden="true"
                   className="login-button-shine absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.13] to-transparent"
@@ -534,12 +560,14 @@ export default function LoginPage() {
                     />
                   </>
                 )}
+
               </button>
             </form>
 
             {/* DIVISOR */}
 
             <div className="login-enter login-delay-4 my-7 flex items-center gap-4">
+
               <div className="h-px flex-1 bg-neutral-200" />
 
               <span className="whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400">
@@ -547,18 +575,19 @@ export default function LoginPage() {
               </span>
 
               <div className="h-px flex-1 bg-neutral-200" />
+
             </div>
 
             {/* SOCIAL */}
 
             <div className="login-enter login-delay-5">
+
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 className="group flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
               >
                 <GoogleIcon />
-
                 <span>Continuar com Google</span>
               </button>
 
@@ -568,9 +597,9 @@ export default function LoginPage() {
                 className="group mt-3 flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
               >
                 <AppleIcon />
-
                 <span>Continuar com Apple</span>
               </button>
+
             </div>
 
             {/* CADASTRO */}
@@ -589,12 +618,15 @@ export default function LoginPage() {
             {/* SEGURANÇA */}
 
             <div className="login-enter login-delay-6 mt-7 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
+
               <ShieldCheck size={11} />
 
               <span>
                 A sua informação permanece protegida.
               </span>
+
             </div>
+
           </div>
         </section>
       </div>
@@ -813,6 +845,7 @@ function Feature({
 }) {
   return (
     <div className="group flex items-start gap-3">
+
       <span className="pt-0.5 text-[10px] font-semibold tracking-[0.12em] text-blue-400 transition-colors duration-300 group-hover:text-blue-300">
         {number}
       </span>
@@ -826,6 +859,7 @@ function Feature({
           {description}
         </p>
       </div>
+
     </div>
   );
 }
@@ -845,6 +879,7 @@ function MiniMetric({
 }) {
   return (
     <div className="rounded-lg border border-white/[0.055] bg-black/20 p-2.5">
+
       <div className="flex items-center gap-1.5 text-blue-400">
         {icon}
 
@@ -856,6 +891,7 @@ function MiniMetric({
       <p className="mt-1.5 text-[15px] font-semibold text-white">
         {value}
       </p>
+
     </div>
   );
 }
@@ -913,3 +949,4 @@ function AppleIcon() {
     </svg>
   );
 }
+
