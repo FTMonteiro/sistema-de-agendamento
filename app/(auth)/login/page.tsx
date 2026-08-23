@@ -445,13 +445,7 @@ export default function LoginPage() {
                     Palavra-passe
                   </label>
 
-                  <Link
-                    href="/recuperar-password"
-                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
-                  >
-                    Esqueceu a palavra-passe?
-                  </Link>
-                </div>
+                  
 
                 <div className="group relative">
                   <Lock
@@ -472,6 +466,13 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-12 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
+
+                   <Link
+                    href="/recuperar-password"
+                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
+                  >
+                    Esqueceu a palavra-passe?
+                  </Link>
 
                   <button
                     type="button"
