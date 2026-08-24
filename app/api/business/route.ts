@@ -1,18 +1,17 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
 // ============================================================
-// GET - BUSCAR CONFIGURAÇÕES DO ESTABELECIMENTO
+// GET
+// OWNER     → configurações do estabelecimento
+// EMPLOYEE  → dados do próprio perfil profissional
 // ============================================================
 
 export async function GET() {
   try {
-    // ========================================================
-    // PEGAR UTILIZADOR AUTENTICADO
-    // ========================================================
-
     const user = await getCurrentUser();
 
     if (!user) {
@@ -27,31 +26,67 @@ export async function GET() {
     }
 
     // ========================================================
-    // BUSINESS ID VEM DA SESSÃO
+    // EMPLOYEE
     // ========================================================
 
-    const businessId = user.businessId;
+    if (user.role === "EMPLOYEE") {
+      const employee = await prisma.professional.findUnique({
+        where: {
+          userId: user.id,
+        },
 
-    if (!businessId) {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          specialty: true,
+          active: true,
+        },
+      });
+
+      /*
+       * É possível que o funcionário tenha uma conta User
+       * mas ainda não tenha um Professional associado.
+       */
+
       return NextResponse.json(
         {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
+          role: "EMPLOYEE",
+
+          employee: employee
+            ? {
+                id: employee.id,
+                name: employee.name,
+                email: employee.email ?? user.email,
+                phone: employee.phone ?? "",
+                specialty: employee.specialty ?? "",
+                active: employee.active,
+              }
+            : {
+                id: "",
+                name: user.name,
+                email: user.email,
+                phone: "",
+                specialty: "",
+                active: true,
+              },
         },
         {
-          status: 400,
+          status: 200,
         },
       );
     }
 
     // ========================================================
-    // BUSCAR ESTABELECIMENTO
+    // OWNER
     // ========================================================
 
     const business = await prisma.business.findUnique({
       where: {
-        id: businessId,
+        id: user.businessId,
       },
+
       include: {
         _count: {
           select: {
@@ -75,17 +110,26 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(business);
+    return NextResponse.json(
+      {
+        role: "OWNER",
+
+        business,
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
-      "Erro ao carregar estabelecimento:",
+      "Erro ao carregar configurações:",
       error,
     );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível carregar o estabelecimento.",
+          "Não foi possível carregar as configurações.",
       },
       {
         status: 500,
@@ -95,15 +139,12 @@ export async function GET() {
 }
 
 // ============================================================
-// PUT - ATUALIZAR CONFIGURAÇÕES
+// PUT
+// SOMENTE OWNER
 // ============================================================
 
 export async function PUT(request: NextRequest) {
   try {
-    // ========================================================
-    // PEGAR UTILIZADOR AUTENTICADO
-    // ========================================================
-
     const user = await getCurrentUser();
 
     if (!user) {
@@ -118,19 +159,17 @@ export async function PUT(request: NextRequest) {
     }
 
     // ========================================================
-    // BUSINESS ID DA SESSÃO
+    // BLOQUEAR EMPLOYEE
     // ========================================================
 
-    const businessId = user.businessId;
-
-    if (!businessId) {
+    if (user.role !== "OWNER") {
       return NextResponse.json(
         {
           error:
-            "O utilizador não está associado a nenhum estabelecimento.",
+            "Apenas o proprietário pode alterar as configurações do estabelecimento.",
         },
         {
-          status: 400,
+          status: 403,
         },
       );
     }
@@ -218,14 +257,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // ========================================================
-    // ATUALIZAR
+    // ATUALIZAR BUSINESS
     // ========================================================
 
     const business =
       await prisma.business.update({
         where: {
-          id: businessId,
+          id: user.businessId,
         },
+
         data: {
           name,
           phone,
@@ -238,6 +278,7 @@ export async function PUT(request: NextRequest) {
           slotInterval,
           rules,
         },
+
         include: {
           _count: {
             select: {
@@ -250,7 +291,20 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-    return NextResponse.json(business);
+    // ========================================================
+    // RESPOSTA
+    // ========================================================
+
+    return NextResponse.json(
+      {
+        role: "OWNER",
+
+        business,
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
       "Erro ao atualizar estabelecimento:",
@@ -268,3 +322,4 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+

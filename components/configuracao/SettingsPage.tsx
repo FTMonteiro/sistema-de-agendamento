@@ -8,11 +8,23 @@ import {
   UsersRound,
   Scissors,
   CalendarDays,
+  UserRound,
+  Mail,
+  Phone,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BusinessSettings } from "./BusinessSettings";
-import { BusinessHours, type HoursForm } from "./BusinessHours";
+import {
+  BusinessHours,
+  type HoursForm,
+} from "./BusinessHours";
+
+import {
+  EmployeeSettings,
+  type EmployeeProfile,
+} from "./EmployeeSettings";
 
 interface BusinessForm {
   name: string;
@@ -45,70 +57,233 @@ const EMPTY_HOURS: HoursForm = {
   rules: "",
 };
 
+const EMPTY_EMPLOYEE: EmployeeProfile = {
+  id: "",
+  name: "",
+  email: "",
+  phone: "",
+  specialty: "",
+  avatar: null,
+  active: true,
+};
+
 type Tab = "dados" | "horario";
 
 export function SettingsPage() {
-  const [business, setBusiness] = useState<BusinessForm>(EMPTY_FORM);
+  const [role, setRole] = useState<
+    "OWNER" | "EMPLOYEE" | null
+  >(null);
 
-  const [saved, setSaved] = useState<BusinessForm>(EMPTY_FORM);
+  const [business, setBusiness] =
+    useState<BusinessForm>(EMPTY_FORM);
 
-  const [hours, setHours] = useState<HoursForm>(EMPTY_HOURS);
+  const [saved, setSaved] =
+    useState<BusinessForm>(EMPTY_FORM);
 
-  const [savedHours, setSavedHours] = useState<HoursForm>(EMPTY_HOURS);
+  const [employee, setEmployee] =
+    useState<EmployeeProfile>(
+      EMPTY_EMPLOYEE,
+    );
 
-  const [tab, setTab] = useState<Tab>("dados");
+  const [hours, setHours] =
+    useState<HoursForm>(EMPTY_HOURS);
 
-  const [counts, setCounts] = useState<BusinessCounts | null>(null);
+  const [savedHours, setSavedHours] =
+    useState<HoursForm>(EMPTY_HOURS);
 
-  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [tab, setTab] =
+    useState<Tab>("dados");
 
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [counts, setCounts] =
+    useState<BusinessCounts | null>(null);
 
-  const [loading, setLoading] = useState(true);
+  const [createdAt, setCreatedAt] =
+    useState<string | null>(null);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [updatedAt, setUpdatedAt] =
+    useState<string | null>(null);
 
-  const [error, setError] = useState("");
+  const [loading, setLoading] =
+    useState(true);
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARREGAR CONFIGURAÇÕES
+  |--------------------------------------------------------------------------
+  */
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch("/api/business", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/business",
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
 
-      const contentType = response.headers.get("content-type");
+      const contentType =
+        response.headers.get(
+          "content-type",
+        );
 
-      if (!contentType?.includes("application/json")) {
-        throw new Error("A API /api/business não devolveu JSON.");
+      if (
+        !contentType?.includes(
+          "application/json",
+        )
+      ) {
+        throw new Error(
+          "A API /api/business não devolveu JSON.",
+        );
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Não foi possível carregar o estabelecimento.",
+          data?.error ||
+            "Não foi possível carregar as configurações.",
+        );
+      }
+
+      setRole(data.role);
+
+      /*
+      |--------------------------------------------------------------------------
+      | FUNCIONÁRIO
+      |--------------------------------------------------------------------------
+      */
+
+      if (data.role === "EMPLOYEE") {
+        const profileResponse =
+          await fetch(
+            "/api/profile",
+            {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            },
+          );
+
+        const profileContentType =
+          profileResponse.headers.get(
+            "content-type",
+          );
+
+        if (
+          !profileContentType?.includes(
+            "application/json",
+          )
+        ) {
+          throw new Error(
+            "A API /api/profile não devolveu JSON.",
+          );
+        }
+
+        const profileData =
+          await profileResponse.json();
+
+        if (!profileResponse.ok) {
+          throw new Error(
+            profileData?.error ||
+              "Não foi possível carregar o perfil.",
+          );
+        }
+
+        if (!profileData.profile) {
+          throw new Error(
+            "Perfil profissional não encontrado.",
+          );
+        }
+
+        setEmployee({
+          id:
+            profileData.profile.id ??
+            "",
+          name:
+            profileData.profile.name ??
+            "",
+          email:
+            profileData.profile.email ??
+            "",
+          phone:
+            profileData.profile.phone ??
+            "",
+          specialty:
+            profileData.profile.specialty ??
+            "",
+          avatar:
+            profileData.profile.avatar ??
+            null,
+          active:
+            profileData.profile.active ??
+            true,
+        });
+
+        return;
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | OWNER
+      |--------------------------------------------------------------------------
+      */
+
+      const businessData =
+        data.business;
+
+      if (!businessData) {
+        throw new Error(
+          "Estabelecimento não encontrado.",
         );
       }
 
       const form: BusinessForm = {
-        name: data.name ?? "",
-        phone: data.phone ?? "",
-        email: data.email ?? "",
-        address: data.address ?? "",
-        logo: data.logo ?? "",
+        name:
+          businessData.name ?? "",
+        phone:
+          businessData.phone ?? "",
+        email:
+          businessData.email ?? "",
+        address:
+          businessData.address ?? "",
+        logo:
+          businessData.logo ?? "",
       };
 
       const loadedHours: HoursForm = {
-        openingTime: data.openingTime ?? "",
-        closingTime: data.closingTime ?? "",
-        workingDays: Array.isArray(data.workingDays)
-          ? data.workingDays
-          : EMPTY_HOURS.workingDays,
-        slotInterval: Number(data.slotInterval) || EMPTY_HOURS.slotInterval,
-        rules: data.rules ?? "",
+        openingTime:
+          businessData.openingTime ?? "",
+
+        closingTime:
+          businessData.closingTime ?? "",
+
+        workingDays:
+          Array.isArray(
+            businessData.workingDays,
+          )
+            ? businessData.workingDays
+            : EMPTY_HOURS.workingDays,
+
+        slotInterval:
+          Number(
+            businessData.slotInterval,
+          ) ||
+          EMPTY_HOURS.slotInterval,
+
+        rules:
+          businessData.rules ?? "",
       };
 
       setBusiness(form);
@@ -117,28 +292,42 @@ export function SettingsPage() {
       setHours(loadedHours);
       setSavedHours(loadedHours);
 
-      setCounts(data._count ?? null);
+      setCounts(
+        businessData._count ?? null,
+      );
 
-      setCreatedAt(data.createdAt ?? null);
+      setCreatedAt(
+        businessData.createdAt ??
+          null,
+      );
 
-      setUpdatedAt(data.updatedAt ?? null);
+      setUpdatedAt(
+        businessData.updatedAt ??
+          null,
+      );
 
-      /*Atualiza também o Header quando*/
       window.dispatchEvent(
-        new CustomEvent("business-profile-updated", {
-          detail: {
-            logo: form.logo || null,
-            name: form.name,
+        new CustomEvent(
+          "business-profile-updated",
+          {
+            detail: {
+              logo:
+                form.logo || null,
+              name: form.name,
+            },
           },
-        }),
+        ),
       );
     } catch (caught) {
-      console.error(caught);
+      console.error(
+        "Erro ao carregar configurações:",
+        caught,
+      );
 
       setError(
         caught instanceof Error
           ? caught.message
-          : "Não foi possível carregar o estabelecimento.",
+          : "Não foi possível carregar as configurações.",
       );
     } finally {
       setLoading(false);
@@ -149,13 +338,46 @@ export function SettingsPage() {
     load();
   }, [load]);
 
+  /*
+  |--------------------------------------------------------------------------
+  | ROLE
+  |--------------------------------------------------------------------------
+  */
+
+  const isOwner =
+    role === "OWNER";
+
+  const isEmployee =
+    role === "EMPLOYEE";
+
+  /*
+  |--------------------------------------------------------------------------
+  | ALTERAÇÕES DO OWNER
+  |--------------------------------------------------------------------------
+  */
+
   const isDirty =
-    JSON.stringify(business) !== JSON.stringify(saved) ||
-    JSON.stringify(hours) !== JSON.stringify(savedHours);
+    isOwner &&
+    (JSON.stringify(business) !==
+      JSON.stringify(saved) ||
+      JSON.stringify(hours) !==
+        JSON.stringify(savedHours));
+
+  /*
+  |--------------------------------------------------------------------------
+  | SALVAR CONFIGURAÇÕES
+  |--------------------------------------------------------------------------
+  */
 
   async function handleSave() {
+    if (!isOwner) {
+      return;
+    }
+
     if (!business.name.trim()) {
-      toast.error("O nome do estabelecimento é obrigatório.");
+      toast.error(
+        "O nome do estabelecimento é obrigatório.",
+      );
 
       setTab("dados");
 
@@ -165,17 +387,24 @@ export function SettingsPage() {
     if (
       hours.openingTime &&
       hours.closingTime &&
-      hours.openingTime >= hours.closingTime
+      hours.openingTime >=
+        hours.closingTime
     ) {
-      toast.error("A hora de fecho tem de ser depois da hora de abertura.");
+      toast.error(
+        "A hora de fecho tem de ser depois da hora de abertura.",
+      );
 
       setTab("horario");
 
       return;
     }
 
-    if (hours.workingDays.length === 0) {
-      toast.error("Escolha pelo menos um dia de funcionamento.");
+    if (
+      hours.workingDays.length === 0
+    ) {
+      toast.error(
+        "Escolha pelo menos um dia de funcionamento.",
+      );
 
       setTab("horario");
 
@@ -185,106 +414,154 @@ export function SettingsPage() {
     try {
       setIsSaving(true);
 
-      const response = await fetch("/api/business", {
-        method: "PUT",
+      const response = await fetch(
+        "/api/business",
+        {
+          method: "PUT",
 
-        headers: {
-          "Content-Type": "application/json",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          credentials: "include",
+
+          body: JSON.stringify({
+            ...business,
+            ...hours,
+          }),
         },
+      );
 
-        body: JSON.stringify({
-          ...business,
-          ...hours,
-        }),
-      });
-
-      const contentType = response.headers.get("content-type");
-
-      if (!contentType?.includes("application/json")) {
-        throw new Error("A API /api/business não devolveu JSON.");
-      }
-
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Não foi possível salvar.");
+        throw new Error(
+          data?.error ||
+            "Não foi possível salvar.",
+        );
       }
 
-      /*DADOS SALVOS */
+      const businessData =
+        data.business;
 
       const form: BusinessForm = {
-        name: data.name ?? "",
-        phone: data.phone ?? "",
-        email: data.email ?? "",
-        address: data.address ?? "",
-        logo: data.logo ?? "",
+        name:
+          businessData.name ?? "",
+        phone:
+          businessData.phone ?? "",
+        email:
+          businessData.email ?? "",
+        address:
+          businessData.address ?? "",
+        logo:
+          businessData.logo ?? "",
       };
 
       const savedFormHours: HoursForm = {
-        openingTime: data.openingTime ?? "",
+        openingTime:
+          businessData.openingTime ?? "",
 
-        closingTime: data.closingTime ?? "",
+        closingTime:
+          businessData.closingTime ?? "",
 
-        workingDays: Array.isArray(data.workingDays)
-          ? data.workingDays
-          : EMPTY_HOURS.workingDays,
+        workingDays:
+          Array.isArray(
+            businessData.workingDays,
+          )
+            ? businessData.workingDays
+            : EMPTY_HOURS.workingDays,
 
-        slotInterval: Number(data.slotInterval) || EMPTY_HOURS.slotInterval,
+        slotInterval:
+          Number(
+            businessData.slotInterval,
+          ) ||
+          EMPTY_HOURS.slotInterval,
 
-        rules: data.rules ?? "",
+        rules:
+          businessData.rules ?? "",
       };
-
-      /*ATUALIZAR SETTINGS*/
 
       setBusiness(form);
       setSaved(form);
 
       setHours(savedFormHours);
-      setSavedHours(savedFormHours);
-
-      setUpdatedAt(data.updatedAt ?? null);
-
-      /* ATUALIZAR HEADER IMEDIATAMENTE*/
-
-      window.dispatchEvent(
-        new CustomEvent("business-profile-updated", {
-          detail: {
-            logo: data.logo ?? null,
-            name: data.name ?? "",
-          },
-        }),
+      setSavedHours(
+        savedFormHours,
       );
 
-      /*SUCESSO*/
+      setUpdatedAt(
+        businessData.updatedAt ??
+          null,
+      );
 
-      toast.success("Alterações salvas.");
+      window.dispatchEvent(
+        new CustomEvent(
+          "business-profile-updated",
+          {
+            detail: {
+              logo:
+                businessData.logo ??
+                null,
+              name:
+                businessData.name ??
+                "",
+            },
+          },
+        ),
+      );
+
+      toast.success(
+        "Alterações salvas.",
+      );
     } catch (caught) {
-      console.error("Erro ao salvar configurações:", caught);
+      console.error(
+        "Erro ao salvar configurações:",
+        caught,
+      );
 
       toast.error(
-        caught instanceof Error ? caught.message : "Não foi possível salvar.",
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível salvar.",
       );
     } finally {
       setIsSaving(false);
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <div className="text-[var(--foreground)]">
       <div className="mx-auto max-w-6xl">
+
+        {/* TÍTULO */}
+
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Configurações
           </h1>
 
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Gerencie as informações do seu estabelecimento.
+            {isEmployee
+              ? "Gerencie os seus dados profissionais."
+              : "Gerencie as informações do seu estabelecimento."}
           </p>
         </div>
 
+        {/* ERRO */}
+
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-800">{error}</p>
+            <p className="text-sm text-red-800">
+              {error}
+            </p>
 
             <button
               type="button"
@@ -296,124 +573,230 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* DADOS CADASTRADOS */}
-
-        {counts && (
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <CountCard
-              label="Clientes"
-              value={counts.clients}
-              icon={<Users size={18} />}
-            />
-
-            <CountCard
-              label="Profissionais"
-              value={counts.professionals}
-              icon={<UsersRound size={18} />}
-            />
-
-            <CountCard
-              label="Serviços"
-              value={counts.services}
-              icon={<Scissors size={18} />}
-            />
-
-            <CountCard
-              label="Agendamentos"
-              value={counts.appointments}
-              icon={<CalendarDays size={18} />}
-            />
-          </div>
-        )}
-
-        <div className="mb-8 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
-          <TabButton
-            active={tab === "dados"}
-            onClick={() => setTab("dados")}
-            icon={<Building2 size={17} />}
-            label="Dados do estabelecimento"
-          />
-
-          <TabButton
-            active={tab === "horario"}
-            onClick={() => setTab("horario")}
-            icon={<Clock size={17} />}
-            label="Horário e regras"
-          />
-        </div>
+        {/* LOADING */}
 
         {loading ? (
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-10 text-center text-sm text-[var(--muted)]">
-            Carregando dados do estabelecimento...
+            Carregando configurações...
           </div>
-        ) : tab === "dados" ? (
-          <BusinessSettings business={business} setBusiness={setBusiness} />
+        ) : isEmployee ? (
+
+          /*
+          |--------------------------------------------------------------------------
+          | FUNCIONÁRIO
+          |--------------------------------------------------------------------------
+          */
+
+          <EmployeeSettings
+            employee={employee}
+            setEmployee={setEmployee}
+          />
+
         ) : (
-          <BusinessHours hours={hours} setHours={setHours} />
-        )}
 
-        {/* METADADOS */}
+          /*
+          |--------------------------------------------------------------------------
+          | OWNER
+          |--------------------------------------------------------------------------
+          */
 
-        {(createdAt || updatedAt) && (
-          <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
-            {createdAt && (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
-                <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Criado em
-                </dt>
+          <>
+            {counts && (
+              <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-                <dd className="mt-1">{formatDateTime(createdAt)}</dd>
+                <CountCard
+                  label="Clientes"
+                  value={counts.clients}
+                  icon={
+                    <Users size={18} />
+                  }
+                />
+
+                <CountCard
+                  label="Profissionais"
+                  value={
+                    counts.professionals
+                  }
+                  icon={
+                    <UsersRound
+                      size={18}
+                    />
+                  }
+                />
+
+                <CountCard
+                  label="Serviços"
+                  value={counts.services}
+                  icon={
+                    <Scissors size={18} />
+                  }
+                />
+
+                <CountCard
+                  label="Agendamentos"
+                  value={
+                    counts.appointments
+                  }
+                  icon={
+                    <CalendarDays
+                      size={18}
+                    />
+                  }
+                />
+
               </div>
             )}
 
-            {updatedAt && (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
-                <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Última alteração
-                </dt>
+            {/* TABS */}
 
-                <dd className="mt-1">{formatDateTime(updatedAt)}</dd>
-              </div>
+            <div className="mb-8 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
+
+              <TabButton
+                active={
+                  tab === "dados"
+                }
+                onClick={() =>
+                  setTab("dados")
+                }
+                icon={
+                  <Building2
+                    size={17}
+                  />
+                }
+                label="Dados do estabelecimento"
+              />
+
+              <TabButton
+                active={
+                  tab === "horario"
+                }
+                onClick={() =>
+                  setTab("horario")
+                }
+                icon={
+                  <Clock size={17} />
+                }
+                label="Horário e regras"
+              />
+
+            </div>
+
+            {tab === "dados" ? (
+              <BusinessSettings
+                business={business}
+                setBusiness={
+                  setBusiness
+                }
+              />
+            ) : (
+              <BusinessHours
+                hours={hours}
+                setHours={setHours}
+              />
             )}
-          </dl>
+
+            {/* DATAS */}
+
+            {(createdAt ||
+              updatedAt) && (
+              <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+
+                {createdAt && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Criado em
+                    </dt>
+
+                    <dd className="mt-1">
+                      {formatDateTime(
+                        createdAt,
+                      )}
+                    </dd>
+                  </div>
+                )}
+
+                {updatedAt && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Última alteração
+                    </dt>
+
+                    <dd className="mt-1">
+                      {formatDateTime(
+                        updatedAt,
+                      )}
+                    </dd>
+                  </div>
+                )}
+
+              </dl>
+            )}
+
+            {/* BARRA */}
+
+            <div className="sticky bottom-0 z-20 -mx-4 mt-8 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur sm:-mx-6">
+              <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+
+                <div className="text-sm text-[var(--muted)]">
+                  {isDirty
+                    ? "Há alterações não salvas"
+                    : "Tudo salvo"}
+                </div>
+
+                <div className="flex items-center gap-3">
+
+                  <button
+                    type="button"
+                    disabled={
+                      !isDirty ||
+                      isSaving
+                    }
+                    onClick={() => {
+                      setBusiness(
+                        saved,
+                      );
+
+                      setHours(
+                        savedHours,
+                      );
+                    }}
+                    className="rounded-xl px-5 py-2.5 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={
+                      loading ||
+                      isSaving ||
+                      !isDirty
+                    }
+                    onClick={
+                      handleSave
+                    }
+                    className="rounded-xl bg-[var(--foreground)] px-6 py-2.5 text-sm font-medium text-[var(--background)] shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSaving
+                      ? "Salvando..."
+                      : "Salvar alterações"}
+                  </button>
+
+                </div>
+              </div>
+            </div>
+          </>
         )}
-      </div>
-
-      {/* BARRA INFERIOR */}
-
-      <div className="sticky bottom-0 z-20 -mx-4 mt-8 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur sm:-mx-6">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="text-sm text-[var(--muted)]">
-            {isDirty ? "Há alterações não salvas" : "Tudo salvo"}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              disabled={!isDirty || isSaving}
-              onClick={() => {
-                setBusiness(saved);
-                setHours(savedHours);
-              }}
-              className="rounded-xl px-5 py-2.5 text-sm font-medium text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-
-            <button
-              type="button"
-              disabled={loading || isSaving || !isDirty}
-              onClick={handleSave}
-              className="rounded-xl bg-[var(--foreground)] px-6 py-2.5 text-sm font-medium text-[var(--background)] shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSaving ? "Salvando..." : "Salvar alterações"}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| TAB
+|--------------------------------------------------------------------------
+*/
 
 function TabButton({
   active,
@@ -430,7 +813,9 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      aria-current={active ? "page" : undefined}
+      aria-current={
+        active ? "page" : undefined
+      }
       className={`flex shrink-0 items-center gap-2 border-b-2 px-5 pb-3 text-sm font-medium transition ${
         active
           ? "border-primary text-[var(--foreground)]"
@@ -442,6 +827,12 @@ function TabButton({
     </button>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| COUNT CARD
+|--------------------------------------------------------------------------
+*/
 
 function CountCard({
   label,
@@ -456,9 +847,13 @@ function CountCard({
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-[var(--muted)]">{label}</p>
+          <p className="text-sm text-[var(--muted)]">
+            {label}
+          </p>
 
-          <p className="mt-2 text-2xl font-bold">{value}</p>
+          <p className="mt-2 text-2xl font-bold">
+            {value}
+          </p>
         </div>
 
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -469,15 +864,30 @@ function CountCard({
   );
 }
 
-function formatDateTime(value: string) {
+/*
+|--------------------------------------------------------------------------
+| DATA
+|--------------------------------------------------------------------------
+*/
+
+function formatDateTime(
+  value: string,
+) {
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
     return "—";
   }
 
-  return date.toLocaleString("pt-PT", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return date.toLocaleString(
+    "pt-PT",
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    },
+  );
 }

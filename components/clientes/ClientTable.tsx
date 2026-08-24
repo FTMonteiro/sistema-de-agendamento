@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-/* Verificação simples de formato; o email do cliente é opcional. */
-const EMAIL_PATTERN =
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 import {
   X,
   Pencil,
@@ -15,7 +12,23 @@ import {
   Phone,
   CalendarDays,
   Plus,
+  ChevronRight,
+  RefreshCw,
 } from "lucide-react";
+
+/*
+|--------------------------------------------------------------------------
+| EMAIL
+|--------------------------------------------------------------------------
+*/
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/*
+|--------------------------------------------------------------------------
+| API CLIENT
+|--------------------------------------------------------------------------
+*/
 
 interface ApiClient {
   id: string;
@@ -26,18 +39,37 @@ interface ApiClient {
   businessId: string;
   createdAt: string;
   updatedAt: string;
+
+  visits: number;
+  totalSpent: number;
+  lastVisit: string | null;
 }
+
+/*
+|--------------------------------------------------------------------------
+| CLIENT
+|--------------------------------------------------------------------------
+*/
 
 interface Client {
   id: string;
   name: string;
   email: string;
   phone: string;
+
   visits: number;
   totalSpent: number;
+
   status: "Ativo" | "Inativo";
-  lastVisit: string;
+
+  lastVisit: string | null;
 }
+
+/*
+|--------------------------------------------------------------------------
+| FORM
+|--------------------------------------------------------------------------
+*/
 
 interface ClientForm {
   name: string;
@@ -52,6 +84,12 @@ const emptyForm: ClientForm = {
   phone: "",
   status: "Ativo",
 };
+
+/*
+|--------------------------------------------------------------------------
+| COMPONENT
+|--------------------------------------------------------------------------
+*/
 
 export function ClientTable() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -73,8 +111,7 @@ export function ClientTable() {
 
   const [showAll, setShowAll] = useState(false);
 
-  const [showAddModal, setShowAddModal] =
-    useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const [addForm, setAddForm] =
     useState<ClientForm>(emptyForm);
@@ -87,30 +124,66 @@ export function ClientTable() {
 
   const [error, setError] = useState("");
 
-  /* CLIENTES VISÍVEIS*/
+  /*
+  |--------------------------------------------------------------------------
+  | BLOQUEAR SCROLL DA PÁGINA QUANDO MODAL ESTÁ ABERTO
+  |--------------------------------------------------------------------------
+  */
+
+  const modalOpen =
+    showAddModal ||
+    !!selectedClient ||
+    !!deletingClient;
+
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [modalOpen]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | CLIENTES VISÍVEIS
+  |--------------------------------------------------------------------------
+  */
 
   const visibleClients = showAll
     ? clients
     : clients.slice(0, 5);
 
-  /* CARREGAR CLIENTES*/
+  /*
+  |--------------------------------------------------------------------------
+  | CARREGAR CLIENTES
+  |--------------------------------------------------------------------------
+  */
 
   async function loadClients() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch("/api/clients", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/clients",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Erro ao buscar clientes.",
+            "Erro ao buscar clientes."
         );
       }
 
@@ -120,25 +193,27 @@ export function ClientTable() {
           name: client.name,
           email: client.email ?? "",
           phone: client.phone,
-          visits: 0,
-          totalSpent: 0,
+          visits: Number(client.visits) || 0,
+          totalSpent:
+            Number(client.totalSpent) || 0,
           status: client.active
             ? "Ativo"
             : "Inativo",
-          lastVisit: "-",
+          lastVisit:
+            client.lastVisit ?? null,
         }));
 
       setClients(formattedClients);
     } catch (error) {
       console.error(
         "Erro ao carregar clientes:",
-        error,
+        error
       );
 
       setError(
         error instanceof Error
           ? error.message
-          : "Erro ao carregar clientes.",
+          : "Erro ao carregar clientes."
       );
     } finally {
       setLoading(false);
@@ -149,15 +224,15 @@ export function ClientTable() {
     loadClients();
   }, []);
 
-  /*ADICIONAR CLIENTE*/
+  /*
+  |--------------------------------------------------------------------------
+  | ADICIONAR CLIENTE
+  |--------------------------------------------------------------------------
+  */
 
   function handleOpenAddClient() {
     setError("");
-
-    setAddForm({
-      ...emptyForm,
-    });
-
+    setAddForm({ ...emptyForm });
     setShowAddModal(true);
   }
 
@@ -165,11 +240,7 @@ export function ClientTable() {
     if (isSaving) return;
 
     setShowAddModal(false);
-
-    setAddForm({
-      ...emptyForm,
-    });
-
+    setAddForm({ ...emptyForm });
     setError("");
   }
 
@@ -182,11 +253,14 @@ export function ClientTable() {
     }
 
     if (!addForm.phone.trim()) {
-      setError("Digite o telefone do cliente.");
+      setError(
+        "Digite o telefone do cliente."
+      );
       return;
     }
 
-    const addEmail = addForm.email.trim();
+    const addEmail =
+      addForm.email.trim();
 
     if (
       addEmail &&
@@ -211,75 +285,70 @@ export function ClientTable() {
 
           body: JSON.stringify({
             name: addForm.name.trim(),
-
             email:
               addForm.email.trim() || null,
-
-            phone:
-              addForm.phone.trim(),
-
+            phone: addForm.phone.trim(),
             active:
               addForm.status === "Ativo",
           }),
-        },
+        }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Não foi possível criar o cliente.",
+            "Não foi possível criar o cliente."
         );
       }
-
-      /*
-       * O cliente foi criado no banco.
-       * Agora atualizamos a tabela.
-       */
 
       await loadClients();
 
       setShowAddModal(false);
+      setAddForm({ ...emptyForm });
 
-      setAddForm({
-        ...emptyForm,
-      });
-
-      setError("");
+      toast.success(
+        "Cliente adicionado com sucesso."
+      );
     } catch (error) {
       console.error(
         "Erro ao adicionar cliente:",
-        error,
+        error
       );
 
       setError(
         error instanceof Error
           ? error.message
-          : "Erro ao adicionar cliente.",
+          : "Erro ao adicionar cliente."
       );
     } finally {
       setIsSaving(false);
     }
   }
 
-  /* VER CLIENTE*/
+  /*
+  |--------------------------------------------------------------------------
+  | VER CLIENTE
+  |--------------------------------------------------------------------------
+  */
 
-  function handleViewClient(client: Client) {
+  function handleViewClient(
+    client: Client
+  ) {
     setOpenMenu(null);
-
     setSelectedClient(client);
-
-    setEditForm({
-      ...client,
-    });
-
+    setEditForm({ ...client });
     setIsEditing(false);
-
     setError("");
   }
 
-  /*EDITAR CLIENTE*/
+  /*
+  |--------------------------------------------------------------------------
+  | EDITAR
+  |--------------------------------------------------------------------------
+  */
 
   function handleStartEdit() {
     if (!selectedClient) return;
@@ -289,7 +358,6 @@ export function ClientTable() {
     });
 
     setIsEditing(true);
-
     setError("");
   }
 
@@ -301,13 +369,15 @@ export function ClientTable() {
     });
 
     setIsEditing(false);
-
     setError("");
   }
 
   function handleChange(
-    field: keyof Client,
-    value: string | number,
+    field:
+      | "name"
+      | "email"
+      | "phone",
+    value: string
   ) {
     if (!editForm) return;
 
@@ -317,7 +387,22 @@ export function ClientTable() {
     });
   }
 
-  /*GUARDAR EDIÇÃO*/
+  function handleStatusChange(
+    value: "Ativo" | "Inativo"
+  ) {
+    if (!editForm) return;
+
+    setEditForm({
+      ...editForm,
+      status: value,
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | GUARDAR EDIÇÃO
+  |--------------------------------------------------------------------------
+  */
 
   async function handleSaveEdit() {
     if (!editForm) return;
@@ -325,13 +410,15 @@ export function ClientTable() {
     setError("");
 
     if (!editForm.name.trim()) {
-      setError("O nome do cliente é obrigatório.");
+      setError(
+        "O nome do cliente é obrigatório."
+      );
       return;
     }
 
     if (!editForm.phone.trim()) {
       setError(
-        "O telefone do cliente é obrigatório.",
+        "O telefone do cliente é obrigatório."
       );
       return;
     }
@@ -362,84 +449,105 @@ export function ClientTable() {
 
           body: JSON.stringify({
             name: editForm.name.trim(),
-
             email:
               editForm.email.trim() || null,
-
-            phone:
-              editForm.phone.trim(),
-
+            phone: editForm.phone.trim(),
             active:
               editForm.status === "Ativo",
           }),
-        },
+        }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Não foi possível atualizar o cliente.",
+            "Não foi possível atualizar o cliente."
         );
       }
 
-      /*
-       * Atualiza imediatamente a tabela
-       * com os dados recebidos da API.
-       */
+      const oldClient =
+        clients.find(
+          (client) =>
+            client.id === editForm.id
+        );
 
       const updatedClient: Client = {
         id: data.id,
         name: data.name,
         email: data.email ?? "",
         phone: data.phone,
-        visits: editForm.visits,
-        totalSpent: editForm.totalSpent,
+
+        visits:
+          oldClient?.visits ??
+          editForm.visits,
+
+        totalSpent:
+          oldClient?.totalSpent ??
+          editForm.totalSpent,
+
         status: data.active
           ? "Ativo"
           : "Inativo",
-        lastVisit: editForm.lastVisit,
+
+        lastVisit:
+          oldClient?.lastVisit ??
+          editForm.lastVisit,
       };
 
-      setClients((currentClients) =>
-        currentClients.map((client) =>
-          client.id === updatedClient.id
-            ? updatedClient
-            : client,
-        ),
+      setClients(
+        (currentClients) =>
+          currentClients.map(
+            (client) =>
+              client.id ===
+              updatedClient.id
+                ? updatedClient
+                : client
+          )
       );
 
-      setSelectedClient(updatedClient);
+      setSelectedClient(
+        updatedClient
+      );
 
-      setEditForm(updatedClient);
+      setEditForm(
+        updatedClient
+      );
 
       setIsEditing(false);
 
-      setError("");
+      toast.success(
+        "Cliente atualizado com sucesso."
+      );
     } catch (error) {
       console.error(
         "Erro ao atualizar cliente:",
-        error,
+        error
       );
 
       setError(
         error instanceof Error
           ? error.message
-          : "Erro ao atualizar cliente.",
+          : "Erro ao atualizar cliente."
       );
     } finally {
       setIsUpdating(false);
     }
   }
 
-  /*EXCLUIR CLIENTE*/
+  /*
+  |--------------------------------------------------------------------------
+  | EXCLUIR
+  |--------------------------------------------------------------------------
+  */
 
-  function handleAskDelete(client: Client) {
+  function handleAskDelete(
+    client: Client
+  ) {
     setOpenMenu(null);
-
     setDeletingClient(client);
-
     setError("");
   }
 
@@ -455,53 +563,47 @@ export function ClientTable() {
     try {
       setIsDeleting(true);
 
-      setError("");
-
       const response = await fetch(
         `/api/clients/${deletingClient.id}`,
         {
           method: "DELETE",
-        },
+        }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        // Bloqueio por agendamentos nao muda em nova tentativa: fecha a
-        // confirmacao e explica no toast, que fica mais tempo em tela.
-        if (data?.reason === "has_appointments") {
+        if (
+          data?.reason ===
+          "has_appointments"
+        ) {
           setDeletingClient(null);
-          setOpenMenu(null);
 
-          toast.error(data.error, {
-            duration: 10000,
-          });
+          toast.error(
+            data.error,
+            {
+              duration: 10000,
+            }
+          );
 
           return;
         }
 
         throw new Error(
           data?.error ||
-            "Não foi possível excluir o cliente.",
+            "Não foi possível excluir o cliente."
         );
       }
 
-      /*
-       * Remove imediatamente da tabela.
-       */
-
-      setClients((currentClients) =>
-        currentClients.filter(
-          (client) =>
-            client.id !==
-            deletingClient.id,
-        ),
+      setClients(
+        (currentClients) =>
+          currentClients.filter(
+            (client) =>
+              client.id !==
+              deletingClient.id
+          )
       );
-
-      /*
-       * Se o cliente excluído estiver
-       * aberto no modal, fecha o modal.
-       */
 
       if (
         selectedClient?.id ===
@@ -514,86 +616,157 @@ export function ClientTable() {
 
       setDeletingClient(null);
 
-      setOpenMenu(null);
-
-      setError("");
-
       toast.success(
-        `${deletingClient.name} foi excluído.`,
+        `${deletingClient.name} foi excluído.`
       );
     } catch (error) {
       console.error(
         "Erro ao excluir cliente:",
-        error,
+        error
       );
 
       toast.error(
         error instanceof Error
           ? error.message
-          : "Erro ao excluir cliente.",
+          : "Erro ao excluir cliente."
       );
     } finally {
       setIsDeleting(false);
     }
   }
 
-  /*FECHAR DETALHES*/
+  /*
+  |--------------------------------------------------------------------------
+  | FECHAR DETALHES
+  |--------------------------------------------------------------------------
+  */
 
   function handleCloseDetails() {
     if (isUpdating) return;
 
     setSelectedClient(null);
-
     setEditForm(null);
-
     setIsEditing(false);
-
     setError("");
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | FORMATADORES
+  |--------------------------------------------------------------------------
+  */
+
+  function formatCurrency(
+    value: number
+  ) {
+    return new Intl.NumberFormat(
+      "pt-AO",
+      {
+        style: "currency",
+        currency: "AOA",
+        maximumFractionDigits: 0,
+      }
+    ).format(value);
+  }
+
+  function formatDate(
+    date: string | null
+  ) {
+    if (!date) {
+      return "Nenhuma visita";
+    }
+
+    return new Intl.DateTimeFormat(
+      "pt-AO",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    ).format(new Date(date));
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <>
-      {/* TABELA */}
-
       <div className="w-full overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
 
         {/* HEADER */}
 
-        <div className="flex items-center justify-between gap-4 px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
 
           <div>
             <h2 className="text-base font-semibold tracking-tight text-gray-900">
-              Lista de clientes
+              Clientes
             </h2>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Clientes cadastrados no seu estabelecimento.
+            <p className="mt-0.5 text-xs text-gray-500">
+              Gerencie os clientes e acompanhe o histórico de visitas.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenAddClient}
-            className="
-              inline-flex
-              items-center
-              gap-2
-              rounded-xl
-              bg-blue-700
-              px-4
-              py-2.5
-              text-sm
-              font-medium
-              text-white
-              transition
-              hover:bg-blue-800
-            "
-          >
-            <Plus className="h-4 w-4" />
+          <div className="flex items-center gap-2">
 
-            Novo cliente
-          </button>
+            <button
+              type="button"
+              onClick={loadClients}
+              disabled={loading}
+              title="Atualizar clientes"
+              className="
+                inline-flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-lg
+                border
+                border-gray-200
+                text-gray-500
+                transition
+                hover:bg-gray-50
+                hover:text-gray-900
+                disabled:opacity-50
+              "
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${
+                  loading
+                    ? "animate-spin"
+                    : ""
+                }`}
+              />
+            </button>
 
+            <button
+              type="button"
+              onClick={
+                handleOpenAddClient
+              }
+              className="
+                inline-flex
+                items-center
+                gap-1.5
+                rounded-lg
+                bg-blue-700
+                px-3.5
+                py-2
+                text-sm
+                font-medium
+                text-white
+                transition
+                hover:bg-blue-800
+              "
+            >
+              <Plus className="h-4 w-4" />
+              Novo cliente
+            </button>
+
+          </div>
         </div>
 
         {/* TABELA */}
@@ -603,31 +776,29 @@ export function ClientTable() {
           <table className="w-full min-w-[760px]">
 
             <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/70">
 
-              <tr className="border-y border-gray-100 bg-gray-50/70">
-
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Cliente
                 </th>
 
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Telefone
                 </th>
 
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Visitas
                 </th>
 
-                <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Estado
                 </th>
 
-                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Ações
                 </th>
 
               </tr>
-
             </thead>
 
             <tbody className="divide-y divide-gray-100">
@@ -638,9 +809,11 @@ export function ClientTable() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-12 text-center"
+                    className="px-4 py-12 text-center"
                   >
-                    <p className="text-sm text-gray-500">
+                    <RefreshCw className="mx-auto h-5 w-5 animate-spin text-gray-400" />
+
+                    <p className="mt-2 text-xs text-gray-500">
                       A carregar clientes...
                     </p>
                   </td>
@@ -657,7 +830,7 @@ export function ClientTable() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-6 py-12 text-center"
+                      className="px-4 py-12 text-center"
                     >
                       <p className="text-sm font-medium text-red-600">
                         {error}
@@ -665,8 +838,10 @@ export function ClientTable() {
 
                       <button
                         type="button"
-                        onClick={loadClients}
-                        className="mt-3 text-sm font-medium text-gray-900 underline"
+                        onClick={
+                          loadClients
+                        }
+                        className="mt-2 text-xs font-medium text-gray-900 underline"
                       >
                         Tentar novamente
                       </button>
@@ -677,6 +852,7 @@ export function ClientTable() {
               {/* CLIENTES */}
 
               {!loading &&
+                !error &&
                 clients.length > 0 &&
                 visibleClients.map(
                   (client) => {
@@ -685,42 +861,19 @@ export function ClientTable() {
                         .charAt(0)
                         .toUpperCase();
 
-                    const isActive =
-                      client.status ===
-                      "Ativo";
-
                     return (
                       <tr
                         key={client.id}
-                        className="
-                          group
-                          transition-colors
-                          duration-150
-                          hover:bg-gray-50/70
-                        "
+                        className="group transition-colors hover:bg-gray-50/70"
                       >
 
                         {/* CLIENTE */}
 
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2.5">
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2.5">
 
-                            <div
-                              className="
-                                flex
-                                h-10
-                                w-10
-                                shrink-0
-                                items-center
-                                justify-center
-                                rounded-full
-                                bg-gray-100
-                                text-sm
-                                font-semibold
-                                text-gray-700
-                              "
-                            >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
                               {initial}
                             </div>
 
@@ -730,7 +883,7 @@ export function ClientTable() {
                                 {client.name}
                               </p>
 
-                              <p className="mt-0.5 truncate text-xs text-gray-500">
+                              <p className="mt-0.5 max-w-[180px] truncate text-[11px] text-gray-500">
                                 {client.email ||
                                   "Sem email"}
                               </p>
@@ -743,26 +896,30 @@ export function ClientTable() {
 
                         {/* TELEFONE */}
 
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2.5">
 
-                          <span className="text-sm text-gray-600">
-                            {client.phone}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+
+                            <Phone className="h-3.5 w-3.5 text-gray-400" />
+
+                            <span className="text-xs text-gray-600">
+                              {client.phone}
+                            </span>
+
+                          </div>
 
                         </td>
 
                         {/* VISITAS */}
 
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2.5">
 
-                          <div className="flex items-center gap-2">
+                          <div className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1">
 
-                            <span className="text-sm font-semibold text-gray-900">
+                            <CalendarDays className="h-3 w-3 text-gray-400" />
+
+                            <span className="text-xs font-semibold text-gray-900">
                               {client.visits}
-                            </span>
-
-                            <span className="text-xs text-gray-400">
-                              visitas
                             </span>
 
                           </div>
@@ -771,37 +928,24 @@ export function ClientTable() {
 
                         {/* ESTADO */}
 
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2.5">
 
                           <span
-                            className={`
-                              inline-flex
-                              items-center
-                              gap-1.5
-                              rounded-full
-                              px-2.5
-                              py-1
-                              text-xs
-                              font-medium
-                              ${
-                                isActive
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-gray-100 text-gray-600"
-                              }
-                            `}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                              client.status ===
+                              "Ativo"
+                                ? "bg-green-50 text-green-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
                           >
 
                             <span
-                              className={`
-                                h-1.5
-                                w-1.5
-                                rounded-full
-                                ${
-                                  isActive
-                                    ? "bg-green-500"
-                                    : "bg-gray-400"
-                                }
-                              `}
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                client.status ===
+                                "Ativo"
+                                  ? "bg-green-500"
+                                  : "bg-gray-400"
+                              }`}
                             />
 
                             {client.status}
@@ -812,7 +956,7 @@ export function ClientTable() {
 
                         {/* AÇÕES */}
 
-                        <td className="relative px-6 py-4 text-right">
+                        <td className="relative px-4 py-2.5 text-right">
 
                           <button
                             type="button"
@@ -821,13 +965,13 @@ export function ClientTable() {
                                 openMenu ===
                                   client.id
                                   ? null
-                                  : client.id,
+                                  : client.id
                               )
                             }
                             className="
                               inline-flex
-                              h-9
-                              w-9
+                              h-8
+                              w-8
                               items-center
                               justify-center
                               rounded-lg
@@ -839,84 +983,41 @@ export function ClientTable() {
                               lg:group-hover:opacity-100
                             "
                           >
-                            <span className="text-lg">
+                            <span className="text-lg leading-none">
                               ⋮
                             </span>
                           </button>
 
                           {openMenu ===
                             client.id && (
-                            <div
-                              className="
-                                absolute
-                                right-6
-                                top-14
-                                z-30
-                                w-48
-                                rounded-xl
-                                border
-                                border-gray-100
-                                bg-white
-                                p-1
-                                text-left
-                                shadow-xl
-                              "
-                            >
-
-                              {/* VER MAIS */}
+                            <div className="absolute right-4 top-11 z-30 w-44 rounded-xl border border-gray-100 bg-white p-1 text-left shadow-xl">
 
                               <button
                                 type="button"
                                 onClick={() =>
                                   handleViewClient(
-                                    client,
+                                    client
                                   )
                                 }
-                                className="
-                                  flex
-                                  w-full
-                                  items-center
-                                  gap-3
-                                  rounded-lg
-                                  px-3
-                                  py-3
-                                  text-sm
-                                  font-medium
-                                  text-gray-700
-                                  hover:bg-gray-50
-                                "
+                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                               >
-                                <UserRound className="h-4 w-4" />
+                                <UserRound className="h-3.5 w-3.5" />
 
-                                Ver mais
+                                Ver cliente
+
+                                <ChevronRight className="ml-auto h-3.5 w-3.5 text-gray-300" />
                               </button>
-
-                              <div className="my-1 border-t border-gray-100" />
-
-                              {/* EXCLUIR */}
 
                               <button
                                 type="button"
                                 onClick={() =>
                                   handleAskDelete(
-                                    client,
+                                    client
                                   )
                                 }
-                                className="
-                                  flex
-                                  w-full
-                                  items-center
-                                  gap-3
-                                  rounded-lg
-                                  px-3
-                                  py-3
-                                  text-sm
-                                  font-medium
-                                  text-red-600
-                                  hover:bg-red-50
-                                "
+                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
 
                                 Excluir
                               </button>
@@ -928,10 +1029,10 @@ export function ClientTable() {
 
                       </tr>
                     );
-                  },
+                  }
                 )}
 
-              {/* SEM CLIENTES */}
+              {/* VAZIO */}
 
               {!loading &&
                 !error &&
@@ -939,61 +1040,38 @@ export function ClientTable() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-6 py-12 text-center"
+                      className="px-4 py-12 text-center"
                     >
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                        <UserRound className="h-4 w-4 text-gray-400" />
+                      </div>
 
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="mt-3 text-sm font-semibold text-gray-900">
                         Nenhum cliente encontrado
                       </p>
 
-                      <p className="mt-1 text-sm text-gray-500">
-                        Adicione o primeiro cliente.
+                      <p className="mt-1 text-xs text-gray-500">
+                        Adicione o primeiro cliente ao seu estabelecimento.
                       </p>
-
                     </td>
                   </tr>
                 )}
 
             </tbody>
-
           </table>
 
         </div>
 
-        {/* RODAPÉ */}
+        {/* ESPAÇO INFERIOR */}
 
-        <div className="flex items-center justify-between border-t border-gray-100 px-5 py-4 sm:px-6">
-
-          <p className="text-sm text-gray-500">
-
-            <span className="font-medium text-gray-900">
-              {clients.length}
-            </span>{" "}
-
-            clientes cadastrados
-
-          </p>
-
-          {clients.length > 5 && (
-            <button
-              type="button"
-              onClick={() =>
-                setShowAll(!showAll)
-              }
-              className="text-sm font-medium text-gray-600 hover:text-gray-900"
-            >
-              {showAll
-                ? "Mostrar menos"
-                : "Ver todos"}
-            </button>
-          )}
-
-        </div>
+        <div className="h-5 border-t border-gray-100" />
 
       </div>
 
-      {/*  MODAL — NOVO CLIENTE*/}
-    
+      {/* ======================================================
+          MODAL — NOVO CLIENTE
+      ====================================================== */}
+
       {showAddModal && (
         <div
           className="
@@ -1008,15 +1086,15 @@ export function ClientTable() {
             py-6
             backdrop-blur-sm
           "
-          onClick={handleCloseAddClient}
+          onClick={
+            handleCloseAddClient
+          }
         >
-
           <div
             className="
-              max-h-[90vh]
               w-full
-              max-w-lg
-              overflow-y-auto
+              max-w-md
+              overflow-hidden
               rounded-2xl
               bg-white
               shadow-2xl
@@ -1026,54 +1104,36 @@ export function ClientTable() {
             }
           >
 
-            {/* HEADER */}
-
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
 
               <div>
-
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900">
                   Novo cliente
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-500">
                   Cadastre um novo cliente.
                 </p>
-
               </div>
 
               <button
                 type="button"
-                onClick={handleCloseAddClient}
+                onClick={
+                  handleCloseAddClient
+                }
                 disabled={isSaving}
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-gray-400
-                  hover:bg-gray-100
-                  hover:text-gray-900
-                  disabled:opacity-50
-                "
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
 
             </div>
 
-            {/* FORM */}
-
-            <div className="space-y-5 px-6 py-6">
-
-              {/* NOME */}
+            <div className="space-y-4 px-5 py-5">
 
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Nome *
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                  Nome
                 </label>
 
                 <input
@@ -1082,32 +1142,17 @@ export function ClientTable() {
                   onChange={(event) =>
                     setAddForm({
                       ...addForm,
-                      name: event.target.value,
+                      name: event.target
+                        .value,
                     })
                   }
                   placeholder="Nome do cliente"
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                 />
-
               </div>
 
-              {/* EMAIL */}
-
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
                   Email
                 </label>
 
@@ -1117,33 +1162,18 @@ export function ClientTable() {
                   onChange={(event) =>
                     setAddForm({
                       ...addForm,
-                      email: event.target.value,
+                      email:
+                        event.target.value,
                     })
                   }
                   placeholder="cliente@email.com"
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                 />
-
               </div>
 
-              {/* TELEFONE */}
-
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Telefone *
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                  Telefone
                 </label>
 
                 <input
@@ -1152,32 +1182,17 @@ export function ClientTable() {
                   onChange={(event) =>
                     setAddForm({
                       ...addForm,
-                      phone: event.target.value,
+                      phone:
+                        event.target.value,
                     })
                   }
                   placeholder="923 000 000"
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                 />
-
               </div>
 
-              {/* ESTADO */}
-
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
                   Estado
                 </label>
 
@@ -1187,25 +1202,13 @@ export function ClientTable() {
                     setAddForm({
                       ...addForm,
                       status:
-                        event.target.value as
+                        event.target
+                          .value as
                           | "Ativo"
                           | "Inativo",
                     })
                   }
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    outline-none
-                    focus:border-gray-900
-                    focus:ring-4
-                    focus:ring-gray-100
-                  "
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                 >
                   <option value="Ativo">
                     Ativo
@@ -1215,57 +1218,34 @@ export function ClientTable() {
                     Inativo
                   </option>
                 </select>
-
               </div>
 
-              {/* ERRO */}
-
               {error && (
-                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="rounded-lg bg-red-50 px-3.5 py-2.5 text-xs text-red-600">
                   {error}
                 </div>
               )}
 
-              {/* BOTÕES */}
-
-              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+              <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
 
                 <button
                   type="button"
-                  onClick={handleCloseAddClient}
+                  onClick={
+                    handleCloseAddClient
+                  }
                   disabled={isSaving}
-                  className="
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    hover:bg-gray-50
-                    disabled:opacity-50
-                  "
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Cancelar
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleAddClient}
+                  onClick={
+                    handleAddClient
+                  }
                   disabled={isSaving}
-                  className="
-                    rounded-xl
-                    bg-gray-950
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-medium
-                    text-white
-                    hover:bg-gray-800
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
+                  className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
                 >
                   {isSaving
                     ? "A guardar..."
@@ -1275,13 +1255,13 @@ export function ClientTable() {
               </div>
 
             </div>
-
           </div>
-
         </div>
       )}
 
-      {/*MODAL — VER / EDITAR*/}
+      {/* ======================================================
+          MODAL — CLIENTE
+      ====================================================== */}
 
       {selectedClient && (
         <div
@@ -1297,15 +1277,15 @@ export function ClientTable() {
             py-6
             backdrop-blur-sm
           "
-          onClick={handleCloseDetails}
+          onClick={
+            handleCloseDetails
+          }
         >
-
           <div
             className="
-              max-h-[90vh]
               w-full
               max-w-lg
-              overflow-y-auto
+              overflow-hidden
               rounded-2xl
               bg-white
               shadow-2xl
@@ -1317,58 +1297,44 @@ export function ClientTable() {
 
             {/* HEADER */}
 
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
 
               <div>
-
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900">
                   {isEditing
                     ? "Editar cliente"
-                    : "Detalhes do cliente"}
+                    : "Perfil do cliente"}
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-500">
                   {isEditing
                     ? "Atualize os dados do cliente."
-                    : "Informações completas do cliente."}
+                    : "Resumo e informações do cliente."}
                 </p>
-
               </div>
 
               <button
                 type="button"
-                onClick={handleCloseDetails}
+                onClick={
+                  handleCloseDetails
+                }
                 disabled={isUpdating}
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-gray-400
-                  hover:bg-gray-100
-                  hover:text-gray-900
-                  disabled:opacity-50
-                "
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
 
             </div>
 
-            {isEditing && editForm ? (
+            {/* EDITAR */}
 
-              /* FORM EDITAR */
-
-              <div className="space-y-5 px-6 py-6">
-
-                {/* NOME */}
+            {isEditing &&
+            editForm ? (
+              <div className="space-y-4 px-5 py-5">
 
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Nome *
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                    Nome
                   </label>
 
                   <input
@@ -1377,31 +1343,16 @@ export function ClientTable() {
                     onChange={(event) =>
                       handleChange(
                         "name",
-                        event.target.value,
+                        event.target
+                          .value
                       )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                   />
-
                 </div>
 
-                {/* EMAIL */}
-
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
                     Email
                   </label>
 
@@ -1411,32 +1362,17 @@ export function ClientTable() {
                     onChange={(event) =>
                       handleChange(
                         "email",
-                        event.target.value,
+                        event.target
+                          .value
                       )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                   />
-
                 </div>
 
-                {/* TELEFONE */}
-
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Telefone *
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                    Telefone
                   </label>
 
                   <input
@@ -1445,56 +1381,32 @@ export function ClientTable() {
                     onChange={(event) =>
                       handleChange(
                         "phone",
-                        event.target.value,
+                        event.target
+                          .value
                       )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                   />
-
                 </div>
 
-                {/* ESTADO */}
-
                 <div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
                     Estado
                   </label>
 
                   <select
-                    value={editForm.status}
+                    value={
+                      editForm.status
+                    }
                     onChange={(event) =>
-                      handleChange(
-                        "status",
-                        event.target.value,
+                      handleStatusChange(
+                        event.target
+                          .value as
+                          | "Ativo"
+                          | "Inativo"
                       )
                     }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      outline-none
-                      focus:border-gray-900
-                      focus:ring-4
-                      focus:ring-gray-100
-                    "
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-4 focus:ring-gray-100"
                   >
                     <option value="Ativo">
                       Ativo
@@ -1504,60 +1416,38 @@ export function ClientTable() {
                       Inativo
                     </option>
                   </select>
-
                 </div>
 
-                {/* ERRO */}
-
                 {error && (
-                  <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <div className="rounded-lg bg-red-50 px-3.5 py-2.5 text-xs text-red-600">
                     {error}
                   </div>
                 )}
 
-                {/* BOTÕES */}
-
-                <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
 
                   <button
                     type="button"
-                    onClick={handleCancelEdit}
-                    disabled={isUpdating}
-                    className="
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-5
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-gray-700
-                      hover:bg-gray-50
-                      disabled:opacity-50
-                    "
+                    onClick={
+                      handleCancelEdit
+                    }
+                    disabled={
+                      isUpdating
+                    }
+                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     Cancelar
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleSaveEdit}
-                    disabled={isUpdating}
-                    className="
-                      inline-flex
-                      items-center
-                      gap-2
-                      rounded-xl
-                      bg-gray-950
-                      px-5
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-white
-                      hover:bg-gray-800
-                      disabled:cursor-not-allowed
-                      disabled:opacity-50
-                    "
+                    onClick={
+                      handleSaveEdit
+                    }
+                    disabled={
+                      isUpdating
+                    }
+                    className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
                   >
                     {isUpdating
                       ? "A guardar..."
@@ -1567,192 +1457,207 @@ export function ClientTable() {
                 </div>
 
               </div>
-
             ) : (
 
-              /* DETALHES */
+              /* PERFIL */
 
               <>
+                {/* IDENTIDADE */}
 
-                <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-5">
+                <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-5">
 
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-lg font-semibold text-gray-700">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg font-bold text-gray-700">
                     {selectedClient.name
                       .charAt(0)
                       .toUpperCase()}
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
 
-                    <p className="font-semibold text-gray-900">
+                    <h3 className="truncate text-base font-semibold text-gray-900">
                       {selectedClient.name}
-                    </p>
+                    </h3>
 
-                    <span
-                      className={`
-                        mt-1
-                        inline-flex
-                        rounded-full
-                        px-2.5
-                        py-1
-                        text-[11px]
-                        font-medium
-                        ${
-                          selectedClient.status ===
-                          "Ativo"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }
-                      `}
-                    >
-                      {selectedClient.status}
-                    </span>
-
-                  </div>
-
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 px-6 py-6 sm:grid-cols-2">
-
-                  {/* EMAIL */}
-
-                  <div className="rounded-xl bg-gray-50 p-4">
-
-                    <div className="flex items-center gap-2 text-gray-400">
-
-                      <Mail className="h-4 w-4" />
-
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Email
-                      </span>
-
-                    </div>
-
-                    <p className="mt-2 break-all font-semibold text-gray-900">
-                      {selectedClient.email ||
-                        "Sem email"}
-                    </p>
-
-                  </div>
-
-                  {/* TELEFONE */}
-
-                  <div className="rounded-xl bg-gray-50 p-4">
-
-                    <div className="flex items-center gap-2 text-gray-400">
-
-                      <Phone className="h-4 w-4" />
-
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Telefone
-                      </span>
-
-                    </div>
-
-                    <p className="mt-2 font-semibold text-gray-900">
+                    <p className="mt-0.5 text-xs text-gray-500">
                       {selectedClient.phone}
                     </p>
 
                   </div>
 
-                  {/* VISITAS */}
+                  <span
+                    className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                      selectedClient.status ===
+                      "Ativo"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        selectedClient.status ===
+                        "Ativo"
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    />
 
-                  <div className="rounded-xl bg-gray-50 p-4">
+                    {selectedClient.status}
+                  </span>
 
-                    <div className="flex items-center gap-2 text-gray-400">
+                </div>
 
-                      <CalendarDays className="h-4 w-4" />
+                {/* ESTATÍSTICAS */}
 
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Visitas
-                      </span>
+                <div className="grid grid-cols-1 gap-2.5 px-5 py-5 sm:grid-cols-3">
 
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5">
+
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                      <CalendarDays className="h-4 w-4 text-gray-500" />
                     </div>
 
-                    <p className="mt-2 font-semibold text-gray-900">
-                      {selectedClient.visits}{" "}
-                      visitas
+                    <p className="mt-3 text-xl font-bold tracking-tight text-gray-900">
+                      {
+                        selectedClient.visits
+                      }
+                    </p>
+
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">
+                      Visitas realizadas
                     </p>
 
                   </div>
 
-                  {/* ESTADO */}
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5">
 
-                  <div className="rounded-xl bg-gray-50 p-4">
-
-                    <div className="flex items-center gap-2 text-gray-400">
-
-                      <UserRound className="h-4 w-4" />
-
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Estado
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                      <span className="text-xs font-bold text-gray-500">
+                        Kz
                       </span>
-
                     </div>
 
-                    <p className="mt-2 font-semibold text-gray-900">
-                      {selectedClient.status}
+                    <p className="mt-3 text-xl font-bold tracking-tight text-gray-900">
+                      {formatCurrency(
+                        selectedClient.totalSpent
+                      )}
+                    </p>
+
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">
+                      Total gasto
+                    </p>
+
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5">
+
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                      <CalendarDays className="h-4 w-4 text-gray-500" />
+                    </div>
+
+                    <p className="mt-3 text-sm font-bold text-gray-900">
+                      {formatDate(
+                        selectedClient.lastVisit
+                      )}
+                    </p>
+
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">
+                      Última visita
                     </p>
 
                   </div>
 
                 </div>
 
-                {/* BOTÕES */}
+                {/* CONTACTO */}
 
-                <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-5">
+                <div className="px-5 pb-5">
+
+                  <h4 className="mb-2.5 text-xs font-semibold text-gray-900">
+                    Informações de contacto
+                  </h4>
+
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+
+                    <div className="rounded-lg border border-gray-100 p-3">
+
+                      <div className="flex items-center gap-2 text-gray-400">
+
+                        <Mail className="h-3.5 w-3.5" />
+
+                        <span className="text-[10px] font-medium uppercase tracking-wide">
+                          Email
+                        </span>
+
+                      </div>
+
+                      <p className="mt-1.5 break-all text-xs font-semibold text-gray-900">
+                        {selectedClient.email ||
+                          "Sem email"}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-lg border border-gray-100 p-3">
+
+                      <div className="flex items-center gap-2 text-gray-400">
+
+                        <Phone className="h-3.5 w-3.5" />
+
+                        <span className="text-[10px] font-medium uppercase tracking-wide">
+                          Telefone
+                        </span>
+
+                      </div>
+
+                      <p className="mt-1.5 text-xs font-semibold text-gray-900">
+                        {
+                          selectedClient.phone
+                        }
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* FOOTER */}
+
+                <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
 
                   <button
                     type="button"
-                    onClick={handleStartEdit}
-                    className="
-                      inline-flex
-                      items-center
-                      gap-2
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-5
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-gray-700
-                      hover:bg-gray-50
-                    "
+                    onClick={
+                      handleStartEdit
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-3.5 w-3.5" />
 
                     Editar
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleCloseDetails}
-                    className="
-                      rounded-xl
-                      bg-gray-950
-                      px-5
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-white
-                      hover:bg-gray-800
-                    "
+                    onClick={
+                      handleCloseDetails
+                    }
+                    className="rounded-lg bg-gray-950 px-4 py-2 text-xs font-medium text-white hover:bg-gray-800"
                   >
                     Fechar
                   </button>
 
                 </div>
-
               </>
             )}
 
           </div>
-
         </div>
       )}
 
-      {/*MODAL — EXCLUIR*/}
+      {/* ======================================================
+          MODAL — EXCLUIR
+      ====================================================== */}
 
       {deletingClient && (
         <div
@@ -1767,16 +1672,17 @@ export function ClientTable() {
             p-4
             backdrop-blur-sm
           "
-          onClick={handleCancelDelete}
+          onClick={
+            handleCancelDelete
+          }
         >
-
           <div
             className="
               w-full
-              max-w-md
+              max-w-sm
               rounded-2xl
               bg-white
-              p-6
+              p-5
               shadow-2xl
             "
             onClick={(event) =>
@@ -1784,31 +1690,22 @@ export function ClientTable() {
             }
           >
 
-            <div
-              className="
-                flex
-                h-12
-                w-12
-                items-center
-                justify-center
-                rounded-xl
-                bg-red-50
-                text-red-600
-              "
-            >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">
               <Trash2 className="h-5 w-5" />
             </div>
 
-            <h2 className="mt-5 text-lg font-semibold text-gray-900">
+            <h2 className="mt-4 text-base font-semibold text-gray-900">
               Excluir cliente?
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-gray-500">
+            <p className="mt-2 text-xs leading-5 text-gray-500">
 
               Tem certeza que deseja excluir{" "}
 
               <span className="font-semibold text-gray-900">
-                {deletingClient.name}
+                {
+                  deletingClient.name
+                }
               </span>
 
               ?
@@ -1819,67 +1716,37 @@ export function ClientTable() {
 
             </p>
 
-            {error && (
-              <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-                {error}
-              </div>
-            )}
-
-            <div className="mt-7 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-2">
 
               <button
                 type="button"
-                onClick={handleCancelDelete}
+                onClick={
+                  handleCancelDelete
+                }
                 disabled={isDeleting}
-                className="
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-white
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-gray-700
-                  hover:bg-gray-50
-                  disabled:opacity-50
-                "
+                className="rounded-lg border border-gray-200 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
-                onClick={handleDeleteClient}
+                onClick={
+                  handleDeleteClient
+                }
                 disabled={isDeleting}
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-xl
-                  bg-red-600
-                  px-5
-                  py-3
-                  text-sm
-                  font-medium
-                  text-white
-                  hover:bg-red-700
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
 
                 {isDeleting
                   ? "A excluir..."
                   : "Excluir cliente"}
-
               </button>
 
             </div>
 
           </div>
-
         </div>
       )}
     </>

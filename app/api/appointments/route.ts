@@ -1,38 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 
 // ============================================================
 // GET - LISTAR AGENDAMENTOS
+// OWNER + EMPLOYEE
 // ============================================================
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    if (!user.businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    const user = await requireStaff();
 
     const appointments = await prisma.appointment.findMany({
       where: {
@@ -87,48 +65,18 @@ export async function GET() {
           : null;
 
         return {
-          // ==================================================
-          // IDENTIFICAÇÃO
-          // ==================================================
-
           id: appointment.id,
 
-          // ==================================================
-          // CLIENTE
-          // ==================================================
-
           client: appointment.client.name,
-
           clientId: appointment.client.id,
 
-          // ==================================================
-          // SERVIÇO
-          // ==================================================
-
           service: appointment.service.name,
-
           serviceId: appointment.service.id,
-
-          /*
-           * IMPORTANTE:
-           * Agora o preço é enviado para o frontend.
-           */
 
           price: servicePrice,
 
-          // ==================================================
-          // PROFISSIONAL
-          // ==================================================
-
-          professional:
-            appointment.professional.name,
-
-          professionalId:
-            appointment.professional.id,
-
-          // ==================================================
-          // DATA / HORA
-          // ==================================================
+          professional: appointment.professional.name,
+          professionalId: appointment.professional.id,
 
           date: appointment.date
             .toISOString()
@@ -138,33 +86,9 @@ export async function GET() {
             .toISOString()
             .slice(11, 16),
 
-          // ==================================================
-          // STATUS
-          // ==================================================
+          status: appointment.status.toLowerCase(),
 
-          status:
-            appointment.status.toLowerCase(),
-
-          // ==================================================
-          // OBSERVAÇÕES
-          // ==================================================
-
-          notes:
-            appointment.notes ?? "",
-
-          // ==================================================
-          // PAGAMENTO
-          // ==================================================
-
-          /*
-           * O teu frontend usa:
-           *
-           * pending
-           * paid
-           *
-           * Como o schema atual não tem pagamento parcial,
-           * não vamos inventar "partial" aqui.
-           */
+          notes: appointment.notes ?? "",
 
           payment: appointment.payment
             ? "paid"
@@ -173,48 +97,17 @@ export async function GET() {
           paymentId:
             appointment.payment?.id ?? null,
 
-          /*
-           * Valor do pagamento.
-           */
-
           paymentAmount,
 
-          /*
-           * Método:
-           *
-           * CASH
-           * CARD
-           * TRANSFER
-           * MOBILE_MONEY
-           */
-
           paymentMethod:
-            appointment.payment?.method ??
-            null,
-
-          /*
-           * Estado real do pagamento:
-           *
-           * PENDING
-           * PAID
-           * REFUNDED
-           */
+            appointment.payment?.method ?? null,
 
           paymentStatus:
-            appointment.payment?.status ??
-            null,
-
-          /*
-           * Data em que foi pago.
-           */
+            appointment.payment?.status ?? null,
 
           paidAt:
-            appointment.payment?.paidAt
-              ?.toISOString() ?? null,
-
-          // ==================================================
-          // DATAS DO REGISTO
-          // ==================================================
+            appointment.payment?.paidAt?.toISOString() ??
+            null,
 
           createdAt:
             appointment.createdAt.toISOString(),
@@ -234,6 +127,34 @@ export async function GET() {
       error,
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não tem permissão para acessar a agenda.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
@@ -250,42 +171,16 @@ export async function GET() {
 
 // ============================================================
 // POST - CRIAR AGENDAMENTO
+// OWNER + EMPLOYEE
 // ============================================================
 
 export async function POST(
   request: NextRequest,
 ) {
   try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    if (!user.businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    const user = await requireStaff();
 
     const body = await request.json();
-
-    // ========================================================
-    // CAMPOS
-    // ========================================================
 
     const clientId =
       typeof body.clientId === "string"
@@ -318,7 +213,7 @@ export async function POST(
         : null;
 
     // ========================================================
-    // VALIDAÇÃO
+    // VALIDAR CAMPOS
     // ========================================================
 
     if (
@@ -364,42 +259,17 @@ export async function POST(
     }
 
     // ========================================================
-    // BUSCAR CLIENTE / PROFISSIONAL / SERVIÇO
+    // BUSCAR CLIENTE
     // ========================================================
 
-    const [
-      client,
-      professional,
-      service,
-    ] = await Promise.all([
-      prisma.client.findFirst({
+    const client =
+      await prisma.client.findFirst({
         where: {
           id: clientId,
           businessId: user.businessId,
           active: true,
         },
-      }),
-
-      prisma.professional.findFirst({
-        where: {
-          id: professionalId,
-          businessId: user.businessId,
-          active: true,
-        },
-      }),
-
-      prisma.service.findFirst({
-        where: {
-          id: serviceId,
-          businessId: user.businessId,
-          active: true,
-        },
-      }),
-    ]);
-
-    // ========================================================
-    // VALIDAR CLIENTE
-    // ========================================================
+      });
 
     if (!client) {
       return NextResponse.json(
@@ -414,8 +284,17 @@ export async function POST(
     }
 
     // ========================================================
-    // VALIDAR PROFISSIONAL
+    // BUSCAR PROFISSIONAL
     // ========================================================
+
+    const professional =
+      await prisma.professional.findFirst({
+        where: {
+          id: professionalId,
+          businessId: user.businessId,
+          active: true,
+        },
+      });
 
     if (!professional) {
       return NextResponse.json(
@@ -430,8 +309,17 @@ export async function POST(
     }
 
     // ========================================================
-    // VALIDAR SERVIÇO
+    // BUSCAR SERVIÇO
     // ========================================================
+
+    const service =
+      await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          businessId: user.businessId,
+          active: true,
+        },
+      });
 
     if (!service) {
       return NextResponse.json(
@@ -458,8 +346,7 @@ export async function POST(
 
           notes: notes || null,
 
-          businessId:
-            user.businessId,
+          businessId: user.businessId,
 
           clientId,
 
@@ -470,11 +357,8 @@ export async function POST(
 
         include: {
           client: true,
-
           professional: true,
-
           service: true,
-
           payment: true,
         },
       });
@@ -497,25 +381,13 @@ export async function POST(
           "Agendamento criado com sucesso.",
 
         appointment: {
-          // ==================================================
-          // ID
-          // ==================================================
-
           id: appointment.id,
-
-          // ==================================================
-          // CLIENTE
-          // ==================================================
 
           client:
             appointment.client.name,
 
           clientId:
             appointment.client.id,
-
-          // ==================================================
-          // SERVIÇO
-          // ==================================================
 
           service:
             appointment.service.name,
@@ -525,19 +397,11 @@ export async function POST(
 
           price: servicePrice,
 
-          // ==================================================
-          // PROFISSIONAL
-          // ==================================================
-
           professional:
             appointment.professional.name,
 
           professionalId:
             appointment.professional.id,
-
-          // ==================================================
-          // DATA / HORA
-          // ==================================================
 
           date: appointment.date
             .toISOString()
@@ -547,23 +411,11 @@ export async function POST(
             .toISOString()
             .slice(11, 16),
 
-          // ==================================================
-          // STATUS
-          // ==================================================
-
           status:
             appointment.status.toLowerCase(),
 
-          // ==================================================
-          // OBSERVAÇÕES
-          // ==================================================
-
           notes:
             appointment.notes ?? "",
-
-          // ==================================================
-          // PAGAMENTO
-          // ==================================================
 
           payment: "pending",
 
@@ -576,10 +428,6 @@ export async function POST(
           paymentStatus: null,
 
           paidAt: null,
-
-          // ==================================================
-          // DATAS
-          // ==================================================
 
           createdAt:
             appointment.createdAt.toISOString(),
@@ -597,6 +445,35 @@ export async function POST(
       "POST /api/appointments:",
       error,
     );
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Não tem permissão para criar agendamentos.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
 
     return NextResponse.json(
       {

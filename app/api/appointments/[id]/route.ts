@@ -1,10 +1,11 @@
+
 import {
   NextRequest,
   NextResponse,
 } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireStaff, requireOwner } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -13,7 +14,8 @@ type RouteContext = {
 };
 
 // ============================================================
-// GET
+// GET - VER AGENDAMENTO
+// OWNER + EMPLOYEE
 // ============================================================
 
 export async function GET(
@@ -21,30 +23,7 @@ export async function GET(
   context: RouteContext,
 ) {
   try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    if (!user.businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    const user = await requireStaff();
 
     const { id } = await context.params;
 
@@ -66,8 +45,7 @@ export async function GET(
     if (!appointment) {
       return NextResponse.json(
         {
-          error:
-            "Agendamento não encontrado.",
+          error: "Agendamento não encontrado.",
         },
         {
           status: 404,
@@ -84,6 +62,35 @@ export async function GET(
       error,
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Não tem permissão para acessar este agendamento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
@@ -97,7 +104,8 @@ export async function GET(
 }
 
 // ============================================================
-// PUT - EDITAR
+// PUT - EDITAR AGENDAMENTO
+// OWNER + EMPLOYEE
 // ============================================================
 
 export async function PUT(
@@ -105,30 +113,7 @@ export async function PUT(
   context: RouteContext,
 ) {
   try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    if (!user.businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    const user = await requireStaff();
 
     const { id } = await context.params;
 
@@ -167,7 +152,9 @@ export async function PUT(
         {
           error:
             "Este agendamento já foi concluído através do pagamento e não pode mais ser editado.",
-          reason: "completed_not_editable",
+
+          reason:
+            "completed_not_editable",
         },
         {
           status: 409,
@@ -211,7 +198,7 @@ export async function PUT(
         : "";
 
     // ========================================================
-    // VALIDAR
+    // VALIDAR CAMPOS
     // ========================================================
 
     if (
@@ -244,8 +231,7 @@ export async function PUT(
     ) {
       return NextResponse.json(
         {
-          error:
-            "Status inválido.",
+          error: "Status inválido.",
         },
         {
           status: 400,
@@ -261,7 +247,11 @@ export async function PUT(
       `${date}T${time}:00`,
     );
 
-    if (Number.isNaN(appointmentDate.getTime())) {
+    if (
+      Number.isNaN(
+        appointmentDate.getTime(),
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -281,6 +271,7 @@ export async function PUT(
       await prisma.client.findFirst({
         where: {
           businessId: user.businessId,
+
           name: {
             equals: clientName,
             mode: "insensitive",
@@ -308,6 +299,7 @@ export async function PUT(
       await prisma.professional.findFirst({
         where: {
           businessId: user.businessId,
+
           name: {
             equals: professionalName,
             mode: "insensitive",
@@ -335,6 +327,7 @@ export async function PUT(
       await prisma.service.findFirst({
         where: {
           businessId: user.businessId,
+
           name: {
             equals: serviceName,
             mode: "insensitive",
@@ -420,13 +413,16 @@ export async function PUT(
         id: updated.id,
 
         client: updated.client.name,
+
         clientId: updated.client.id,
 
         service: updated.service.name,
+
         serviceId: updated.service.id,
 
         professional:
           updated.professional.name,
+
         professionalId:
           updated.professional.id,
 
@@ -473,6 +469,35 @@ export async function PUT(
       error,
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Não tem permissão para editar agendamentos.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
@@ -486,7 +511,8 @@ export async function PUT(
 }
 
 // ============================================================
-// DELETE
+// DELETE - EXCLUIR AGENDAMENTO
+// SOMENTE OWNER
 // ============================================================
 
 export async function DELETE(
@@ -494,30 +520,7 @@ export async function DELETE(
   context: RouteContext,
 ) {
   try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    if (!user.businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador não está associado a nenhum estabelecimento.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    const user = await requireOwner();
 
     const { id } = await context.params;
 
@@ -559,6 +562,35 @@ export async function DELETE(
       error,
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Somente o proprietário pode excluir agendamentos.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
@@ -570,3 +602,4 @@ export async function DELETE(
     );
   }
 }
+

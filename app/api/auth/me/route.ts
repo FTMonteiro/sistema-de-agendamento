@@ -6,6 +6,20 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
+    /*
+     * =====================================================
+     * UTILIZADOR AUTENTICADO
+     * =====================================================
+     *
+     * O getCurrentUser() já:
+     *
+     * - valida o cookie
+     * - valida o JWT
+     * - procura o utilizador no banco
+     * - retorna OWNER ou EMPLOYEE
+     *
+     */
+
     const user = await getCurrentUser();
 
     if (!user) {
@@ -21,7 +35,7 @@ export async function GET() {
 
     /*
      * =====================================================
-     * BUSCAR ESTABELECIMENTO DO UTILIZADOR
+     * BUSCAR ESTABELECIMENTO
      * =====================================================
      */
 
@@ -40,43 +54,149 @@ export async function GET() {
 
     /*
      * =====================================================
+     * BUSCAR PROFISSIONAL
+     * =====================================================
+     *
+     * Somente EMPLOYEE precisa de Professional.
+     *
+     * A ligação é:
+     *
+     * User.id
+     *      ↓
+     * Professional.userId
+     *
+     */
+
+    let professional = null;
+
+    if (user.role === "EMPLOYEE") {
+      professional =
+        await prisma.professional.findUnique({
+          where: {
+            userId: user.id,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            specialty: true,
+            active: true,
+            emailVerified: true,
+            businessId: true,
+            userId: true,
+          },
+        });
+
+      /*
+       * ===================================================
+       * VALIDAR VÍNCULO
+       * ===================================================
+       *
+       * O profissional precisa pertencer à mesma empresa
+       * do funcionário.
+       */
+
+      if (
+        professional &&
+        professional.businessId !==
+          user.businessId
+      ) {
+        console.error(
+          "❌ Profissional pertence a outra empresa:",
+          user.id,
+        );
+
+        professional = null;
+      }
+    }
+
+    /*
+     * =====================================================
      * RESPOSTA
      * =====================================================
      */
 
     return NextResponse.json(
       {
+        /*
+         * =================================================
+         * UTILIZADOR
+         * =================================================
+         */
+
         user: {
           id: user.id,
+
           name: user.name,
+
           email: user.email,
+
           role: user.role,
-          businessId: user.businessId,
+
+          businessId:
+            user.businessId,
 
           /*
-           * Logo do estabelecimento.
+           * OWNER
            *
-           * Assim o Header pode usar:
+           * O Header continua utilizando a logo
+           * do estabelecimento.
            *
-           * data.user.logo
+           * EMPLOYEE também pode visualizar a logo
+           * do estabelecimento no Header.
            */
-          logo: business?.logo ?? null,
 
-          /*
-           * Nome do estabelecimento.
-           */
+          logo:
+            business?.logo ??
+            null,
+
           businessName:
-            business?.name ?? null,
+            business?.name ??
+            null,
         },
+
+        /*
+         * =================================================
+         * ESTABELECIMENTO
+         * =================================================
+         *
+         * Continua disponível para o frontend.
+         *
+         * Porém, futuramente podemos limitar os dados
+         * enviados para EMPLOYEE se necessário.
+         */
 
         business: business
           ? {
               id: business.id,
+
               name: business.name,
-              logo: business.logo ?? null,
+
+              logo:
+                business.logo ??
+                null,
             }
           : null,
+
+        /*
+         * =================================================
+         * PROFISSIONAL
+         * =================================================
+         *
+         * OWNER:
+         *
+         * professional = null
+         *
+         * EMPLOYEE:
+         *
+         * professional = dados do profissional
+         */
+
+        professional,
       },
+
       {
         status: 200,
       },

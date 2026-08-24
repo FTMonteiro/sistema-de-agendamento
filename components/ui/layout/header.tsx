@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -29,7 +28,12 @@ interface CurrentUser {
   email: string;
   role: string;
   businessId: string;
+
+  // Logo do estabelecimento
   logo?: string | null;
+
+  // Foto do profissional/funcionário
+  avatar?: string | null;
 }
 
 const PAGES: Record<
@@ -69,7 +73,7 @@ const PAGES: Record<
 
 const FALLBACK = {
   title: "NEVRIX Flow",
-  subtitle: "Smart Business Manageme",
+  subtitle: "Smart Business Management",
 };
 
 export function Header({
@@ -98,10 +102,10 @@ export function Header({
     useRef<HTMLDivElement>(null);
 
   /*
-   * =====================================================
-   * CARREGAR UTILIZADOR
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | CARREGAR UTILIZADOR
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     async function loadUser() {
@@ -111,11 +115,14 @@ export function Header({
           {
             method: "GET",
             cache: "no-store",
+            credentials: "include",
           },
         );
 
         const contentType =
-          response.headers.get("content-type");
+          response.headers.get(
+            "content-type",
+          );
 
         if (
           !contentType?.includes(
@@ -137,7 +144,20 @@ export function Header({
           );
         }
 
-        setUser(data.user ?? null);
+        /*
+         * Esperamos:
+         *
+         * data.user
+         *
+         * e dentro dele:
+         *
+         * avatar = foto do profissional
+         * logo   = logo do estabelecimento
+         */
+
+        setUser(
+          data.user ?? null,
+        );
       } catch (error) {
         console.error(
           "Erro ao carregar utilizador:",
@@ -152,12 +172,25 @@ export function Header({
   }, []);
 
   /*
-   * =====================================================
-   * ATUALIZAR HEADER IMEDIATAMENTE
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | ATUALIZAR PERFIL NO HEADER
+  |--------------------------------------------------------------------------
+  |
+  | Existem dois eventos diferentes:
+  |
+  | business-profile-updated
+  | -> atualização do logo do estabelecimento
+  |
+  | employee-profile-updated
+  | -> atualização da foto do funcionário
+  |
+  */
 
   useEffect(() => {
+    /*
+     * LOGO DO ESTABELECIMENTO
+     */
+
     function handleBusinessUpdated(
       event: Event,
     ) {
@@ -177,10 +210,43 @@ export function Header({
 
         return {
           ...currentUser,
+
           logo:
-            detail.logo ??
-            currentUser.logo ??
-            null,
+            detail.logo ?? null,
+        };
+      });
+    }
+
+    /*
+     * FOTO DO FUNCIONÁRIO
+     */
+
+    function handleEmployeeUpdated(
+      event: Event,
+    ) {
+      const customEvent =
+        event as CustomEvent<{
+          avatar?: string | null;
+          name?: string;
+        }>;
+
+      const detail =
+        customEvent.detail;
+
+      setUser((currentUser) => {
+        if (!currentUser) {
+          return currentUser;
+        }
+
+        return {
+          ...currentUser,
+
+          avatar:
+            detail.avatar ?? null,
+
+          name:
+            detail.name ??
+            currentUser.name,
         };
       });
     }
@@ -190,19 +256,29 @@ export function Header({
       handleBusinessUpdated,
     );
 
+    window.addEventListener(
+      "employee-profile-updated",
+      handleEmployeeUpdated,
+    );
+
     return () => {
       window.removeEventListener(
         "business-profile-updated",
         handleBusinessUpdated,
       );
+
+      window.removeEventListener(
+        "employee-profile-updated",
+        handleEmployeeUpdated,
+      );
     };
   }, []);
 
   /*
-   * =====================================================
-   * FECHAR MENU AO CLICAR FORA
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | FECHAR MENU AO CLICAR FORA
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     function handleClickOutside(
@@ -232,10 +308,10 @@ export function Header({
   }, []);
 
   /*
-   * =====================================================
-   * FECHAR MODAL COM ESC
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | FECHAR MODAL COM ESC
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     function handleEscape(
@@ -262,50 +338,83 @@ export function Header({
         handleEscape,
       );
     };
-  }, [showLogoutModal, loggingOut]);
+  }, [
+    showLogoutModal,
+    loggingOut,
+  ]);
 
   /*
-   * =====================================================
-   * TÍTULO
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | TÍTULO DA PÁGINA
+  |--------------------------------------------------------------------------
+  */
 
   const page =
     PAGES[pathname] ??
     Object.entries(PAGES).find(
       ([href]) =>
-        pathname.startsWith(`${href}/`),
+        pathname.startsWith(
+          `${href}/`,
+        ),
     )?.[1] ??
     FALLBACK;
 
   /*
-   * =====================================================
-   * UTILIZADOR
-   * =====================================================
-   */
+  |--------------------------------------------------------------------------
+  | UTILIZADOR
+  |--------------------------------------------------------------------------
+  */
 
   const userName =
-    user?.name?.trim() || "Utilizador";
+    user?.name?.trim() ||
+    "Utilizador";
 
   const avatarLetter =
-    userName.charAt(0).toUpperCase();
+    userName
+      .charAt(0)
+      .toUpperCase();
 
   /*
- 
-   * CARGO
-  
-   */
+  |--------------------------------------------------------------------------
+  | FOTO QUE SERÁ MOSTRADA
+  |--------------------------------------------------------------------------
+  |
+  | Primeiro tenta a foto do profissional.
+  |
+  | Se não existir, usa o logo do estabelecimento.
+  |
+  */
 
-  function formatRole(role?: string) {
+  const profileImage =
+    user?.avatar ||
+    user?.logo ||
+    null;
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARGO
+  |--------------------------------------------------------------------------
+  */
+
+  function formatRole(
+    role?: string,
+  ) {
     if (!role) {
       return "Utilizador";
     }
 
-    switch (role.toUpperCase()) {
+    switch (
+      role.toUpperCase()
+    ) {
       case "ADMIN":
       case "ADMINISTRATOR":
       case "ADMINISTRADOR":
         return "Administrador";
+
+      case "OWNER":
+      case "PROPRIETARIO":
+      case "PROPRIETÁRIO":
+        return "Proprietário";
 
       case "MANAGER":
       case "GERENTE":
@@ -316,6 +425,7 @@ export function Header({
         return "Profissional";
 
       case "STAFF":
+      case "EMPLOYEE":
       case "FUNCIONARIO":
       case "FUNCIONÁRIO":
         return "Funcionário";
@@ -325,32 +435,47 @@ export function Header({
     }
   }
 
-  /* ABRIR MODAL DE LOGOUT*/
+  /*
+  |--------------------------------------------------------------------------
+  | ABRIR MODAL DE LOGOUT
+  |--------------------------------------------------------------------------
+  */
 
   function handleLogout() {
     setOpenProfile(false);
     setShowLogoutModal(true);
   }
 
-  /* CONFIRMAR LOGOUT*/
+  /*
+  |--------------------------------------------------------------------------
+  | CONFIRMAR LOGOUT
+  |--------------------------------------------------------------------------
+  */
 
   async function confirmLogout() {
     try {
       setLoggingOut(true);
 
-      const response = await fetch(
-        "/api/auth/logout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
+      const response =
+        await fetch(
+          "/api/auth/logout",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            credentials:
+              "include",
           },
-        },
-      );
+        );
 
       const contentType =
-        response.headers.get("content-type");
+        response.headers.get(
+          "content-type",
+        );
 
       if (
         !contentType?.includes(
@@ -372,7 +497,8 @@ export function Header({
         );
       }
 
-      window.location.href = "/login";
+      window.location.href =
+        "/login";
     } catch (error) {
       console.error(
         "Erro ao terminar sessão:",
@@ -389,14 +515,20 @@ export function Header({
     }
   }
 
-  /* RENDER*/
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <>
       <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
 
-          {/* ESQUERDA */}
+          {/* =========================================================
+              ESQUERDA
+          ========================================================= */}
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
 
@@ -421,11 +553,15 @@ export function Header({
             </div>
           </div>
 
-          {/* DIREITA */}
+          {/* =========================================================
+              DIREITA
+          ========================================================= */}
 
           <div className="flex items-center gap-1 sm:gap-2">
 
-            {/* TEMA */}
+            {/* =====================================================
+                TEMA
+            ===================================================== */}
 
             <button
               type="button"
@@ -444,13 +580,17 @@ export function Header({
               )}
             </button>
 
-            {/* NOTIFICAÇÕES */}
+            {/* =====================================================
+                NOTIFICAÇÕES
+            ===================================================== */}
 
             <NotificationsBell />
 
             <div className="mx-1 hidden h-8 w-px bg-[var(--border)] sm:block" />
 
-            {/* UTILIZADOR */}
+            {/* =====================================================
+                UTILIZADOR
+            ===================================================== */}
 
             <div
               ref={profileRef}
@@ -458,6 +598,7 @@ export function Header({
             >
               {loadingUser ? (
                 <div className="flex items-center gap-2 p-1.5">
+
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100">
                     <Loader2
                       size={17}
@@ -470,25 +611,33 @@ export function Header({
 
                     <div className="mt-1.5 h-2.5 w-14 animate-pulse rounded bg-gray-100" />
                   </div>
+
                 </div>
               ) : (
                 <>
+                  {/* =================================================
+                      BOTÃO DO PERFIL
+                  ================================================= */}
+
                   <button
                     type="button"
                     onClick={() =>
                       setOpenProfile(
-                        (value) => !value,
+                        (value) =>
+                          !value,
                       )
                     }
-                    aria-expanded={openProfile}
+                    aria-expanded={
+                      openProfile
+                    }
                     className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-secondary)]"
                   >
 
-                    {/* AVATAR / LOGO */}
+                    {/* AVATAR */}
 
-                    {user?.logo ? (
+                    {profileImage ? (
                       <img
-                        src={user.logo}
+                        src={profileImage}
                         alt={`Foto de ${userName}`}
                         className="h-9 w-9 shrink-0 rounded-full object-cover shadow-sm"
                       />
@@ -501,13 +650,17 @@ export function Header({
                     {/* NOME E CARGO */}
 
                     <div className="hidden text-left sm:block">
+
                       <p className="max-w-[140px] truncate text-sm font-semibold leading-4 text-[var(--foreground)]">
                         {userName}
                       </p>
 
                       <p className="mt-1 text-xs leading-3 text-[var(--muted)]">
-                        {formatRole(user?.role)}
+                        {formatRole(
+                          user?.role,
+                        )}
                       </p>
+
                     </div>
 
                     <ChevronDown
@@ -518,55 +671,84 @@ export function Header({
                           : ""
                       }`}
                     />
+
                   </button>
 
-                  {/* DROPDOWN */}
+                  {/* =================================================
+                      DROPDOWN
+                  ================================================= */}
 
                   {openProfile && (
                     <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
 
-                      {/* PERFIL */}
+                      {/* =============================================
+                          PERFIL
+                      ============================================= */}
 
                       <div className="border-b border-[var(--border)] p-4">
+
                         <div className="flex items-center gap-3">
 
-                          {user?.logo ? (
+                          {/* FOTO */}
+
+                          {profileImage ? (
                             <img
-                              src={user.logo}
+                              src={
+                                profileImage
+                              }
                               alt={`Foto de ${userName}`}
                               className="h-11 w-11 shrink-0 rounded-full object-cover"
                             />
                           ) : (
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                              {avatarLetter}
+                              {
+                                avatarLetter
+                              }
                             </div>
                           )}
 
+                          {/* INFORMAÇÕES */}
+
                           <div className="min-w-0">
+
                             <p className="truncate text-sm font-semibold text-[var(--foreground)]">
-                              {userName}
+                              {
+                                userName
+                              }
                             </p>
 
                             <p className="truncate text-xs text-[var(--muted)]">
-                              {user?.email || ""}
+                              {
+                                user?.email ||
+                                ""
+                              }
                             </p>
 
                             <p className="mt-1 text-xs font-medium text-blue-600">
-                              {formatRole(user?.role)}
+                              {formatRole(
+                                user?.role,
+                              )}
                             </p>
+
                           </div>
 
                         </div>
                       </div>
 
-                      {/* OPÇÕES */}
+                      {/* =============================================
+                          OPÇÕES
+                      ============================================= */}
 
                       <div className="p-2">
+
+                        {/* CONFIGURAÇÕES */}
 
                         <button
                           type="button"
                           onClick={() => {
-                            setOpenProfile(false);
+                            setOpenProfile(
+                              false,
+                            );
 
                             window.location.href =
                               "/configuracoes";
@@ -581,10 +763,14 @@ export function Header({
                           Configurações
                         </button>
 
+                        {/* MEU PERFIL */}
+
                         <button
                           type="button"
                           onClick={() => {
-                            setOpenProfile(false);
+                            setOpenProfile(
+                              false,
+                            );
 
                             window.location.href =
                               "/configuracoes";
@@ -598,22 +784,34 @@ export function Header({
 
                           Meu perfil
                         </button>
+
                       </div>
 
-                      {/* LOGOUT */}
+                      {/* =============================================
+                          LOGOUT
+                      ============================================= */}
 
                       <div className="border-t border-[var(--border)] p-2">
+
                         <button
                           type="button"
-                          onClick={handleLogout}
-                          disabled={loggingOut}
+                          onClick={
+                            handleLogout
+                          }
+                          disabled={
+                            loggingOut
+                          }
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <LogOut size={18} />
+                          <LogOut
+                            size={18}
+                          />
 
                           Terminar sessão
                         </button>
+
                       </div>
+
                     </div>
                   )}
                 </>
@@ -623,17 +821,24 @@ export function Header({
         </div>
       </header>
 
-      {/*MODAL DE CONFIRMAÇÃO DE LOGOUT */}
+      {/* ===========================================================
+          MODAL DE LOGOUT
+      =========================================================== */}
 
       {showLogoutModal && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
-          onMouseDown={(event) => {
+          onMouseDown={(
+            event,
+          ) => {
             if (
-              event.target === event.currentTarget &&
+              event.target ===
+                event.currentTarget &&
               !loggingOut
             ) {
-              setShowLogoutModal(false);
+              setShowLogoutModal(
+                false,
+              );
             }
           }}
         >
@@ -647,13 +852,17 @@ export function Header({
             {/* HEADER DA MODAL */}
 
             <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
+
               <div className="flex items-center gap-3">
 
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
-                  <AlertTriangle size={21} />
+                  <AlertTriangle
+                    size={21}
+                  />
                 </div>
 
                 <div>
+
                   <h2
                     id="logout-title"
                     className="text-base font-semibold text-[var(--foreground)]"
@@ -664,35 +873,45 @@ export function Header({
                   <p className="text-xs text-[var(--muted)]">
                     Confirmação necessária
                   </p>
+
                 </div>
+
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowLogoutModal(false)
+                  setShowLogoutModal(
+                    false,
+                  )
                 }
-                disabled={loggingOut}
+                disabled={
+                  loggingOut
+                }
                 aria-label="Fechar"
                 className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:opacity-50"
               >
                 <X size={19} />
               </button>
+
             </div>
 
             {/* CONTEÚDO */}
 
             <div className="px-6 py-6">
+
               <p className="text-sm leading-6 text-[var(--muted)]">
                 Tem a certeza de que deseja
                 terminar a sessão?
               </p>
 
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                Será necessário iniciar sessão
-                novamente para voltar a utilizar
-                o sistema.
+                Será necessário iniciar
+                sessão novamente para
+                voltar a utilizar o
+                sistema.
               </p>
+
             </div>
 
             {/* BOTÕES */}
@@ -702,9 +921,13 @@ export function Header({
               <button
                 type="button"
                 onClick={() =>
-                  setShowLogoutModal(false)
+                  setShowLogoutModal(
+                    false,
+                  )
                 }
-                disabled={loggingOut}
+                disabled={
+                  loggingOut
+                }
                 className="w-full rounded-xl border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Cancelar
@@ -712,8 +935,12 @@ export function Header({
 
               <button
                 type="button"
-                onClick={confirmLogout}
-                disabled={loggingOut}
+                onClick={
+                  confirmLogout
+                }
+                disabled={
+                  loggingOut
+                }
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {loggingOut ? (
@@ -727,12 +954,15 @@ export function Header({
                   </>
                 ) : (
                   <>
-                    <LogOut size={17} />
+                    <LogOut
+                      size={17}
+                    />
 
                     Terminar sessão
                   </>
                 )}
               </button>
+
             </div>
           </div>
         </div>
@@ -740,4 +970,3 @@ export function Header({
     </>
   );
 }
-

@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -16,7 +17,22 @@ type PaymentMethod = (typeof ALLOWED_METHODS)[number];
 |--------------------------------------------------------------------------
 | GET
 |--------------------------------------------------------------------------
-| Lista apenas agendamentos CONFIRMADOS e ainda sem pagamento.
+| Lista os agendamentos CONFIRMADOS que ainda não foram pagos.
+|
+| IMPORTANTE:
+| Um agendamento ainda NÃO é uma visita.
+|
+| A visita só será criada no POST, quando:
+|
+| CONFIRMED
+|    ↓
+| pagamento
+|    ↓
+| PAID
+|    ↓
+| Visit criada
+|    ↓
+| COMPLETED
 |--------------------------------------------------------------------------
 */
 
@@ -47,74 +63,97 @@ export async function GET() {
       );
     }
 
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        businessId: user.businessId,
-
-        status: "CONFIRMED",
-
-        payment: null,
-      },
-
-      orderBy: {
-        date: "asc",
-      },
-
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-          },
+    const appointments =
+      await prisma.appointment.findMany({
+        where: {
+          businessId: user.businessId,
+          status: "CONFIRMED",
+          payment: null,
         },
 
-        professional: {
-          select: {
-            id: true,
-            name: true,
-          },
+        orderBy: {
+          date: "asc",
         },
 
-        service: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            duration: true,
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+
+          professional: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+
+          service: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              duration: true,
+            },
           },
         },
-
-        payment: true,
-      },
-    });
+      });
 
     return NextResponse.json({
-      appointments: appointments.map((appointment) => ({
-        id: appointment.id,
+      appointments: appointments.map(
+        (appointment) => ({
+          id: appointment.id,
 
-        clientId: appointment.client.id,
-        client: appointment.client.name,
+          clientId:
+            appointment.client.id,
 
-        professionalId: appointment.professional.id,
-        professional: appointment.professional.name,
+          client:
+            appointment.client.name,
 
-        serviceId: appointment.service.id,
-        service: appointment.service.name,
+          phone:
+            appointment.client.phone,
 
-        date: appointment.date.toISOString().slice(0, 10),
+          professionalId:
+            appointment.professional.id,
 
-        time: appointment.date.toISOString().slice(11, 16),
+          professional:
+            appointment.professional.name,
 
-        price: Number(appointment.service.price),
+          serviceId:
+            appointment.service.id,
 
-        payment: "pending",
+          service:
+            appointment.service.name,
 
-        paidAmount: 0,
+          date:
+            appointment.date
+              .toISOString()
+              .slice(0, 10),
 
-        status: appointment.status.toLowerCase(),
+          time:
+            appointment.date
+              .toISOString()
+              .slice(11, 16),
 
-        notes: appointment.notes ?? null,
-      })),
+          price:
+            Number(
+              appointment.service.price,
+            ),
+
+          payment: "pending",
+
+          paidAmount: 0,
+
+          status:
+            appointment.status.toLowerCase(),
+
+          notes:
+            appointment.notes ?? null,
+        }),
+      ),
     });
   } catch (error) {
     console.error(
@@ -140,17 +179,23 @@ export async function GET() {
 |--------------------------------------------------------------------------
 | POST
 |--------------------------------------------------------------------------
-| Receber pagamento.
+| REGISTRAR PAGAMENTO + REGISTRAR VISITA
+|--------------------------------------------------------------------------
 |
-| CONFIRMED
-|     ↓
-| Payment PAID
-|     ↓
-| Appointment COMPLETED
+| Quando o cliente chega ao estabelecimento e paga:
+|
+| 1. Cria Payment
+| 2. Cria Visit
+| 3. Marca Appointment como COMPLETED
+|
+| Tudo dentro de uma transaction.
+|
 |--------------------------------------------------------------------------
 */
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+) {
   try {
     const user = await getCurrentUser();
 
@@ -195,7 +240,8 @@ export async function POST(request: NextRequest) {
     if (!appointmentId) {
       return NextResponse.json(
         {
-          error: "O agendamento é obrigatório.",
+          error:
+            "O agendamento é obrigatório.",
         },
         {
           status: 400,
@@ -205,14 +251,19 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDAR MÉTODO
+    | VALIDAR MÉTODO DE PAGAMENTO
     |--------------------------------------------------------------------------
     */
 
-    if (!ALLOWED_METHODS.includes(method as PaymentMethod)) {
+    if (
+      !ALLOWED_METHODS.includes(
+        method as PaymentMethod,
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Método de pagamento inválido.",
+          error:
+            "Método de pagamento inválido.",
         },
         {
           status: 400,
@@ -226,25 +277,33 @@ export async function POST(request: NextRequest) {
     |--------------------------------------------------------------------------
     */
 
-    const appointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
+    const appointment =
+      await prisma.appointment.findFirst({
+        where: {
+          id: appointmentId,
 
-        businessId: user.businessId,
-      },
+          businessId:
+            user.businessId,
+        },
 
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-        payment: true,
-      },
-    });
+        include: {
+          client: true,
+
+          professional: true,
+
+          service: true,
+
+          payment: true,
+
+          visit: true,
+        },
+      });
 
     if (!appointment) {
       return NextResponse.json(
         {
-          error: "Agendamento não encontrado.",
+          error:
+            "Agendamento não encontrado.",
         },
         {
           status: 404,
@@ -259,12 +318,16 @@ export async function POST(request: NextRequest) {
     */
 
     if (appointment.payment) {
-      if (appointment.payment.status === "PAID") {
+      if (
+        appointment.payment.status ===
+        "PAID"
+      ) {
         return NextResponse.json(
           {
             error:
-              "Este agendamento já foi pago e está concluído.",
-            reason: "already_paid",
+              "Este agendamento já foi pago.",
+            reason:
+              "already_paid",
           },
           {
             status: 409,
@@ -276,6 +339,8 @@ export async function POST(request: NextRequest) {
         {
           error:
             "Este agendamento já possui um pagamento.",
+          reason:
+            "payment_exists",
         },
         {
           status: 409,
@@ -285,32 +350,71 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDAR STATUS DO AGENDAMENTO
+    | VISITA JÁ EXISTE
     |--------------------------------------------------------------------------
     */
 
-    if (appointment.status !== "CONFIRMED") {
+    if (appointment.visit) {
+      return NextResponse.json(
+        {
+          error:
+            "A visita deste agendamento já foi contabilizada.",
+          reason:
+            "already_visited",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR STATUS
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      appointment.status !==
+      "CONFIRMED"
+    ) {
       let error =
         "Confirme o agendamento antes de receber o pagamento.";
 
-      let reason = "not_confirmed";
+      let reason =
+        "not_confirmed";
 
-      if (appointment.status === "COMPLETED") {
+      if (
+        appointment.status ===
+        "COMPLETED"
+      ) {
         error =
           "Este agendamento já está concluído.";
-        reason = "already_completed";
+
+        reason =
+          "already_completed";
       }
 
-      if (appointment.status === "CANCELLED") {
+      if (
+        appointment.status ===
+        "CANCELLED"
+      ) {
         error =
           "Este agendamento está cancelado.";
-        reason = "cancelled";
+
+        reason =
+          "cancelled";
       }
 
-      if (appointment.status === "NO_SHOW") {
+      if (
+        appointment.status ===
+        "NO_SHOW"
+      ) {
         error =
           "Este cliente foi marcado como não compareceu.";
-        reason = "no_show";
+
+        reason =
+          "no_show";
       }
 
       return NextResponse.json(
@@ -326,7 +430,7 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | VALOR DO SERVIÇO
+    | VALIDAR PREÇO
     |--------------------------------------------------------------------------
     */
 
@@ -334,14 +438,18 @@ export async function POST(request: NextRequest) {
       appointment.service.price,
     );
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
       return NextResponse.json(
         {
           error:
             `O serviço "${appointment.service.name}" está sem preço. ` +
             "Defina o preço em Serviços para poder receber o pagamento.",
 
-          reason: "service_without_price",
+          reason:
+            "service_without_price",
         },
         {
           status: 409,
@@ -351,53 +459,117 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | PAGAMENTO + CONCLUSÃO
+    | PAGAMENTO + VISITA + CONCLUSÃO
     |--------------------------------------------------------------------------
-    |
-    | As duas operações acontecem dentro da mesma transaction.
-    |
-    | Se uma falhar, nenhuma das duas é gravada.
-    |
     */
 
-    const result = await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
-        data: {
-          amount,
+    const result =
+      await prisma.$transaction(
+        async (tx) => {
+          /*
+          |--------------------------------------------------------------------------
+          | 1. CRIAR PAGAMENTO
+          |--------------------------------------------------------------------------
+          */
 
-          method: method as PaymentMethod,
+          const payment =
+            await tx.payment.create({
+              data: {
+                amount,
 
-          status: "PAID",
+                method:
+                  method as PaymentMethod,
 
-          paidAt: new Date(),
+                status:
+                  "PAID",
 
-          appointmentId: appointment.id,
+                paidAt:
+                  new Date(),
+
+                appointmentId:
+                  appointment.id,
+              },
+            });
+
+          /*
+          |--------------------------------------------------------------------------
+          | 2. CRIAR VISITA
+          |--------------------------------------------------------------------------
+          |
+          | A visita só nasce aqui.
+          |
+          | Portanto:
+          |
+          | Criar agendamento = 0 visitas
+          |
+          | Confirmar agendamento = 0 visitas
+          |
+          | Cliente cancelar = 0 visitas
+          |
+          | Cliente não aparecer = 0 visitas
+          |
+          | Cliente pagar = +1 visita
+          |
+          */
+
+          const visit =
+            await tx.visit.create({
+              data: {
+                clientId:
+                  appointment.client.id,
+
+                appointmentId:
+                  appointment.id,
+
+                paymentId:
+                  payment.id,
+
+                visitedAt:
+                  new Date(),
+              },
+            });
+
+          /*
+          |--------------------------------------------------------------------------
+          | 3. MARCAR AGENDAMENTO COMO COMPLETED
+          |--------------------------------------------------------------------------
+          */
+
+          const updatedAppointment =
+            await tx.appointment.update({
+              where: {
+                id:
+                  appointment.id,
+              },
+
+              data: {
+                status:
+                  "COMPLETED",
+              },
+
+              include: {
+                client: true,
+
+                professional: true,
+
+                service: true,
+
+                payment: true,
+
+                visit: true,
+              },
+            });
+
+          return {
+            payment,
+
+            visit,
+
+            appointment:
+              updatedAppointment,
+          };
         },
-      });
-
-      const updatedAppointment =
-        await tx.appointment.update({
-          where: {
-            id: appointment.id,
-          },
-
-          data: {
-            status: "COMPLETED",
-          },
-
-          include: {
-            client: true,
-            professional: true,
-            service: true,
-            payment: true,
-          },
-        });
-
-      return {
-        payment,
-        appointment: updatedAppointment,
-      };
-    });
+      );
 
     /*
     |--------------------------------------------------------------------------
@@ -408,14 +580,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message:
-          "Pagamento registrado com sucesso.",
+          "Pagamento registrado e visita contabilizada com sucesso.",
 
         payment: {
-          id: result.payment.id,
+          id:
+            result.payment.id,
 
-          amount: Number(
-            result.payment.amount,
-          ),
+          amount:
+            Number(
+              result.payment.amount,
+            ),
 
           method:
             result.payment.method,
@@ -424,33 +598,61 @@ export async function POST(request: NextRequest) {
             result.payment.status,
 
           paidAt:
-            result.payment.paidAt?.toISOString() ??
+            result.payment.paidAt
+              ?.toISOString() ??
             null,
 
           appointmentId:
-            result.payment.appointmentId,
+            result.payment
+              .appointmentId,
+        },
+
+        visit: {
+          id:
+            result.visit.id,
+
+          clientId:
+            result.visit.clientId,
+
+          appointmentId:
+            result.visit
+              .appointmentId,
+
+          paymentId:
+            result.visit.paymentId,
+
+          visitedAt:
+            result.visit.visitedAt
+              .toISOString(),
         },
 
         appointment: {
-          id: result.appointment.id,
+          id:
+            result.appointment.id,
 
           clientId:
-            result.appointment.client.id,
+            result.appointment
+              .client.id,
 
           client:
-            result.appointment.client.name,
+            result.appointment
+              .client.name,
 
           serviceId:
-            result.appointment.service.id,
+            result.appointment
+              .service.id,
 
           service:
-            result.appointment.service.name,
+            result.appointment
+              .service.name,
 
           professionalId:
-            result.appointment.professional.id,
+            result.appointment
+              .professional.id,
 
           professional:
-            result.appointment.professional.name,
+            result.appointment
+              .professional.name,
 
           date:
             result.appointment.date
@@ -462,21 +664,46 @@ export async function POST(request: NextRequest) {
               .toISOString()
               .slice(11, 16),
 
-          price: Number(
-            result.appointment.service.price,
-          ),
+          price:
+            Number(
+              result.appointment
+                .service.price,
+            ),
 
-          payment: "paid",
+          payment:
+            "paid",
 
-          paidAmount: Number(
-            result.payment.amount,
-          ),
+          paidAmount:
+            Number(
+              result.payment.amount,
+            ),
+
+          paymentMethod:
+            result.payment.method,
+
+          paymentStatus:
+            result.payment.status,
+
+          paidAt:
+            result.payment.paidAt
+              ?.toISOString() ??
+            null,
+
+          visitId:
+            result.visit.id,
+
+          visitedAt:
+            result.visit.visitedAt
+              .toISOString(),
 
           status:
-            result.appointment.status.toLowerCase(),
+            result.appointment
+              .status
+              .toLowerCase(),
 
           notes:
-            result.appointment.notes ?? null,
+            result.appointment.notes ??
+            null,
         },
       },
       {
@@ -502,3 +729,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

@@ -1,11 +1,9 @@
 
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -13,49 +11,64 @@ type RouteContext = {
   }>;
 };
 
-// ============================================================
-// GET
-// ============================================================
 
-export async function GET(
-  _request: NextRequest,
+export async function POST(
+  request: NextRequest,
   context: RouteContext,
 ) {
   try {
+    // ============================================================
+    // SOMENTE OWNER
+    // ============================================================
+
+    const user = await requireOwner();
+
     const { id } = await context.params;
 
-    const user = await getCurrentUser();
+    // ============================================================
+    // BODY
+    // ============================================================
 
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+    const body = await request.json();
 
-    const businessId = user.businessId;
+    const password =
+      typeof body.password === "string"
+        ? body.password
+        : "";
 
-    if (!businessId) {
+    // ============================================================
+    // VALIDAR PASSWORD
+    // ============================================================
+
+    if (!password) {
       return NextResponse.json(
         {
           error:
-            "O utilizador autenticado não possui um estabelecimento.",
+            "A palavra-passe é obrigatória.",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
+
+    if (password.length < 8) {
+      return NextResponse.json(
+        {
+          error:
+            "A palavra-passe deve ter pelo menos 8 caracteres.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // ============================================================
+    // BUSCAR PROFISSIONAL
+    // ============================================================
 
     const professional =
       await prisma.professional.findFirst({
         where: {
           id,
-          businessId,
+          businessId: user.businessId,
         },
       });
 
@@ -65,434 +78,183 @@ export async function GET(
           error:
             "Profissional não encontrado.",
         },
-        {
-          status: 404,
-        },
+        { status: 404 },
       );
     }
 
-    return NextResponse.json(
-      professional,
-    );
-  } catch (error) {
-    console.error(
-      "Erro ao buscar profissional:",
-      error,
-    );
+    // ============================================================
+    // EMAIL É NECESSÁRIO PARA LOGIN
+    // ============================================================
 
-    return NextResponse.json(
-      {
-        error:
-          "Erro ao buscar profissional.",
-      },
-      {
-        status: 500,
-      },
-    );
-  }
-}
-
-// ============================================================
-// PUT - EDITAR
-// ============================================================
-
-export async function PUT(
-  request: NextRequest,
-  context: RouteContext,
-) {
-  try {
-    const { id } = await context.params;
-
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    const businessId = user.businessId;
-
-    if (!businessId) {
+    if (!professional.email) {
       return NextResponse.json(
         {
           error:
-            "O utilizador autenticado não possui um estabelecimento.",
+            "Este profissional não possui email. Adicione um email antes de criar o acesso.",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
-
-    const body = await request.json();
-
-    const name =
-      typeof body.name === "string"
-        ? body.name.trim()
-        : "";
 
     const email =
-      typeof body.email === "string"
-        ? body.email.trim().toLowerCase()
-        : "";
+      professional.email
+        .trim()
+        .toLowerCase();
 
-    const phone =
-      typeof body.phone === "string"
-        ? body.phone.trim()
-        : "";
+    // ============================================================
+    // VERIFICAR SE JÁ POSSUI ACESSO
+    // ============================================================
 
-    const specialty =
-      typeof body.specialty === "string"
-        ? body.specialty.trim()
-        : "";
-
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !specialty
-    ) {
+    if (professional.userId) {
       return NextResponse.json(
         {
           error:
-            "Todos os campos são obrigatórios.",
+            "Este profissional já possui acesso ao sistema.",
         },
-        {
-          status: 400,
-        },
+        { status: 409 },
       );
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // ============================================================
+    // VERIFICAR SE O EMAIL JÁ É UTILIZADO
+    // ============================================================
 
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        {
-          error:
-            "Digite um email válido.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    // IMPORTANTE:
-    // O ID só é aceito se pertencer ao business
-    // do utilizador autenticado.
-
-    const existing =
-      await prisma.professional.findFirst({
+    const existingUser =
+      await prisma.user.findUnique({
         where: {
-          id,
-          businessId,
-        },
-      });
-
-    if (!existing) {
-      return NextResponse.json(
-        {
-          error:
-            "Profissional não encontrado.",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    if (email !== existing.email) {
-      const emailUsed =
-        await prisma.professional.findFirst({
-          where: {
-            email,
-            businessId,
-            NOT: {
-              id,
-            },
-          },
-        });
-
-      if (emailUsed) {
-        return NextResponse.json(
-          {
-            error:
-              "Este email já está sendo usado.",
-          },
-          {
-            status: 409,
-          },
-        );
-      }
-    }
-
-    const emailChanged =
-      email !== existing.email;
-
-    const updated =
-      await prisma.professional.update({
-        where: {
-          id,
-        },
-        data: {
-          name,
           email,
-          phone,
-          specialty,
-
-          ...(emailChanged && {
-            emailVerified: false,
-            emailVerificationToken: null,
-            emailVerificationExpires: null,
-          }),
         },
       });
 
-    return NextResponse.json(
-      updated,
-    );
-  } catch (error) {
-    console.error(
-      "Erro ao editar profissional:",
-      error,
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          "Não foi possível editar o profissional.",
-      },
-      {
-        status: 500,
-      },
-    );
-  }
-}
-
-// ============================================================
-// PATCH - ATIVAR / DESATIVAR
-// ============================================================
-
-export async function PATCH(
-  request: NextRequest,
-  context: RouteContext,
-) {
-  try {
-    const { id } = await context.params;
-
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    const businessId = user.businessId;
-
-    if (!businessId) {
+    if (existingUser) {
       return NextResponse.json(
         {
           error:
-            "O utilizador autenticado não possui um estabelecimento.",
+            "Este email já está associado a uma conta no sistema.",
         },
-        {
-          status: 400,
-        },
+        { status: 409 },
       );
     }
 
-    const body = await request.json();
+    // ============================================================
+    // CRIAR HASH
+    // ============================================================
+
+    const hashedPassword =
+      await bcrypt.hash(
+        password,
+        12,
+      );
+
+    // ============================================================
+    // CRIAR USER + VINCULAR AO PROFISSIONAL
+    // ============================================================
+
+    const result =
+      await prisma.$transaction(
+        async (transaction) => {
+          const employee =
+            await transaction.user.create({
+              data: {
+                name: professional.name,
+                email,
+                password: hashedPassword,
+                role: "EMPLOYEE",
+                businessId:
+                  user.businessId,
+              },
+            });
+
+          const updatedProfessional =
+            await transaction.professional.update({
+              where: {
+                id: professional.id,
+              },
+              data: {
+                userId: employee.id,
+              },
+            });
+
+          return {
+            employee,
+            updatedProfessional,
+          };
+        },
+      );
+
+    // ============================================================
+    // RESPOSTA
+    // ============================================================
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        message:
+          "Acesso ao sistema criado com sucesso.",
+
+        employee: {
+          id: result.employee.id,
+          name: result.employee.name,
+          email: result.employee.email,
+          role: result.employee.role,
+        },
+
+        professional: {
+          id:
+            result.updatedProfessional.id,
+          userId:
+            result.updatedProfessional.userId,
+        },
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error(
+      "Erro ao criar acesso do profissional:",
+      error,
+    );
+
+    // ============================================================
+    // NÃO AUTENTICADO
+    // ============================================================
 
     if (
-      typeof body.active !== "boolean"
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
     ) {
       return NextResponse.json(
         {
           error:
-            "O campo active deve ser booleano.",
+            "Não autenticado.",
         },
-        {
-          status: 400,
-        },
+        { status: 401 },
       );
     }
 
-    const existing =
-      await prisma.professional.findFirst({
-        where: {
-          id,
-          businessId,
-        },
-      });
+    // ============================================================
+    // NÃO É OWNER
+    // ============================================================
 
-    if (!existing) {
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
       return NextResponse.json(
         {
           error:
-            "Profissional não encontrado.",
+            "Apenas o proprietário pode criar acessos para funcionários.",
         },
-        {
-          status: 404,
-        },
+        { status: 403 },
       );
     }
-
-    const updated =
-      await prisma.professional.update({
-        where: {
-          id,
-        },
-        data: {
-          active: body.active,
-        },
-      });
-
-    return NextResponse.json(
-      updated,
-    );
-  } catch (error) {
-    console.error(
-      "Erro ao alterar estado:",
-      error,
-    );
 
     return NextResponse.json(
       {
         error:
-          "Não foi possível alterar o estado.",
+          "Não foi possível criar o acesso do funcionário.",
       },
-      {
-        status: 500,
-      },
-    );
-  }
-}
-
-// ============================================================
-// DELETE - EXCLUIR
-// ============================================================
-
-export async function DELETE(
-  _request: NextRequest,
-  context: RouteContext,
-) {
-  try {
-    const { id } = await context.params;
-
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "Não autenticado.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    const businessId = user.businessId;
-
-    if (!businessId) {
-      return NextResponse.json(
-        {
-          error:
-            "O utilizador autenticado não possui um estabelecimento.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const existing =
-      await prisma.professional.findFirst({
-        where: {
-          id,
-          businessId,
-        },
-      });
-
-    if (!existing) {
-      return NextResponse.json(
-        {
-          error:
-            "Profissional não encontrado.",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    const appointments =
-      await prisma.appointment.count({
-        where: {
-          professionalId: id,
-        },
-      });
-
-    if (appointments > 0) {
-      const registros =
-        appointments === 1
-          ? "1 agendamento registrado"
-          : `${appointments} agendamentos registrados`;
-
-      return NextResponse.json(
-        {
-          error:
-            `Não é possível excluir ${existing.name}: há ${registros}, e a exclusão apagaria esse histórico. Use "Desativar".`,
-
-          reason:
-            "has_appointments",
-
-          appointments,
-        },
-        {
-          status: 409,
-        },
-      );
-    }
-
-    await prisma.professional.delete({
-      where: {
-        id,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message:
-        "Profissional excluído com sucesso.",
-    });
-  } catch (error) {
-    console.error(
-      "Erro ao excluir profissional:",
-      error,
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          "Não foi possível excluir o profissional.",
-      },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }
