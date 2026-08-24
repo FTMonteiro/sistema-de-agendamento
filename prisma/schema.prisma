@@ -8,30 +8,30 @@ datasource db {
 }
 
 model Business {
-  id            String         @id @default(cuid())
-  name          String
-  email         String?
-  phone         String?
-  address       String?
-  logo          String?
+  id      String  @id @default(cuid())
+  name    String
+  email   String?
+  phone   String?
+  address String?
+  logo    String?
 
   // Horário de funcionamento. Guardado como "HH:MM" para casar directamente
   // com o input type="time" do formulário, sem conversão de fuso.
-  openingTime   String?
-  closingTime   String?
+  openingTime String?
+  closingTime String?
 
   // Dias da semana em que abre, no formato do getDay() do JavaScript:
   // 0 = domingo ... 6 = sábado.
-  workingDays   Int[]          @default([1, 2, 3, 4, 5, 6])
+  workingDays Int[] @default([1, 2, 3, 4, 5, 6])
 
   // Duração mínima de um intervalo de agendamento, em minutos.
-  slotInterval  Int            @default(30)
+  slotInterval Int @default(30)
 
   // Regras livres do estabelecimento (política de cancelamento, atrasos...).
-  rules         String?
+  rules String?
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   appointments  Appointment[]
   clients       Client[]
@@ -41,13 +41,17 @@ model Business {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  name       String
-  email      String   @unique
-  password   String
-  role       UserRole @default(STAFF)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  password String?
+  googleId String? @unique
+
+  role UserRole @default(STAFF)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   businessId String
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -61,7 +65,7 @@ model Professional {
   specialty String?
   active    Boolean @default(true)
 
-  emailVerified            Boolean  @default(false)
+  emailVerified            Boolean   @default(false)
   emailVerificationToken   String?
   emailVerificationExpires DateTime?
 
@@ -107,12 +111,12 @@ model Service {
 }
 
 model Appointment {
-  id             String            @id @default(cuid())
-  date           DateTime
-  status         AppointmentStatus @default(PENDING)
-  notes          String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id        String            @id @default(cuid())
+  date      DateTime
+  status    AppointmentStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 
   businessId     String
   clientId       String
@@ -128,13 +132,13 @@ model Appointment {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  amount        Decimal       @db.Decimal(10, 2)
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   appointmentId String @unique
 

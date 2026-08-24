@@ -1,6 +1,6 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -27,34 +27,40 @@ export async function POST(request: NextRequest) {
         ? body.password
         : "";
 
-    // ==============================
+    // ============================================================
     // VALIDAÇÕES
-    // ==============================
+    // ============================================================
 
     if (!name) {
       return NextResponse.json(
         {
+          success: false,
           error: "O nome completo é obrigatório.",
+          code: "NAME_REQUIRED",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!company) {
       return NextResponse.json(
         {
+          success: false,
           error: "O nome da empresa é obrigatório.",
+          code: "COMPANY_REQUIRED",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!email) {
       return NextResponse.json(
         {
+          success: false,
           error: "O email é obrigatório.",
+          code: "EMAIL_REQUIRED",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,34 +69,40 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         {
+          success: false,
           error: "Informe um email válido.",
+          code: "INVALID_EMAIL",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!password) {
       return NextResponse.json(
         {
+          success: false,
           error: "A palavra-passe é obrigatória.",
+          code: "PASSWORD_REQUIRED",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (password.length < 8) {
       return NextResponse.json(
         {
+          success: false,
           error:
             "A palavra-passe deve ter pelo menos 8 caracteres.",
+          code: "PASSWORD_TOO_SHORT",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ==============================
-    // VERIFICAR EMAIL
-    // ==============================
+    // ============================================================
+    // VERIFICAR SE O EMAIL JÁ EXISTE
+    // ============================================================
 
     const existingUser = await prisma.user.findUnique({
       where: {
@@ -99,23 +111,34 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
+      console.log(
+        "⚠️ Tentativa de criar conta com email existente:",
+        email,
+      );
+
       return NextResponse.json(
         {
-          error: "Já existe uma conta com este email.",
+          success: false,
+          error:
+            "Não foi possível criar essa conta porque esse email já está cadastrado.",
+          code: "ACCOUNT_EXISTS",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    // ==============================
-    // HASH DA PALAVRA-PASSE
-    // ==============================
+    // ============================================================
+    // CRIAR HASH DA PALAVRA-PASSE
+    // ============================================================
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      12,
+    );
 
-    // ==============================
+    // ============================================================
     // CRIAR EMPRESA + UTILIZADOR
-    // ==============================
+    // ============================================================
 
     const result = await prisma.$transaction(
       async (transaction) => {
@@ -142,16 +165,23 @@ export async function POST(request: NextRequest) {
           business,
           user,
         };
-      }
+      },
     );
 
-    // ==============================
-    // RESPOSTA
-    // ==============================
+    // ============================================================
+    // SUCESSO
+    // ============================================================
+
+    console.log(
+      "✅ Conta criada com sucesso:",
+      result.user.email,
+    );
 
     return NextResponse.json(
       {
-        message: "Conta criada com sucesso.",
+        success: true,
+        message:
+          "Conta criada com sucesso. Faça login para continuar.",
 
         user: {
           id: result.user.id,
@@ -166,18 +196,50 @@ export async function POST(request: NextRequest) {
           name: result.business.name,
           email: result.business.email,
         },
+
+        redirectTo: "/login",
       },
-      { status: 201 }
+      { status: 201 },
     );
-  } catch (error) {
-    console.error("Erro ao criar conta:", error);
+  } catch (error: unknown) {
+    console.error(
+      "❌ Erro ao criar conta:",
+      error,
+    );
+
+    // ============================================================
+    // EMAIL DUPLICADO
+    // ============================================================
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Não foi possível criar essa conta porque esse email já está cadastrado.",
+          code: "ACCOUNT_EXISTS",
+        },
+        { status: 409 },
+      );
+    }
+
+    // ============================================================
+    // ERRO GERAL
+    // ============================================================
 
     return NextResponse.json(
       {
-        error: "Não foi possível criar a conta.",
+        success: false,
+        error:
+          "Não foi possível criar a conta. Tente novamente.",
+        code: "REGISTER_ERROR",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

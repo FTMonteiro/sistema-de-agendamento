@@ -1,6 +1,7 @@
+
 "use client";
 
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,10 +20,54 @@ import {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const [error, setError] = useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | LER ERROS VINDOS DO GOOGLE
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const googleError = params.get("error");
+
+    if (googleError === "google_not_registered") {
+      setError(
+        "Esta conta Google ainda não está cadastrada na NEVRIX. Crie uma conta primeiro."
+      );
+    }
+
+    if (googleError === "google") {
+      setError(
+        "Não foi possível entrar com o Google. Tente novamente."
+      );
+    }
+
+    if (googleError === "google_config") {
+      setError(
+        "O login com Google ainda não está configurado corretamente no servidor."
+      );
+    }
+
+    if (googleError === "google_cancelled") {
+      setError("O login com Google foi cancelado.");
+    }
+  }, []);
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOGIN NORMAL
+  |--------------------------------------------------------------------------
+  */
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,10 +86,13 @@ export default function LoginPage() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         credentials: "include",
+
         body: JSON.stringify({
           email: cleanEmail,
           password,
@@ -55,7 +103,8 @@ export default function LoginPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Email ou palavra-passe incorretos."
+          data?.error ||
+            "Email ou palavra-passe incorretos."
         );
       }
 
@@ -73,12 +122,39 @@ export default function LoginPage() {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | LOGIN COM GOOGLE
+  |--------------------------------------------------------------------------
+  */
+
   function handleGoogleLogin() {
-    alert("O login com Google ainda não está configurado.");
+    setError("");
+    setGoogleLoading(true);
+
+    /*
+     * IMPORTANTE:
+     *
+     * mode=login significa:
+     *
+     * "Só permita entrar se esta conta Google
+     * já estiver cadastrada na NEVRIX."
+     */
+
+    window.location.href =
+      "/api/auth/google?mode=login";
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | APPLE
+  |--------------------------------------------------------------------------
+  */
+
   function handleAppleLogin() {
-    alert("O login com Apple ainda não está configurado.");
+    setError(
+      "O login com Apple ainda não está disponível."
+    );
   }
 
   return (
@@ -90,6 +166,7 @@ export default function LoginPage() {
         ===================================================== */}
 
         <section className="login-panel relative hidden min-h-screen overflow-hidden bg-[#05070b] lg:flex">
+
           <div
             aria-hidden="true"
             className="login-orb login-orb-one"
@@ -120,12 +197,15 @@ export default function LoginPage() {
             {/* BRAND */}
 
             <div className="login-enter login-delay-1">
+
               <Link
                 href="/"
                 className="group inline-flex items-center gap-3"
                 aria-label="NEVRIX"
               >
+
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-white shadow-[0_10px_35px_rgba(0,0,0,0.25)] transition-all duration-500 group-hover:-translate-y-0.5 group-hover:shadow-[0_14px_40px_rgba(37,99,235,0.2)]">
+
                   <span className="relative z-10 text-[15px] font-black tracking-[-0.08em] text-blue-600">
                     N
                   </span>
@@ -134,44 +214,60 @@ export default function LoginPage() {
                     aria-hidden="true"
                     className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-blue-100/80 to-transparent transition-transform duration-700 group-hover:translate-x-full"
                   />
+
                 </div>
 
                 <span className="text-[15px] font-bold tracking-[0.24em] text-white">
                   NEVRIX
                 </span>
+
               </Link>
+
             </div>
 
             {/* HERO */}
 
             <div className="flex flex-1 items-center">
+
               <div className="w-full max-w-[680px]">
 
                 <div className="login-enter login-delay-2 mb-7 flex items-center gap-3">
+
                   <span className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md">
+
                     <span className="relative flex h-1.5 w-1.5">
+
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
+
                       <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-400" />
+
                     </span>
 
                     Plataforma inteligente
+
                   </span>
+
                 </div>
 
                 <h1 className="login-enter login-delay-3 max-w-[650px] text-[48px] font-semibold leading-[0.98] tracking-[-0.055em] text-white xl:text-[68px]">
+
                   Tudo o que o seu
                   <br />
                   negócio precisa.
                   <br />
+
                   <span className="login-gradient-text">
                     Num só lugar.
                   </span>
+
                 </h1>
 
                 <p className="login-enter login-delay-4 mt-7 max-w-[570px] text-[15px] leading-7 text-slate-400 xl:text-[16px]">
+
                   Centralize operações, clientes, equipas, serviços,
                   agendamentos e pagamentos numa experiência simples,
                   inteligente e preparada para crescer.
+
                 </p>
 
                 {/* MOCKUP */}
@@ -186,7 +282,9 @@ export default function LoginPage() {
                   <div className="login-card-main absolute left-0 top-0 w-[325px] rounded-[18px] border border-white/[0.09] bg-white/[0.045] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
 
                     <div className="flex items-center justify-between">
+
                       <div>
+
                         <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
                           Visão geral
                         </p>
@@ -194,14 +292,19 @@ export default function LoginPage() {
                         <p className="mt-1 text-[13px] font-semibold text-white">
                           Desempenho
                         </p>
+
                       </div>
 
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400/10 bg-blue-500/[0.08] text-blue-400">
+
                         <BarChart3 size={14} />
+
                       </div>
+
                     </div>
 
                     <div className="mt-5 grid grid-cols-3 gap-2">
+
                       <MiniMetric
                         icon={<Users size={12} />}
                         label="Clientes"
@@ -219,10 +322,13 @@ export default function LoginPage() {
                         label="Hoje"
                         value="18"
                       />
+
                     </div>
 
                     <div className="mt-4">
+
                       <div className="flex items-center justify-between">
+
                         <span className="text-[9px] text-slate-600">
                           Atividade
                         </span>
@@ -230,24 +336,33 @@ export default function LoginPage() {
                         <span className="text-[9px] font-medium text-emerald-400">
                           +18,4%
                         </span>
+
                       </div>
 
                       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+
                         <div className="login-progress h-full w-[76%] rounded-full bg-gradient-to-r from-blue-600 to-blue-400" />
+
                       </div>
+
                     </div>
+
                   </div>
 
                   <div className="login-card-secondary absolute right-0 top-[58px] w-[230px] rounded-[18px] border border-white/[0.09] bg-[#0b1018]/90 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
 
                     <div className="flex items-center justify-between">
+
                       <div className="flex items-center gap-2">
 
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+
                           <CalendarDays size={14} />
+
                         </div>
 
                         <div>
+
                           <p className="text-[9px] text-slate-600">
                             Próximo
                           </p>
@@ -255,6 +370,7 @@ export default function LoginPage() {
                           <p className="text-[11px] font-medium text-white">
                             Agendamento
                           </p>
+
                         </div>
 
                       </div>
@@ -262,6 +378,7 @@ export default function LoginPage() {
                       <span className="text-[9px] font-medium text-blue-400">
                         14:30
                       </span>
+
                     </div>
 
                     <div className="my-3 h-px bg-white/[0.06]" />
@@ -273,6 +390,7 @@ export default function LoginPage() {
                       </div>
 
                       <div>
+
                         <p className="text-[9px] font-medium text-slate-300">
                           Cliente confirmado
                         </p>
@@ -280,17 +398,22 @@ export default function LoginPage() {
                         <p className="text-[8px] text-slate-600">
                           Hoje · 14:30
                         </p>
+
                       </div>
 
                       <div className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10">
+
                         <Check
                           size={11}
                           className="text-emerald-400"
                         />
+
                       </div>
 
                     </div>
+
                   </div>
+
                 </div>
 
                 {/* FEATURES */}
@@ -316,7 +439,9 @@ export default function LoginPage() {
                   />
 
                 </div>
+
               </div>
+
             </div>
 
             {/* FOOTER */}
@@ -329,12 +454,17 @@ export default function LoginPage() {
               </p>
 
               <div className="hidden items-center gap-2 text-[9px] text-slate-700 xl:flex">
+
                 <ShieldCheck size={12} />
+
                 Ambiente seguro
+
               </div>
 
             </div>
+
           </div>
+
         </section>
 
         {/* =====================================================
@@ -353,11 +483,6 @@ export default function LoginPage() {
             className="pointer-events-none absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-slate-200/50 blur-[120px]"
           />
 
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-neutral-200/60 to-transparent"
-          />
-
           <div className="relative z-10 w-full max-w-[430px]">
 
             {/* MOBILE BRAND */}
@@ -368,18 +493,15 @@ export default function LoginPage() {
                 href="/"
                 className="group inline-flex items-center gap-3"
               >
-                <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
-                  N
 
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full"
-                  />
+                <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
+                  N
                 </div>
 
                 <span className="text-[15px] font-bold tracking-[0.24em] text-neutral-950">
-                  NEVRIX Flow
+                  NEVRIX
                 </span>
+
               </Link>
 
             </div>
@@ -389,10 +511,9 @@ export default function LoginPage() {
             <div className="login-enter login-delay-2 mb-9">
 
               <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[12px] border border-neutral-200 bg-neutral-50 text-neutral-700 shadow-sm">
-                <Lock
-                  size={16}
-                  strokeWidth={1.8}
-                />
+
+                <Lock size={16} strokeWidth={1.8} />
+
               </div>
 
               <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-blue-600">
@@ -416,9 +537,7 @@ export default function LoginPage() {
               className="login-enter login-delay-3"
             >
 
-              {/* =====================================================
-                  EMAIL
-              ===================================================== */}
+              {/* EMAIL */}
 
               <div>
 
@@ -433,8 +552,6 @@ export default function LoginPage() {
 
                   <Mail
                     size={16}
-                    strokeWidth={1.8}
-                    aria-hidden="true"
                     className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-neutral-400"
                   />
 
@@ -448,16 +565,14 @@ export default function LoginPage() {
                     placeholder="seu@email.com"
                     required
                     autoComplete="email"
-                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-4 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
+                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-4 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
 
                 </div>
 
               </div>
 
-              {/* =====================================================
-                  PASSWORD
-              ===================================================== */}
+              {/* PASSWORD */}
 
               <div className="mt-5">
 
@@ -472,20 +587,12 @@ export default function LoginPage() {
 
                 </div>
 
-                {/* INPUT */}
-
                 <div className="relative">
-
-                  {/* LOCK — ESQUERDA */}
 
                   <Lock
                     size={16}
-                    strokeWidth={1.8}
-                    aria-hidden="true"
                     className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-neutral-400"
                   />
-
-                  {/* PASSWORD INPUT */}
 
                   <input
                     id="password"
@@ -497,45 +604,37 @@ export default function LoginPage() {
                     placeholder="Digite sua palavra-passe"
                     required
                     autoComplete="current-password"
-                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-12 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:shadow-[0_8px_25px_rgba(37,99,235,0.07)] focus:ring-4 focus:ring-blue-500/[0.06]"
+                    className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-12 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
-
-                  {/* EYE — DIREITA */}
 
                   <button
                     type="button"
                     onClick={() =>
                       setShowPassword((value) => !value)
                     }
-                    className="absolute right-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="absolute right-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
                     aria-label={
                       showPassword
                         ? "Ocultar palavra-passe"
                         : "Mostrar palavra-passe"
                     }
                   >
+
                     {showPassword ? (
-                      <EyeOff
-                        size={16}
-                        strokeWidth={1.8}
-                      />
+                      <EyeOff size={16} />
                     ) : (
-                      <Eye
-                        size={16}
-                        strokeWidth={1.8}
-                      />
+                      <Eye size={16} />
                     )}
+
                   </button>
 
                 </div>
-
-                {/* ESQUECEU A PASSWORD */}
 
                 <div className="mt-2 flex justify-end">
 
                   <Link
                     href="/recuperar-password"
-                    className="text-[10px] font-medium text-neutral-500 transition-colors hover:text-blue-600"
+                    className="text-[10px] font-medium text-neutral-500 hover:text-blue-600"
                   >
                     Esqueceu a palavra-passe?
                   </Link>
@@ -544,9 +643,7 @@ export default function LoginPage() {
 
               </div>
 
-              {/* =====================================================
-                  ERRO
-              ===================================================== */}
+              {/* ERRO */}
 
               {error && (
                 <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-3 text-[11px] leading-5 text-red-600">
@@ -554,20 +651,13 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* =====================================================
-                  BOTÃO
-              ===================================================== */}
+              {/* LOGIN */}
 
               <button
                 type="submit"
-                disabled={loading}
-                className="login-submit group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-blue-600 hover:shadow-[0_12px_30px_rgba(37,99,235,0.18)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={loading || googleLoading}
+                className="group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
-
-                <span
-                  aria-hidden="true"
-                  className="login-button-shine absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.13] to-transparent"
-                />
 
                 {loading ? (
                   <>
@@ -575,6 +665,7 @@ export default function LoginPage() {
                       size={16}
                       className="animate-spin"
                     />
+
                     A entrar...
                   </>
                 ) : (
@@ -583,7 +674,7 @@ export default function LoginPage() {
 
                     <ArrowRight
                       size={16}
-                      className="transition-transform duration-300 group-hover:translate-x-1"
+                      className="transition-transform group-hover:translate-x-1"
                     />
                   </>
                 )}
@@ -592,11 +683,9 @@ export default function LoginPage() {
 
             </form>
 
-            {/* =====================================================
-                DIVISOR
-            ===================================================== */}
+            {/* DIVISOR */}
 
-            <div className="login-enter login-delay-4 my-7 flex items-center gap-4">
+            <div className="my-7 flex items-center gap-4">
 
               <div className="h-px flex-1 bg-neutral-200" />
 
@@ -608,60 +697,65 @@ export default function LoginPage() {
 
             </div>
 
-            {/* =====================================================
-                SOCIAL
-            ===================================================== */}
+            {/* GOOGLE */}
 
-            <div className="login-enter login-delay-5">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={googleLoading || loading}
+              className="group flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-70"
+            >
 
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="group flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
-              >
+              {googleLoading ? (
+                <Loader2
+                  size={18}
+                  className="animate-spin text-neutral-500"
+                />
+              ) : (
                 <GoogleIcon />
+              )}
 
-                <span>
-                  Continuar com Google
-                </span>
-              </button>
+              <span>
+                {googleLoading
+                  ? "A ligar ao Google..."
+                  : "Continuar com Google"}
+              </span>
 
-              <button
-                type="button"
-                onClick={handleAppleLogin}
-                className="group mt-3 flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] active:scale-[0.99]"
-              >
-                <AppleIcon />
+            </button>
 
-                <span>
-                  Continuar com Apple
-                </span>
-              </button>
+            {/* APPLE */}
 
-            </div>
+            <button
+              type="button"
+              onClick={handleAppleLogin}
+              disabled={googleLoading || loading}
+              className="mt-3 flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all hover:border-neutral-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-70"
+            >
 
-            {/* =====================================================
-                CADASTRO
-            ===================================================== */}
+              <AppleIcon />
 
-            <p className="login-enter login-delay-6 mt-8 text-center text-[13px] text-neutral-500">
+              <span>
+                Continuar com Apple
+              </span>
+
+            </button>
+
+            {/* CADASTRO */}
+
+            <p className="mt-8 text-center text-[13px] text-neutral-500">
 
               Ainda não tem uma conta?{" "}
 
               <Link
                 href="/cadastro"
-                className="font-semibold text-neutral-950 transition-colors duration-200 hover:text-blue-600"
+                className="font-semibold text-neutral-950 hover:text-blue-600"
               >
                 Criar conta
               </Link>
 
             </p>
 
-            {/* =====================================================
-                SEGURANÇA
-            ===================================================== */}
-
-            <div className="login-enter login-delay-6 mt-7 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
+            <div className="mt-7 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
 
               <ShieldCheck size={11} />
 
@@ -672,12 +766,10 @@ export default function LoginPage() {
             </div>
 
           </div>
-        </section>
-      </div>
 
-      {/* ============================================================
-          ANIMAÇÕES E ESTILOS
-      ============================================================ */}
+        </section>
+
+      </div>
 
       <style jsx global>{`
 
@@ -693,39 +785,6 @@ export default function LoginPage() {
           }
         }
 
-        @keyframes loginOrbOne {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0) scale(1);
-          }
-
-          50% {
-            transform: translate3d(30px, 20px, 0) scale(1.08);
-          }
-        }
-
-        @keyframes loginOrbTwo {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0) scale(1);
-          }
-
-          50% {
-            transform: translate3d(-25px, -20px, 0) scale(1.06);
-          }
-        }
-
-        @keyframes loginOrbThree {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-
-          50% {
-            transform: translate3d(15px, -25px, 0);
-          }
-        }
-
         @keyframes loginProgress {
           from {
             width: 0;
@@ -733,16 +792,6 @@ export default function LoginPage() {
 
           to {
             width: 76%;
-          }
-        }
-
-        @keyframes loginButtonShine {
-          0% {
-            transform: translateX(-100%);
-          }
-
-          100% {
-            transform: translateX(100%);
           }
         }
 
@@ -793,7 +842,6 @@ export default function LoginPage() {
           width: 500px;
           height: 500px;
           background: rgba(37, 99, 235, 0.09);
-          animation: loginOrbOne 10s ease-in-out infinite;
         }
 
         .login-orb-two {
@@ -802,7 +850,6 @@ export default function LoginPage() {
           width: 500px;
           height: 500px;
           background: rgba(79, 70, 229, 0.07);
-          animation: loginOrbTwo 12s ease-in-out infinite;
         }
 
         .login-orb-three {
@@ -811,7 +858,6 @@ export default function LoginPage() {
           width: 260px;
           height: 260px;
           background: rgba(37, 99, 235, 0.035);
-          animation: loginOrbThree 8s ease-in-out infinite;
         }
 
         .login-grid {
@@ -826,6 +872,7 @@ export default function LoginPage() {
               rgba(255, 255, 255, 0.8) 1px,
               transparent 1px
             );
+
           background-size: 52px 52px;
         }
 
@@ -846,10 +893,6 @@ export default function LoginPage() {
         .login-progress {
           animation: loginProgress 1.5s
             cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
-        }
-
-        .login-button-shine {
-          animation: loginButtonShine 2.8s ease-in-out 1s infinite;
         }
 
         .login-card-main {
@@ -893,13 +936,13 @@ function Feature({
   return (
     <div className="group flex items-start gap-3">
 
-      <span className="pt-0.5 text-[10px] font-semibold tracking-[0.12em] text-blue-400 transition-colors duration-300 group-hover:text-blue-300">
+      <span className="pt-0.5 text-[10px] font-semibold tracking-[0.12em] text-blue-400">
         {number}
       </span>
 
       <div>
 
-        <p className="text-[10px] font-medium text-slate-300 transition-colors duration-300 group-hover:text-white">
+        <p className="text-[10px] font-medium text-slate-300">
           {title}
         </p>
 
@@ -908,6 +951,7 @@ function Feature({
         </p>
 
       </div>
+
     </div>
   );
 }
@@ -959,6 +1003,7 @@ function GoogleIcon() {
       fill="none"
       aria-hidden="true"
     >
+
       <path
         fill="#4285F4"
         d="M21.35 12.23c0-.7-.06-1.38-.18-2.03H12v3.84h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.7 2.91-4.2 2.91-7.2Z"
@@ -978,6 +1023,7 @@ function GoogleIcon() {
         fill="#EA4335"
         d="M12 6.1c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.16 14.63 2.18 12 2.18A9.75 9.75 0 0 0 3.3 7.6l3.24 2.53C7.31 7.82 9.46 6.1 12 6.1Z"
       />
+
     </svg>
   );
 }
@@ -995,7 +1041,10 @@ function AppleIcon() {
       fill="currentColor"
       aria-hidden="true"
     >
+
       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.09.8 1.2-.24 2.35-.93 3.63-.84 1.54.12 2.7.73 3.46 1.85-3.18 1.9-2.43 6.07.49 7.23-.58 1.52-1.33 3.03-2.67 3.93ZM12.03 7.25C11.88 4.99 13.71 3.13 15.8 3c.29 2.61-2.36 4.55-3.77 4.25Z" />
+
     </svg>
   );
 }
+
