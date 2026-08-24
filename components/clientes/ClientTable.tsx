@@ -553,9 +553,7 @@ export function ClientTable() {
 
   return (
     <>
-      {/* ======================================================
-          TABELA
-      ====================================================== */}
+      {/* TABELA */}
 
       <div className="w-full overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
 
@@ -581,14 +579,14 @@ export function ClientTable() {
               items-center
               gap-2
               rounded-xl
-              bg-gray-950
+              bg-blue-700
               px-4
               py-2.5
               text-sm
               font-medium
               text-white
               transition
-              hover:bg-gray-800
+              hover:bg-blue-800
             "
           >
             <Plus className="h-4 w-4" />

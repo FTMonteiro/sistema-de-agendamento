@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -10,9 +9,7 @@ interface TeamHeaderProps {
   onMemberCreated: (member: TeamMember) => void;
 }
 
-export default function TeamHeader({
-  onMemberCreated,
-}: TeamHeaderProps) {
+export default function TeamHeader({ onMemberCreated }: TeamHeaderProps) {
   const [open, setOpen] = useState(false);
 
   const [name, setName] = useState("");
@@ -40,9 +37,7 @@ export default function TeamHeader({
     resetForm();
   }
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -53,9 +48,7 @@ export default function TeamHeader({
     const cleanPhone = phone.trim();
     const cleanSpecialty = specialty.trim();
 
-    // ========================================================
     // VALIDAR CAMPOS
-    // ========================================================
 
     if (!cleanName) {
       setError("Digite o nome do profissional.");
@@ -73,137 +66,86 @@ export default function TeamHeader({
     }
 
     if (!cleanSpecialty) {
-      setError(
-        "Digite a especialidade do profissional.",
-      );
+      setError("Digite a especialidade do profissional.");
       return;
     }
 
-    // ========================================================
     // VALIDAR EMAIL
-    // ========================================================
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
       setError("Digite um email válido.");
       return;
     }
 
-    // ========================================================
     // ENVIAR PARA A API
-    // ========================================================
-    //
-    // NÃO enviamos businessId.
-    //
-    // A API pega o businessId através do utilizador
-    // autenticado pela sessão.
-    //
-    // ========================================================
 
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "/api/professionals",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: cleanName,
-            email: cleanEmail,
-            phone: cleanPhone,
-            specialty: cleanSpecialty,
-          }),
+      const response = await fetch("/api/professionals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          specialty: cleanSpecialty,
+        }),
+      });
 
       const data = await response.json();
 
-      // ======================================================
       // ERRO DA API
-      // ======================================================
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            "Não foi possível cadastrar o profissional.",
+          data?.error || "Não foi possível cadastrar o profissional.",
         );
       }
 
-      // ======================================================
       // PROFISSIONAL CRIADO
-      // ======================================================
 
-      const professional =
-        data?.professional;
+      const professional = data?.professional;
 
       if (!professional) {
-        throw new Error(
-          "A API não retornou os dados do profissional.",
-        );
+        throw new Error("A API não retornou os dados do profissional.");
       }
 
-      // ======================================================
       // NORMALIZAR PARA TeamMember
-      // ======================================================
 
       const member: TeamMember = {
-        id: String(
-          professional.id ?? "",
-        ),
+        id: String(professional.id ?? ""),
 
-        name: String(
-          professional.name ?? "",
-        ),
+        name: String(professional.name ?? ""),
 
-        email: String(
-          professional.email ?? "",
-        ),
+        email: String(professional.email ?? ""),
 
-        phone: String(
-          professional.phone ?? "",
-        ),
+        phone: String(professional.phone ?? ""),
 
-        specialty: String(
-          professional.specialty ?? "",
-        ),
+        specialty: String(professional.specialty ?? ""),
 
-        active:
-          professional.active === true,
+        active: professional.active === true,
 
-        emailVerified:
-          professional.emailVerified === true,
+        emailVerified: professional.emailVerified === true,
 
-        businessId: String(
-          professional.businessId ?? "",
-        ),
+        businessId: String(professional.businessId ?? ""),
 
-        createdAt: String(
-          professional.createdAt ?? "",
-        ),
+        createdAt: String(professional.createdAt ?? ""),
 
-        updatedAt: String(
-          professional.updatedAt ?? "",
-        ),
+        updatedAt: String(professional.updatedAt ?? ""),
       };
 
-      // ======================================================
       // ATUALIZAR LISTA
-      // ======================================================
 
       onMemberCreated(member);
 
-      // ======================================================
       // SUCESSO
-      // ======================================================
 
-      setSuccess(
-        "Profissional cadastrado com sucesso.",
-      );
+      setSuccess("Profissional cadastrado com sucesso.");
 
       // Limpar campos
       setName("");
@@ -217,10 +159,7 @@ export default function TeamHeader({
         setSuccess("");
       }, 2500);
     } catch (error) {
-      console.error(
-        "Erro ao cadastrar profissional:",
-        error,
-      );
+      console.error("Erro ao cadastrar profissional:", error);
 
       setError(
         error instanceof Error
@@ -234,19 +173,11 @@ export default function TeamHeader({
 
   return (
     <>
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
+      {/* HEADER */}
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-medium text-blue-600">
-            Gestão
-          </p>
-
-          <h1 className="mt-1 text-2xl font-bold text-gray-950">
-            Equipe
-          </h1>
+          <h1 className="mt-1 text-2xl font-bold text-gray-950">Equipe</h1>
 
           <p className="mt-2 text-sm text-gray-500">
             Gerencie os profissionais do seu estabelecimento.
@@ -263,30 +194,21 @@ export default function TeamHeader({
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           <Plus size={18} />
-
           Novo profissional
         </button>
       </div>
 
-      {/* ======================================================
-          MODAL
-      ====================================================== */}
+      {/* MODAL */}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
-
-            {/* ==================================================
-                HEADER DO MODAL
-            ================================================== */}
+            {/* HEADER DO MODAL */}
 
             <div className="flex items-center justify-between border-b border-gray-100 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                  <UserPlus
-                    size={21}
-                    className="text-blue-600"
-                  />
+                  <UserPlus size={21} className="text-blue-600" />
                 </div>
 
                 <div>
@@ -310,14 +232,9 @@ export default function TeamHeader({
               </button>
             </div>
 
-            {/* ==================================================
-                FORMULÁRIO
-            ================================================== */}
+            {/* FORMULÁRIO */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 p-6"
-            >
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
               {/* ERRO */}
 
               {error && (
@@ -334,9 +251,7 @@ export default function TeamHeader({
                 </div>
               )}
 
-              {/* ==================================================
-                  NOME
-              ================================================== */}
+              {/*NOME */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -346,9 +261,7 @@ export default function TeamHeader({
                 <input
                   type="text"
                   value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
+                  onChange={(event) => setName(event.target.value)}
                   placeholder="Nome completo"
                   disabled={loading}
                   autoComplete="name"
@@ -356,9 +269,7 @@ export default function TeamHeader({
                 />
               </div>
 
-              {/* ==================================================
-                  EMAIL
-              ================================================== */}
+              {/* EMAIL*/}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -368,9 +279,7 @@ export default function TeamHeader({
                 <input
                   type="email"
                   value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="profissional@email.com"
                   disabled={loading}
                   autoComplete="email"
@@ -378,9 +287,7 @@ export default function TeamHeader({
                 />
               </div>
 
-              {/* ==================================================
-                  TELEFONE
-              ================================================== */}
+              {/* TELEFONE*/}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -390,9 +297,7 @@ export default function TeamHeader({
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(event) =>
-                    setPhone(event.target.value)
-                  }
+                  onChange={(event) => setPhone(event.target.value)}
                   placeholder="+244 9XX XXX XXX"
                   disabled={loading}
                   autoComplete="tel"
@@ -400,9 +305,7 @@ export default function TeamHeader({
                 />
               </div>
 
-              {/* ==================================================
-                  ESPECIALIDADE
-              ================================================== */}
+              {/* ESPECIALIDADE */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -412,20 +315,14 @@ export default function TeamHeader({
                 <input
                   type="text"
                   value={specialty}
-                  onChange={(event) =>
-                    setSpecialty(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setSpecialty(event.target.value)}
                   placeholder="Barbeiro, cabeleireiro..."
                   disabled={loading}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
 
-              {/* ==================================================
-                  BOTÕES
-              ================================================== */}
+              {/* BOTÕES */}
 
               <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
                 <button
@@ -442,9 +339,7 @@ export default function TeamHeader({
                   disabled={loading}
                   className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading
-                    ? "A cadastrar..."
-                    : "Cadastrar profissional"}
+                  {loading ? "A cadastrar..." : "Cadastrar profissional"}
                 </button>
               </div>
             </form>
@@ -454,4 +349,3 @@ export default function TeamHeader({
     </>
   );
 }
-

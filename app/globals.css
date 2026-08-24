@@ -773,3 +773,269 @@ html.dark .hover\:bg-gray-100:hover {
     min-height: 100vh;
   }
 }
+
+ /* =========================================================
+   MODAIS — DARK MODE GLOBAL OBRIGATÓRIO
+   ========================================================= */
+
+/*
+ * Quando o tema estiver em dark:
+ * qualquer elemento fixed que seja usado como modal
+ * terá aparência escura.
+ *
+ * Isto permite que as modais antigas também acompanhem
+ * automaticamente o tema.
+ */
+
+html.dark .fixed.inset-0 {
+  color: var(--foreground);
+}
+
+/* =========================================================
+   FUNDO PRINCIPAL DAS MODAIS
+   ========================================================= */
+
+html.dark .fixed.inset-0 > div {
+  color: var(--foreground);
+}
+
+/*
+ * Qualquer superfície branca dentro de uma modal
+ * passa obrigatoriamente para dark.
+ */
+
+html.dark .fixed.inset-0 .bg-white {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+}
+
+/* =========================================================
+   SUPERFÍCIES CINZENTAS
+   ========================================================= */
+
+html.dark .fixed.inset-0 .bg-gray-50 {
+  background-color: var(--surface-secondary) !important;
+}
+
+html.dark .fixed.inset-0 .bg-gray-100 {
+  background-color: var(--surface-secondary) !important;
+}
+
+html.dark .fixed.inset-0 .bg-gray-200 {
+  background-color: #374151 !important;
+}
+
+/* =========================================================
+   TEXTOS
+   ========================================================= */
+
+html.dark .fixed.inset-0 .text-gray-950,
+html.dark .fixed.inset-0 .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+html.dark .fixed.inset-0 .text-gray-800,
+html.dark .fixed.inset-0 .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+html.dark .fixed.inset-0 .text-gray-600,
+html.dark .fixed.inset-0 .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+html.dark .fixed.inset-0 .text-gray-400,
+html.dark .fixed.inset-0 .text-gray-300 {
+  color: #6b7280 !important;
+}
+
+/* =========================================================
+   BORDAS
+   ========================================================= */
+
+html.dark .fixed.inset-0 .border-gray-50,
+html.dark .fixed.inset-0 .border-gray-100,
+html.dark .fixed.inset-0 .border-gray-200,
+html.dark .fixed.inset-0 .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+/* =========================================================
+   INPUTS / SELECTS / TEXTAREA
+   ========================================================= */
+
+html.dark .fixed.inset-0 input,
+html.dark .fixed.inset-0 select,
+html.dark .fixed.inset-0 textarea {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #374151 !important;
+}
+
+html.dark .fixed.inset-0 input::placeholder,
+html.dark .fixed.inset-0 textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+html.dark .fixed.inset-0 input:focus,
+html.dark .fixed.inset-0 select:focus,
+html.dark .fixed.inset-0 textarea:focus {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+/* =========================================================
+   OPTIONS DOS SELECTS
+   ========================================================= */
+
+html.dark .fixed.inset-0 option {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+/* =========================================================
+   HOVER
+   ========================================================= */
+
+html.dark .fixed.inset-0 .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+html.dark .fixed.inset-0 .hover\:bg-gray-100:hover {
+  background-color: #374151 !important;
+}
+
+/* =========================================================
+   DIVIDERS
+   ========================================================= */
+
+html.dark .fixed.inset-0 .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .fixed.inset-0 .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #374151 !important;
+}
+
+/* =========================================================
+   SHADOW
+   ========================================================= */
+
+html.dark .fixed.inset-0 .shadow,
+html.dark .fixed.inset-0 .shadow-sm,
+html.dark .fixed.inset-0 .shadow-md,
+html.dark .fixed.inset-0 .shadow-lg,
+html.dark .fixed.inset-0 .shadow-xl,
+html.dark .fixed.inset-0 .shadow-2xl {
+  --tw-shadow-color: rgba(0, 0, 0, 0.45);
+}
+
+/* =========================================================
+   MODAIS COM ROLE="DIALOG"
+   ========================================================= */
+
+html.dark [role="dialog"] {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+}
+
+html.dark [role="dialog"] .bg-white {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+}
+
+html.dark [role="dialog"] .bg-gray-50,
+html.dark [role="dialog"] .bg-gray-100 {
+  background-color: var(--surface-secondary) !important;
+}
+
+html.dark [role="dialog"] input,
+html.dark [role="dialog"] select,
+html.dark [role="dialog"] textarea {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #374151 !important;
+}
+
+
+
+
+/* =========================================================
+   BOTÕES DAS MODAIS — TEMA GLOBAL
+   ========================================================= */
+
+/*
+ * BOTÃO PRINCIPAL
+ *
+ * Todos os botões submit dentro de uma modal
+ * ficam verdes.
+ */
+
+html.dark .fixed.inset-0 button[type="submit"] {
+  background-color: #009685 !important;
+  color: #ffffff !important;
+  border-color: #009685 !important;
+}
+
+html.dark .fixed.inset-0 button[type="submit"]:hover {
+  background-color: #007f71 !important;
+  color: #ffffff !important;
+}
+
+html.dark .fixed.inset-0 button[type="submit"]:disabled {
+  background-color: #009685 !important;
+  color: #ffffff !important;
+  border-color: #009685 !important;
+  opacity: 0.5;
+}
+
+
+/*
+ * BOTÃO CANCELAR
+ *
+ * Para não depender do texto "Cancelar",
+ * usamos o botão type="button".
+ *
+ * Assim, dentro das modais:
+ *
+ * type="submit" -> verde
+ * type="button" -> branco
+ */
+
+html.dark .fixed.inset-0 button[type="button"] {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+html.dark .fixed.inset-0 button[type="button"]:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+html.dark .fixed.inset-0 button[type="button"]:disabled {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  opacity: 0.5;
+}
+
+
+/* =========================================================
+   EXCEÇÃO — BOTÃO FECHAR DA MODAL
+   =========================================================
+ *
+ * O X não deve virar um botão branco grande.
+ *
+ * Mantemos apenas o fundo discreto.
+ */
+
+html.dark .fixed.inset-0 button[aria-label="Fechar"],
+html.dark .fixed.inset-0 button[aria-label="Close"] {
+  background-color: transparent !important;
+  color: #9ca3af !important;
+  border-color: transparent !important;
+}
+
+html.dark .fixed.inset-0 button[aria-label="Fechar"]:hover,
+html.dark .fixed.inset-0 button[aria-label="Close"]:hover {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+}

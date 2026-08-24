@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  Users,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { Users, UserCheck, UserX } from "lucide-react";
 
 import type { TeamMember } from "./TeamList";
 
@@ -12,18 +8,12 @@ interface TeamStatsProps {
   members: TeamMember[];
 }
 
-export default function TeamStats({
-  members,
-}: TeamStatsProps) {
+export default function TeamStats({ members }: TeamStatsProps) {
   const total = members.length;
 
-  const active = members.filter(
-    (member) => member.active,
-  ).length;
+  const active = members.filter((member) => member.active).length;
 
-  const inactive = members.filter(
-    (member) => !member.active,
-  ).length;
+  const inactive = members.filter((member) => !member.active).length;
 
   const stats = [
     {
@@ -65,10 +55,7 @@ export default function TeamStats({
               </div>
 
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100">
-                <Icon
-                  size={21}
-                  className="text-gray-700"
-                />
+                <Icon size={21} className="text-gray-700" />
               </div>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,11 +9,7 @@ import { useNotifications } from "@/components/notifications/NotificationsProvid
 import { AppointmentList } from "@/components/appointments/AppointmentList";
 import { Appointment } from "@/types/appointment";
 
-type Filter =
-  | "all"
-  | "confirmed"
-  | "pending"
-  | "completed";
+type Filter = "all" | "confirmed" | "pending" | "completed";
 
 /*
  * Opção de dropdown. `label` é o que aparece na tela e `id` é o que vai para a
@@ -45,20 +40,10 @@ const WEEKDAY_NAMES = [
   "sábado",
 ];
 
-const WEEKDAY_SHORT = [
-  "Dom",
-  "Seg",
-  "Ter",
-  "Qua",
-  "Qui",
-  "Sex",
-  "Sáb",
-];
+const WEEKDAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function toMinutes(time: string) {
-  const [hours, minutes] = time
-    .split(":")
-    .map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
 
   return hours * 60 + minutes;
 }
@@ -68,13 +53,11 @@ export default function AppointmentsPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [activeFilter, setActiveFilter] =
-    useState<Filter>("all");
+  const [activeFilter, setActiveFilter] = useState<Filter>("all");
 
   const [search, setSearch] = useState("");
 
-  const [appointments, setAppointments] =
-    useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   const [loading, setLoading] = useState(true);
 
@@ -82,8 +65,7 @@ export default function AppointmentsPage() {
 
   const [clientId, setClientId] = useState("");
   const [serviceId, setServiceId] = useState("");
-  const [professionalId, setProfessionalId] =
-    useState("");
+  const [professionalId, setProfessionalId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
@@ -92,49 +74,34 @@ export default function AppointmentsPage() {
    * Opções dos dropdowns, vindas do banco.
    */
 
-  const [clients, setClients] = useState<
-    Option[]
-  >([]);
+  const [clients, setClients] = useState<Option[]>([]);
 
-  const [services, setServices] = useState<
-    Option[]
-  >([]);
+  const [services, setServices] = useState<Option[]>([]);
 
-  const [professionals, setProfessionals] =
-    useState<Option[]>([]);
+  const [professionals, setProfessionals] = useState<Option[]>([]);
 
-  const [businessRules, setBusinessRules] =
-    useState<BusinessRules | null>(null);
+  const [businessRules, setBusinessRules] = useState<BusinessRules | null>(
+    null,
+  );
 
-  const [loadingOptions, setLoadingOptions] =
-    useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
-  const [optionsError, setOptionsError] =
-    useState("");
+  const [optionsError, setOptionsError] = useState("");
 
-  const [formError, setFormError] =
-    useState("");
+  const [formError, setFormError] = useState("");
 
-  const [isCreating, setIsCreating] =
-    useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
-  /*
-  |--------------------------------------------------------------------------
-  | BUSCAR
-  |--------------------------------------------------------------------------
-  */
+  /* BUSCAR*/
 
   async function loadAppointments() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        "/api/appointments",
-        {
-          cache: "no-store",
-        },
-      );
+      const response = await fetch("/api/appointments", {
+        cache: "no-store",
+      });
 
       const text = await response.text();
 
@@ -147,29 +114,20 @@ export default function AppointmentsPage() {
         try {
           data = JSON.parse(text);
         } catch {
-          throw new Error(
-            "A API retornou uma resposta inválida.",
-          );
+          throw new Error("A API retornou uma resposta inválida.");
         }
       }
 
       if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Erro ao buscar agendamentos.",
-        );
+        throw new Error(data.error || "Erro ao buscar agendamentos.");
       }
 
-      setAppointments(
-        data.appointments ?? [],
-      );
+      setAppointments(data.appointments ?? []);
     } catch (error) {
       console.error(error);
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Erro ao buscar agendamentos.",
+        error instanceof Error ? error.message : "Erro ao buscar agendamentos.",
       );
     } finally {
       setLoading(false);
@@ -180,11 +138,7 @@ export default function AppointmentsPage() {
     loadAppointments();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | OPÇÕES DOS DROPDOWNS
-  |--------------------------------------------------------------------------
-  */
+  /* OPÇÕES DOS DROPDOWNS*/
 
   async function loadOptions() {
     try {
@@ -221,11 +175,7 @@ export default function AppointmentsPage() {
         );
       }
 
-      const [
-        clientsData,
-        professionalsData,
-        servicesData,
-      ] = await Promise.all([
+      const [clientsData, professionalsData, servicesData] = await Promise.all([
         clientsResponse.json(),
         professionalsResponse.json(),
         servicesResponse.json(),
@@ -236,33 +186,20 @@ export default function AppointmentsPage() {
        * carregar — a API valida de qualquer forma.
        */
       if (businessResponse.ok) {
-        const businessData =
-          await businessResponse.json();
+        const businessData = await businessResponse.json();
 
         setBusinessRules({
-          openingTime:
-            businessData.openingTime ??
-            null,
-          closingTime:
-            businessData.closingTime ??
-            null,
-          workingDays: Array.isArray(
-            businessData.workingDays,
-          )
+          openingTime: businessData.openingTime ?? null,
+          closingTime: businessData.closingTime ?? null,
+          workingDays: Array.isArray(businessData.workingDays)
             ? businessData.workingDays
             : [],
-          slotInterval:
-            Number(
-              businessData.slotInterval,
-            ) || 0,
-          rules:
-            businessData.rules ?? null,
+          slotInterval: Number(businessData.slotInterval) || 0,
+          rules: businessData.rules ?? null,
         });
       }
 
-      setClients(
-        toOptions(clientsData, (item) => item.name),
-      );
+      setClients(toOptions(clientsData, (item) => item.name));
 
       /*
        * Profissionais e serviços inativos continuam no banco pelo histórico,
@@ -282,9 +219,7 @@ export default function AppointmentsPage() {
           servicesData,
           (item) =>
             item.price != null
-              ? `${item.name} — ${formatPrice(
-                  Number(item.price),
-                )}`
+              ? `${item.name} — ${formatPrice(Number(item.price))}`
               : item.name,
           (item) => item.active !== false,
         ),
@@ -313,47 +248,33 @@ export default function AppointmentsPage() {
     loadOptions();
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | CRIAR
-  |--------------------------------------------------------------------------
-  */
+  /* CRIA  */
 
   async function handleCreateAppointment() {
     setFormError("");
 
     if (!clientId) {
-      setFormError(
-        "Selecione o cliente.",
-      );
+      setFormError("Selecione o cliente.");
       return;
     }
 
     if (!serviceId) {
-      setFormError(
-        "Selecione o serviço.",
-      );
+      setFormError("Selecione o serviço.");
       return;
     }
 
     if (!professionalId) {
-      setFormError(
-        "Selecione o profissional.",
-      );
+      setFormError("Selecione o profissional.");
       return;
     }
 
     if (!date) {
-      setFormError(
-        "Selecione a data.",
-      );
+      setFormError("Selecione a data.");
       return;
     }
 
     if (!time) {
-      setFormError(
-        "Selecione o horário.",
-      );
+      setFormError("Selecione o horário.");
       return;
     }
 
@@ -362,16 +283,11 @@ export default function AppointmentsPage() {
      * a validação que conta é a do servidor.
      */
     if (businessRules) {
-      const weekday = new Date(
-        `${date}T00:00:00`,
-      ).getDay();
+      const weekday = new Date(`${date}T00:00:00`).getDay();
 
       if (
-        businessRules.workingDays
-          .length > 0 &&
-        !businessRules.workingDays.includes(
-          weekday,
-        )
+        businessRules.workingDays.length > 0 &&
+        !businessRules.workingDays.includes(weekday)
       ) {
         setFormError(
           `O estabelecimento não abre ${WEEKDAY_NAMES[weekday]}. Escolha outro dia.`,
@@ -379,28 +295,19 @@ export default function AppointmentsPage() {
         return;
       }
 
-      const requested =
-        toMinutes(time);
+      const requested = toMinutes(time);
 
       if (
         businessRules.openingTime &&
-        requested <
-          toMinutes(
-            businessRules.openingTime,
-          )
+        requested < toMinutes(businessRules.openingTime)
       ) {
-        setFormError(
-          `O estabelecimento abre às ${businessRules.openingTime}.`,
-        );
+        setFormError(`O estabelecimento abre às ${businessRules.openingTime}.`);
         return;
       }
 
       if (
         businessRules.closingTime &&
-        requested >=
-          toMinutes(
-            businessRules.closingTime,
-          )
+        requested >= toMinutes(businessRules.closingTime)
       ) {
         setFormError(
           `O estabelecimento fecha às ${businessRules.closingTime}.`,
@@ -409,11 +316,8 @@ export default function AppointmentsPage() {
       }
 
       if (
-        businessRules.slotInterval >
-          0 &&
-        requested %
-          businessRules.slotInterval !==
-          0
+        businessRules.slotInterval > 0 &&
+        requested % businessRules.slotInterval !== 0
       ) {
         setFormError(
           `Os agendamentos são de ${businessRules.slotInterval} em ${businessRules.slotInterval} minutos.`,
@@ -425,24 +329,20 @@ export default function AppointmentsPage() {
     try {
       setIsCreating(true);
 
-      const response = await fetch(
-        "/api/appointments",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            clientId,
-            serviceId,
-            professionalId,
-            date,
-            time,
-            notes: notes.trim(),
-          }),
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          clientId,
+          serviceId,
+          professionalId,
+          date,
+          time,
+          notes: notes.trim(),
+        }),
+      });
 
       const text = await response.text();
 
@@ -455,17 +355,12 @@ export default function AppointmentsPage() {
         try {
           data = JSON.parse(text);
         } catch {
-          throw new Error(
-            "A API retornou uma resposta inválida.",
-          );
+          throw new Error("A API retornou uma resposta inválida.");
         }
       }
 
       if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Não foi possível criar o agendamento.",
-        );
+        throw new Error(data.error || "Não foi possível criar o agendamento.");
       }
 
       /*
@@ -473,10 +368,7 @@ export default function AppointmentsPage() {
        */
 
       if (data.appointment) {
-        setAppointments((current) => [
-          data.appointment!,
-          ...current,
-        ]);
+        setAppointments((current) => [data.appointment!, ...current]);
       } else {
         await loadAppointments();
       }
@@ -500,9 +392,7 @@ export default function AppointmentsPage() {
       setIsModalOpen(false);
 
       const clientName =
-        clients.find(
-          (item) => item.id === clientId,
-        )?.label ?? "Cliente";
+        clients.find((item) => item.id === clientId)?.label ?? "Cliente";
 
       notify({
         kind: "created",
@@ -512,113 +402,64 @@ export default function AppointmentsPage() {
 
       toast.success("Agendamento criado.");
     } catch (error) {
-      console.error(
-        "Erro ao criar agendamento:",
-        error,
-      );
+      console.error("Erro ao criar agendamento:", error);
 
       setFormError(
-        error instanceof Error
-          ? error.message
-          : "Erro ao criar agendamento.",
+        error instanceof Error ? error.message : "Erro ao criar agendamento.",
       );
     } finally {
       setIsCreating(false);
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | EXCLUIR
-  |--------------------------------------------------------------------------
-  */
+  /* EXCLUIR*/
 
   function handleDeleteAppointment(id: string) {
     setAppointments((current) =>
-      current.filter(
-        (appointment) =>
-          appointment.id !== id,
-      ),
+      current.filter((appointment) => appointment.id !== id),
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | EDITAR
-  |--------------------------------------------------------------------------
-  */
+  /* EDITAR*/
 
-  function handleEditAppointment(
-    updated: Appointment,
-  ) {
+  function handleEditAppointment(updated: Appointment) {
     setAppointments((current) =>
       current.map((appointment) =>
-        appointment.id === updated.id
-          ? updated
-          : appointment,
+        appointment.id === updated.id ? updated : appointment,
       ),
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | FILTROS
-  |--------------------------------------------------------------------------
-  */
+  /* FILTROS*/
 
-  const filteredAppointments =
-    appointments.filter(
-      (appointment) => {
-        const matchesFilter =
-          activeFilter === "all" ||
-          appointment.status ===
-            activeFilter;
+  const filteredAppointments = appointments.filter((appointment) => {
+    const matchesFilter =
+      activeFilter === "all" || appointment.status === activeFilter;
 
-        const searchText =
-          search.toLowerCase().trim();
+    const searchText = search.toLowerCase().trim();
 
-        const matchesSearch =
-          !searchText ||
-          appointment.client
-            .toLowerCase()
-            .includes(searchText) ||
-          appointment.service
-            .toLowerCase()
-            .includes(searchText) ||
-          appointment.professional
-            .toLowerCase()
-            .includes(searchText);
+    const matchesSearch =
+      !searchText ||
+      appointment.client.toLowerCase().includes(searchText) ||
+      appointment.service.toLowerCase().includes(searchText) ||
+      appointment.professional.toLowerCase().includes(searchText);
 
-        return (
-          matchesFilter &&
-          matchesSearch
-        );
-      },
-    );
+    return matchesFilter && matchesSearch;
+  });
 
-  /*
-  |--------------------------------------------------------------------------
-  | CONTADORES
-  |--------------------------------------------------------------------------
-  */
+  /*CONTADORES*/
 
-  const confirmedCount =
-    appointments.filter(
-      (item) =>
-        item.status === "confirmed",
-    ).length;
+  const confirmedCount = appointments.filter(
+    (item) => item.status === "confirmed",
+  ).length;
 
-  const pendingCount =
-    appointments.filter(
-      (item) =>
-        item.status === "pending",
-    ).length;
+  const pendingCount = appointments.filter(
+    (item) => item.status === "pending",
+  ).length;
 
-  const completedCount =
-    appointments.filter(
-      (item) =>
-        item.status === "completed",
-    ).length;
+  const completedCount = appointments.filter(
+    (item) => item.status === "completed",
+  ).length;
 
   const filters = [
     {
@@ -649,33 +490,22 @@ export default function AppointmentsPage() {
 
       <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-blue-600" />
-
-            <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
-              Gestão
-            </span>
-          </div>
-
           <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
             Agenda
           </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Organize os seus atendimentos,
-            acompanhe os profissionais e
-            mantenha a agenda sempre sob
-            controlo.
+            Organize os seus atendimentos, acompanhe os profissionais e mantenha
+            a agenda sempre sob controlo.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openModal}
-          className="flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
         >
           <Plus className="h-4 w-4" />
-
           Novo Agendamento
         </button>
       </section>
@@ -714,19 +544,13 @@ export default function AppointmentsPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
             {filters.map((filter) => {
-              const active =
-                activeFilter ===
-                filter.value;
+              const active = activeFilter === filter.value;
 
               return (
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() =>
-                    setActiveFilter(
-                      filter.value,
-                    )
-                  }
+                  onClick={() => setActiveFilter(filter.value)}
                   className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium ${
                     active
                       ? "bg-gray-950 text-white"
@@ -755,11 +579,7 @@ export default function AppointmentsPage() {
             <input
               type="text"
               value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Pesquisar cliente, serviço..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
             />
@@ -779,42 +599,24 @@ export default function AppointmentsPage() {
 
       <section>
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-950">
-            Agendamentos
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-950">Agendamentos</h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            {filteredAppointments.length}{" "}
-            resultado
-            {filteredAppointments.length ===
-            1
-              ? ""
-              : "s"}{" "}
-            encontrado
-            {filteredAppointments.length ===
-            1
-              ? ""
-              : "s"}
+            {filteredAppointments.length} resultado
+            {filteredAppointments.length === 1 ? "" : "s"} encontrado
+            {filteredAppointments.length === 1 ? "" : "s"}
           </p>
         </div>
 
         {loading ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-            <p className="text-sm text-gray-500">
-              Carregando agendamentos...
-            </p>
+            <p className="text-sm text-gray-500">Carregando agendamentos...</p>
           </div>
         ) : (
           <AppointmentList
-            appointments={
-              filteredAppointments
-            }
-            onDelete={
-              handleDeleteAppointment
-            }
-            onEdit={
-              handleEditAppointment
-            }
+            appointments={filteredAppointments}
+            onDelete={handleDeleteAppointment}
+            onEdit={handleEditAppointment}
           />
         )}
       </section>
@@ -832,9 +634,7 @@ export default function AppointmentsPage() {
         >
           <div
             className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="border-b border-gray-100 px-6 py-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
@@ -857,17 +657,13 @@ export default function AppointmentsPage() {
                     Não foi possível criar
                   </p>
 
-                  <p className="mt-1 text-sm text-red-700">
-                    {formError}
-                  </p>
+                  <p className="mt-1 text-sm text-red-700">{formError}</p>
                 </div>
               )}
 
               {optionsError && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm text-amber-800">
-                    {optionsError}
-                  </p>
+                  <p className="text-sm text-amber-800">{optionsError}</p>
 
                   <button
                     type="button"
@@ -922,18 +718,11 @@ export default function AppointmentsPage() {
                   type="time"
                   value={time}
                   onChange={setTime}
-                  min={
-                    businessRules?.openingTime ??
-                    undefined
-                  }
-                  max={
-                    businessRules?.closingTime ??
-                    undefined
-                  }
+                  min={businessRules?.openingTime ?? undefined}
+                  max={businessRules?.closingTime ?? undefined}
                   step={
                     businessRules?.slotInterval
-                      ? businessRules.slotInterval *
-                        60
+                      ? businessRules.slotInterval * 60
                       : undefined
                   }
                 />
@@ -942,63 +731,38 @@ export default function AppointmentsPage() {
               {/* HORÁRIO E REGRAS DO ESTABELECIMENTO */}
               {businessRules &&
                 (businessRules.openingTime ||
-                  businessRules.workingDays
-                    .length > 0 ||
+                  businessRules.workingDays.length > 0 ||
                   businessRules.rules) && (
                   <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] p-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                       Funcionamento
                     </p>
 
-                    {businessRules.openingTime &&
-                      businessRules.closingTime && (
-                        <p className="mt-2 text-sm text-[var(--foreground)]">
-                          Aberto das{" "}
-                          {
-                            businessRules.openingTime
-                          }{" "}
-                          às{" "}
-                          {
-                            businessRules.closingTime
-                          }
-                          {businessRules.slotInterval >
-                            0 && (
-                            <>
-                              , de{" "}
-                              {
-                                businessRules.slotInterval
-                              }{" "}
-                              em{" "}
-                              {
-                                businessRules.slotInterval
-                              }{" "}
-                              minutos
-                            </>
-                          )}
-                        </p>
-                      )}
+                    {businessRules.openingTime && businessRules.closingTime && (
+                      <p className="mt-2 text-sm text-[var(--foreground)]">
+                        Aberto das {businessRules.openingTime} às{" "}
+                        {businessRules.closingTime}
+                        {businessRules.slotInterval > 0 && (
+                          <>
+                            , de {businessRules.slotInterval} em{" "}
+                            {businessRules.slotInterval} minutos
+                          </>
+                        )}
+                      </p>
+                    )}
 
-                    {businessRules
-                      .workingDays
-                      .length > 0 && (
+                    {businessRules.workingDays.length > 0 && (
                       <p className="mt-1 text-sm text-[var(--muted)]">
                         Dias:{" "}
                         {businessRules.workingDays
-                          .map(
-                            (day) =>
-                              WEEKDAY_SHORT[
-                                day
-                              ],
-                          )
+                          .map((day) => WEEKDAY_SHORT[day])
                           .join(", ")}
                       </p>
                     )}
 
                     {businessRules.rules && (
                       <p className="mt-2 whitespace-pre-line text-sm text-[var(--muted)]">
-                        {
-                          businessRules.rules
-                        }
+                        {businessRules.rules}
                       </p>
                     )}
                   </div>
@@ -1011,11 +775,7 @@ export default function AppointmentsPage() {
 
                 <textarea
                   value={notes}
-                  onChange={(event) =>
-                    setNotes(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setNotes(event.target.value)}
                   rows={3}
                   placeholder="Observações sobre o atendimento..."
                   className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
@@ -1027,9 +787,7 @@ export default function AppointmentsPage() {
               <button
                 type="button"
                 disabled={isCreating}
-                onClick={() =>
-                  setIsModalOpen(false)
-                }
+                onClick={() => setIsModalOpen(false)}
                 className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
@@ -1038,14 +796,10 @@ export default function AppointmentsPage() {
               <button
                 type="button"
                 disabled={isCreating}
-                onClick={
-                  handleCreateAppointment
-                }
+                onClick={handleCreateAppointment}
                 className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCreating
-                  ? "Criando..."
-                  : "Criar Agendamento"}
+                {isCreating ? "Criando..." : "Criar Agendamento"}
               </button>
             </div>
           </div>
@@ -1072,17 +826,11 @@ function Metric({
 }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-gray-500">
-        {title}
-      </p>
+      <p className="text-sm font-medium text-gray-500">{title}</p>
 
-      <p className="mt-3 text-3xl font-bold text-gray-950">
-        {value}
-      </p>
+      <p className="mt-3 text-3xl font-bold text-gray-950">{value}</p>
 
-      <p className="mt-4 text-xs text-gray-400">
-        {description}
-      </p>
+      <p className="mt-4 text-xs text-gray-400">{description}</p>
     </div>
   );
 }
@@ -1107,13 +855,8 @@ type ApiRecord = {
  */
 function toOptions(
   data: unknown,
-  toLabel: (item: {
-    name: string;
-    price?: unknown;
-  }) => string,
-  filter?: (item: {
-    active?: unknown;
-  }) => boolean,
+  toLabel: (item: { name: string; price?: unknown }) => string,
+  filter?: (item: { active?: unknown }) => boolean,
 ): Option[] {
   if (!Array.isArray(data)) {
     return [];
@@ -1135,9 +878,7 @@ function toOptions(
         return false;
       }
 
-      return filter
-        ? filter(record)
-        : true;
+      return filter ? filter(record) : true;
     })
     .map((item) => ({
       id: item.id as string,
@@ -1183,8 +924,7 @@ function SelectField({
   placeholder: string;
   emptyHint: string;
 }) {
-  const isEmpty =
-    !loading && options.length === 0;
+  const isEmpty = !loading && options.length === 0;
 
   return (
     <div>
@@ -1195,9 +935,7 @@ function SelectField({
       <select
         value={value}
         disabled={loading || isEmpty}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
       >
         <option value="">
@@ -1209,20 +947,13 @@ function SelectField({
         </option>
 
         {options.map((option) => (
-          <option
-            key={option.id}
-            value={option.id}
-          >
+          <option key={option.id} value={option.id}>
             {option.label}
           </option>
         ))}
       </select>
 
-      {isEmpty && (
-        <p className="mt-2 text-xs text-amber-700">
-          {emptyHint}
-        </p>
-      )}
+      {isEmpty && <p className="mt-2 text-xs text-amber-700">{emptyHint}</p>}
     </div>
   );
 }
@@ -1261,9 +992,7 @@ function Field({
       <input
         type={type}
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         min={min}
         max={max}
@@ -1273,4 +1002,3 @@ function Field({
     </div>
   );
 }
-

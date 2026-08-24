@@ -5,9 +5,7 @@ export function ClientHeader() {
     <section className="flex flex-col gap-5">
       {/* Título */}
       <div>
-        <p className="mb-2 text-sm font-medium text-blue-600">
-          Gestão
-        </p>
+       
 
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
           Clientes

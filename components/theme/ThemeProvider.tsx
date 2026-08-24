@@ -10,8 +10,7 @@ import {
 
 export type Theme = "light" | "dark";
 
-export const THEME_STORAGE_KEY =
-  "nevrix-theme";
+export const THEME_STORAGE_KEY = "nevrix-theme";
 
 const THEME_EVENT = "nevrix:themechange";
 
@@ -22,27 +21,14 @@ const THEME_EVENT = "nevrix:themechange";
  * useSyncExternalStore: na hidratação usa-se o snapshot do servidor, evitando
  * descasamento entre o ícone renderizado no servidor e no cliente.
  */
-function subscribe(
-  onStoreChange: () => void,
-) {
-  window.addEventListener(
-    THEME_EVENT,
-    onStoreChange,
-  );
+function subscribe(onStoreChange: () => void) {
+  window.addEventListener(THEME_EVENT, onStoreChange);
 
-  return () =>
-    window.removeEventListener(
-      THEME_EVENT,
-      onStoreChange,
-    );
+  return () => window.removeEventListener(THEME_EVENT, onStoreChange);
 }
 
 function getSnapshot(): Theme {
-  return document.documentElement.classList.contains(
-    "dark",
-  )
-    ? "dark"
-    : "light";
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
 function getServerSnapshot(): Theme {
@@ -52,10 +38,7 @@ function getServerSnapshot(): Theme {
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
 
-  root.classList.remove(
-    "light",
-    "dark",
-  );
+  root.classList.remove("light", "dark");
 
   root.classList.add(theme);
 
@@ -64,17 +47,12 @@ function applyTheme(theme: Theme) {
   root.style.colorScheme = theme;
 
   try {
-    window.localStorage.setItem(
-      THEME_STORAGE_KEY,
-      theme,
-    );
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     // Modo privado ou storage bloqueado: o tema vale só para esta sessão.
   }
 
-  window.dispatchEvent(
-    new Event(THEME_EVENT),
-  );
+  window.dispatchEvent(new Event(THEME_EVENT));
 }
 
 interface ThemeContextValue {
@@ -83,33 +61,15 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext =
-  createContext<ThemeContextValue | null>(
-    null,
-  );
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const theme = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const setTheme = useCallback(
-    (next: Theme) => applyTheme(next),
-    [],
-  );
+  const setTheme = useCallback((next: Theme) => applyTheme(next), []);
 
   const toggleTheme = useCallback(() => {
-    applyTheme(
-      getSnapshot() === "dark"
-        ? "light"
-        : "dark",
-    );
+    applyTheme(getSnapshot() === "dark" ? "light" : "dark");
   }, []);
 
   return (
@@ -126,13 +86,10 @@ export function ThemeProvider({
 }
 
 export function useTheme() {
-  const context =
-    useContext(ThemeContext);
+  const context = useContext(ThemeContext);
 
   if (!context) {
-    throw new Error(
-      "useTheme precisa estar dentro de ThemeProvider",
-    );
+    throw new Error("useTheme precisa estar dentro de ThemeProvider");
   }
 
   return context;

@@ -8,9 +8,7 @@ import { X, Plus, Loader2 } from "lucide-react";
 import type { Service } from "@/types/service";
 
 interface ServicesHeaderProps {
-  onServiceCreated: (
-    service: Service,
-  ) => void;
+  onServiceCreated: (service: Service) => void;
 }
 
 export default function ServicesHeader({
@@ -19,11 +17,9 @@ export default function ServicesHeader({
   const [open, setOpen] = useState(false);
 
   const [name, setName] = useState("");
-  const [description, setDescription] =
-    useState("");
+  const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [duration, setDuration] =
-    useState("30");
+  const [duration, setDuration] = useState("30");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -43,9 +39,7 @@ export default function ServicesHeader({
     resetForm();
   }
 
-  async function handleCreateService(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleCreateService(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     /*
@@ -57,36 +51,20 @@ export default function ServicesHeader({
 
     const numericPrice = Number(price);
 
-    const numericDuration =
-      Number(duration);
+    const numericDuration = Number(duration);
 
     if (!cleanName) {
-      toast.error(
-        "Informe o nome do serviço.",
-      );
+      toast.error("Informe o nome do serviço.");
       return;
     }
 
-    if (
-      !price.trim() ||
-      !Number.isFinite(numericPrice) ||
-      numericPrice <= 0
-    ) {
-      toast.error(
-        "Informe o preço do serviço. Tem de ser maior que zero.",
-      );
+    if (!price.trim() || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+      toast.error("Informe o preço do serviço. Tem de ser maior que zero.");
       return;
     }
 
-    if (
-      !Number.isFinite(
-        numericDuration,
-      ) ||
-      numericDuration <= 0
-    ) {
-      toast.error(
-        "Informe a duração do serviço em minutos.",
-      );
+    if (!Number.isFinite(numericDuration) || numericDuration <= 0) {
+      toast.error("Informe a duração do serviço em minutos.");
       return;
     }
 
@@ -94,35 +72,26 @@ export default function ServicesHeader({
       setSaving(true);
       setError("");
 
-      const response = await fetch(
-        "/api/services",
-        {
-          method: "POST",
+      const response = await fetch("/api/services", {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            name: cleanName,
-            description:
-              description.trim(),
-            price: numericPrice,
-            duration: numericDuration,
-            active: true,
-          }),
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
 
-      const data =
-        await response.json();
+        body: JSON.stringify({
+          name: cleanName,
+          description: description.trim(),
+          price: numericPrice,
+          duration: numericDuration,
+          active: true,
+        }),
+      });
+
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Não foi possível criar o serviço.",
-        );
+        throw new Error(data?.error || "Não foi possível criar o serviço.");
       }
 
       onServiceCreated(data);
@@ -133,9 +102,7 @@ export default function ServicesHeader({
       console.error(error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao criar serviço.";
+        error instanceof Error ? error.message : "Erro ao criar serviço.";
 
       setError(message);
 
@@ -149,13 +116,7 @@ export default function ServicesHeader({
     <>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-blue-600">
-            Gestão
-          </p>
-
-          <h1 className="mt-1 text-2xl font-bold text-gray-950">
-            Serviços
-          </h1>
+          <h1 className="mt-1 text-2xl font-bold text-gray-950">Serviços</h1>
 
           <p className="mt-1 text-sm text-gray-500">
             Gerencie os serviços oferecidos.
@@ -165,10 +126,9 @@ export default function ServicesHeader({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+          className="flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
         >
           <Plus size={18} />
-
           Novo serviço
         </button>
       </div>
@@ -196,10 +156,7 @@ export default function ServicesHeader({
               </button>
             </div>
 
-            <form
-              onSubmit={handleCreateService}
-              className="space-y-5 p-6"
-            >
+            <form onSubmit={handleCreateService} className="space-y-5 p-6">
               {error && (
                 <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
                   {error}
@@ -213,9 +170,7 @@ export default function ServicesHeader({
 
                 <input
                   value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
+                  onChange={(event) => setName(event.target.value)}
                   required
                   className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
                   placeholder="Ex: Corte de cabelo"
@@ -229,11 +184,7 @@ export default function ServicesHeader({
 
                 <textarea
                   value={description}
-                  onChange={(event) =>
-                    setDescription(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setDescription(event.target.value)}
                   rows={3}
                   className="mt-1 w-full resize-none rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
                   placeholder="Descrição do serviço"
@@ -251,11 +202,7 @@ export default function ServicesHeader({
                     min="0"
                     step="0.01"
                     value={price}
-                    onChange={(event) =>
-                      setPrice(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setPrice(event.target.value)}
                     required
                     className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
                   />
@@ -268,36 +215,20 @@ export default function ServicesHeader({
 
                   <select
                     value={duration}
-                    onChange={(event) =>
-                      setDuration(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setDuration(event.target.value)}
                     className="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-gray-950"
                   >
-                    <option value="15">
-                      15 minutos
-                    </option>
+                    <option value="15">15 minutos</option>
 
-                    <option value="30">
-                      30 minutos
-                    </option>
+                    <option value="30">30 minutos</option>
 
-                    <option value="45">
-                      45 minutos
-                    </option>
+                    <option value="45">45 minutos</option>
 
-                    <option value="60">
-                      1 hora
-                    </option>
+                    <option value="60">1 hora</option>
 
-                    <option value="90">
-                      1h30
-                    </option>
+                    <option value="90">1h30</option>
 
-                    <option value="120">
-                      2 horas
-                    </option>
+                    <option value="120">2 horas</option>
                   </select>
                 </div>
               </div>
@@ -317,13 +248,7 @@ export default function ServicesHeader({
                   disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
                 >
-                  {saving && (
-                    <Loader2
-                      size={16}
-                      className="animate-spin"
-                    />
-                  )}
-
+                  {saving && <Loader2 size={16} className="animate-spin" />}
                   Criar serviço
                 </button>
               </div>

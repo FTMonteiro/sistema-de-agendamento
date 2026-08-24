@@ -68,8 +68,8 @@ const PAGES: Record<
 };
 
 const FALLBACK = {
-  title: "Nevrix",
-  subtitle: "Beauty Management",
+  title: "NEVRIX Flow",
+  subtitle: "Smart Business Manageme",
 };
 
 export function Header({
@@ -291,9 +291,9 @@ export function Header({
     userName.charAt(0).toUpperCase();
 
   /*
-   * =====================================================
+ 
    * CARGO
-   * =====================================================
+  
    */
 
   function formatRole(role?: string) {
@@ -325,22 +325,14 @@ export function Header({
     }
   }
 
-  /*
-   * =====================================================
-   * ABRIR MODAL DE LOGOUT
-   * =====================================================
-   */
+  /* ABRIR MODAL DE LOGOUT*/
 
   function handleLogout() {
     setOpenProfile(false);
     setShowLogoutModal(true);
   }
 
-  /*
-   * =====================================================
-   * CONFIRMAR LOGOUT
-   * =====================================================
-   */
+  /* CONFIRMAR LOGOUT*/
 
   async function confirmLogout() {
     try {
@@ -397,11 +389,7 @@ export function Header({
     }
   }
 
-  /*
-   * =====================================================
-   * RENDER
-   * =====================================================
-   */
+  /* RENDER*/
 
   return (
     <>
@@ -635,9 +623,7 @@ export function Header({
         </div>
       </header>
 
-      {/* =====================================================
-          MODAL DE CONFIRMAÇÃO DE LOGOUT
-          ===================================================== */}
+      {/*MODAL DE CONFIRMAÇÃO DE LOGOUT */}
 
       {showLogoutModal && (
         <div

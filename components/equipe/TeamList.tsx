@@ -29,9 +29,7 @@ export interface TeamMember {
 interface TeamListProps {
   members: TeamMember[];
 
-  onUpdateMember: (
-    member: TeamMember,
-  ) => void;
+  onUpdateMember: (member: TeamMember) => void;
 
   onDeleteMember: (id: string) => void;
 }
@@ -43,36 +41,26 @@ export default function TeamList({
 }: TeamListProps) {
   const [query, setQuery] = useState("");
 
-  const [openMenu, setOpenMenu] =
-    useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const [editingMember, setEditingMember] =
-    useState<TeamMember | null>(null);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-  const [deletingMember, setDeletingMember] =
-    useState<TeamMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
 
-  const [loadingId, setLoadingId] =
-    useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const [editName, setEditName] =
-    useState("");
+  const [editName, setEditName] = useState("");
 
-  const [editEmail, setEditEmail] =
-    useState("");
+  const [editEmail, setEditEmail] = useState("");
 
-  const [editPhone, setEditPhone] =
-    useState("");
+  const [editPhone, setEditPhone] = useState("");
 
-  const [editSpecialty, setEditSpecialty] =
-    useState("");
+  const [editSpecialty, setEditSpecialty] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   const filteredMembers = useMemo(() => {
-    const normalized =
-      query.trim().toLowerCase();
+    const normalized = query.trim().toLowerCase();
 
     if (!normalized) {
       return members;
@@ -80,18 +68,10 @@ export default function TeamList({
 
     return members.filter((member) => {
       return (
-        member.name
-          .toLowerCase()
-          .includes(normalized) ||
-        member.email
-          .toLowerCase()
-          .includes(normalized) ||
-        member.phone
-          .toLowerCase()
-          .includes(normalized) ||
-        member.specialty
-          .toLowerCase()
-          .includes(normalized)
+        member.name.toLowerCase().includes(normalized) ||
+        member.email.toLowerCase().includes(normalized) ||
+        member.phone.toLowerCase().includes(normalized) ||
+        member.specialty.toLowerCase().includes(normalized)
       );
     });
   }, [members, query]);
@@ -114,9 +94,7 @@ export default function TeamList({
     setError("");
 
     const name = editName.trim();
-    const email = editEmail
-      .trim()
-      .toLowerCase();
+    const email = editEmail.trim().toLowerCase();
 
     if (!name) {
       setError("Digite o nome.");
@@ -138,8 +116,7 @@ export default function TeamList({
       return;
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
       setError("Digite um email válido.");
@@ -149,29 +126,23 @@ export default function TeamList({
     try {
       setLoadingId(editingMember.id);
 
-      const response = await fetch(
-        `/api/professionals/${editingMember.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            phone: editPhone.trim(),
-            specialty: editSpecialty.trim(),
-          }),
+      const response = await fetch(`/api/professionals/${editingMember.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          name,
+          email,
+          phone: editPhone.trim(),
+          specialty: editSpecialty.trim(),
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Não foi possível editar.",
-        );
+        throw new Error(data?.error || "Não foi possível editar.");
       }
 
       onUpdateMember({
@@ -180,49 +151,36 @@ export default function TeamList({
         phone: data.phone ?? "",
         specialty: data.specialty ?? "",
         active: data.active === true,
-        emailVerified:
-          data.emailVerified === true,
+        emailVerified: data.emailVerified === true,
       });
 
       setEditingMember(null);
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Erro ao editar.",
-      );
+      setError(error instanceof Error ? error.message : "Erro ao editar.");
     } finally {
       setLoadingId(null);
     }
   }
 
-  async function handleToggleActive(
-    member: TeamMember,
-  ) {
+  async function handleToggleActive(member: TeamMember) {
     try {
       setLoadingId(member.id);
       setOpenMenu(null);
 
-      const response = await fetch(
-        `/api/professionals/${member.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            active: !member.active,
-          }),
+      const response = await fetch(`/api/professionals/${member.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          active: !member.active,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Não foi possível alterar o estado.",
-        );
+        throw new Error(data?.error || "Não foi possível alterar o estado.");
       }
 
       onUpdateMember({
@@ -232,9 +190,7 @@ export default function TeamList({
       });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erro ao alterar estado.",
+        error instanceof Error ? error.message : "Erro ao alterar estado.",
       );
     } finally {
       setLoadingId(null);
@@ -247,12 +203,9 @@ export default function TeamList({
     try {
       setLoadingId(deletingMember.id);
 
-      const response = await fetch(
-        `/api/professionals/${deletingMember.id}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`/api/professionals/${deletingMember.id}`, {
+        method: "DELETE",
+      });
 
       const data = await response.json();
 
@@ -271,10 +224,7 @@ export default function TeamList({
           return;
         }
 
-        throw new Error(
-          data?.error ||
-            "Não foi possível excluir.",
-        );
+        throw new Error(data?.error || "Não foi possível excluir.");
       }
 
       onDeleteMember(deletingMember.id);
@@ -282,15 +232,9 @@ export default function TeamList({
       setDeletingMember(null);
       setOpenMenu(null);
 
-      toast.success(
-        `${deletingMember.name} foi excluído.`,
-      );
+      toast.success(`${deletingMember.name} foi excluído.`);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erro ao excluir.",
-      );
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir.");
     } finally {
       setLoadingId(null);
     }
@@ -301,9 +245,7 @@ export default function TeamList({
       <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-950">
-              Profissionais
-            </h2>
+            <h2 className="text-lg font-bold text-gray-950">Profissionais</h2>
 
             <p className="mt-1 text-sm text-gray-500">
               Profissionais cadastrados.
@@ -319,9 +261,7 @@ export default function TeamList({
             <input
               type="text"
               value={query}
-              onChange={(event) =>
-                setQuery(event.target.value)
-              }
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Pesquisar profissional..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
@@ -336,14 +276,12 @@ export default function TeamList({
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Adicione um profissional ou
-                tente outra pesquisa.
+                Adicione um profissional ou tente outra pesquisa.
               </p>
             </div>
           ) : (
             filteredMembers.map((member) => {
-              const isLoading =
-                loadingId === member.id;
+              const isLoading = loadingId === member.id;
 
               return (
                 <div
@@ -379,19 +317,11 @@ export default function TeamList({
                     </div>
 
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                      {member.email && (
-                        <span>{member.email}</span>
-                      )}
+                      {member.email && <span>{member.email}</span>}
 
-                      {member.phone && (
-                        <span>{member.phone}</span>
-                      )}
+                      {member.phone && <span>{member.phone}</span>}
 
-                      {member.specialty && (
-                        <span>
-                          {member.specialty}
-                        </span>
-                      )}
+                      {member.specialty && <span>{member.specialty}</span>}
                     </div>
                   </div>
 
@@ -402,27 +332,19 @@ export default function TeamList({
                       type="button"
                       disabled={isLoading}
                       onClick={() =>
-                        setOpenMenu(
-                          openMenu === member.id
-                            ? null
-                            : member.id,
-                        )
+                        setOpenMenu(openMenu === member.id ? null : member.id)
                       }
                       aria-label="Abrir ações"
                       className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
                     >
-                      <MoreHorizontal
-                        size={22}
-                      />
+                      <MoreHorizontal size={22} />
                     </button>
 
                     {openMenu === member.id && (
                       <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
                         <button
                           type="button"
-                          onClick={() =>
-                            openEdit(member)
-                          }
+                          onClick={() => openEdit(member)}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
                         >
                           <Pencil size={16} />
@@ -432,26 +354,18 @@ export default function TeamList({
                         <button
                           type="button"
                           disabled={isLoading}
-                          onClick={() =>
-                            handleToggleActive(
-                              member,
-                            )
-                          }
+                          onClick={() => handleToggleActive(member)}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                         >
                           <Power size={16} />
 
-                          {member.active
-                            ? "Desativar"
-                            : "Ativar"}
+                          {member.active ? "Desativar" : "Ativar"}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => {
-                            setDeletingMember(
-                              member,
-                            );
+                            setDeletingMember(member);
                             setOpenMenu(null);
                           }}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
@@ -469,9 +383,7 @@ export default function TeamList({
         </div>
       </section>
 
-      {/* ==============================
-          MODAL EDITAR
-      ============================== */}
+      {/*MODAL EDITAR */}
 
       {editingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -482,16 +394,12 @@ export default function TeamList({
                   Editar profissional
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Atualize os dados.
-                </p>
+                <p className="mt-1 text-sm text-gray-500">Atualize os dados.</p>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setEditingMember(null)
-                }
+                onClick={() => setEditingMember(null)}
                 className="rounded-xl p-2 text-gray-500 hover:bg-gray-100"
               >
                 <X size={20} />
@@ -512,11 +420,7 @@ export default function TeamList({
 
                 <input
                   value={editName}
-                  onChange={(event) =>
-                    setEditName(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setEditName(event.target.value)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
                 />
               </div>
@@ -529,11 +433,7 @@ export default function TeamList({
                 <input
                   type="email"
                   value={editEmail}
-                  onChange={(event) =>
-                    setEditEmail(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setEditEmail(event.target.value)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
                 />
               </div>
@@ -545,11 +445,7 @@ export default function TeamList({
 
                 <input
                   value={editPhone}
-                  onChange={(event) =>
-                    setEditPhone(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setEditPhone(event.target.value)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
                 />
               </div>
@@ -561,11 +457,7 @@ export default function TeamList({
 
                 <input
                   value={editSpecialty}
-                  onChange={(event) =>
-                    setEditSpecialty(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setEditSpecialty(event.target.value)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
                 />
               </div>
@@ -574,9 +466,7 @@ export default function TeamList({
             <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
               <button
                 type="button"
-                onClick={() =>
-                  setEditingMember(null)
-                }
+                onClick={() => setEditingMember(null)}
                 className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
@@ -585,34 +475,25 @@ export default function TeamList({
               <button
                 type="button"
                 onClick={handleEdit}
-                disabled={
-                  loadingId === editingMember.id
-                }
+                disabled={loadingId === editingMember.id}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 <Save size={16} />
 
-                {loadingId === editingMember.id
-                  ? "A guardar..."
-                  : "Guardar"}
+                {loadingId === editingMember.id ? "A guardar..." : "Guardar"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ==============================
-          MODAL EXCLUIR
-      ============================== */}
+      {/* MODAL EXCLUIR */}
 
       {deletingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-              <Trash2
-                size={22}
-                className="text-red-600"
-              />
+              <Trash2 size={22} className="text-red-600" />
             </div>
 
             <h2 className="mt-5 text-xl font-bold text-gray-950">
@@ -621,18 +502,13 @@ export default function TeamList({
 
             <p className="mt-2 text-sm leading-6 text-gray-500">
               Tem certeza que deseja excluir{" "}
-              <strong className="text-gray-800">
-                {deletingMember.name}
-              </strong>
-              ?
+              <strong className="text-gray-800">{deletingMember.name}</strong>?
             </p>
 
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setDeletingMember(null)
-                }
+                onClick={() => setDeletingMember(null)}
                 className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
@@ -641,14 +517,10 @@ export default function TeamList({
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={
-                  loadingId ===
-                  deletingMember.id
-                }
+                disabled={loadingId === deletingMember.id}
                 className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                {loadingId ===
-                deletingMember.id
+                {loadingId === deletingMember.id
                   ? "A excluir..."
                   : "Sim, excluir"}
               </button>

@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+
 import { useRouter } from "next/navigation";
 
 import { ReceivePayment } from "@/components/appointments/ReceivePayment";
@@ -19,11 +20,14 @@ interface ServiceRecord {
 }
 
 function formatPrice(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
   return new Intl.NumberFormat("pt-AO", {
     style: "currency",
     currency: "AOA",
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(safeValue);
 }
 
 function todayKey() {
@@ -31,40 +35,47 @@ function todayKey() {
 
   return [
     now.getFullYear(),
-    String(now.getMonth() + 1).padStart(
-      2,
-      "0",
-    ),
-    String(now.getDate()).padStart(
-      2,
-      "0",
-    ),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
   ].join("-");
 }
 
 const STATUS_STYLES: Record<
   string,
-  { label: string; badge: string; dot: string }
+  {
+    label: string;
+    badge: string;
+    dot: string;
+  }
 > = {
   confirmed: {
     label: "Confirmado",
     badge: "bg-green-50 text-green-700",
     dot: "bg-green-500",
   },
+
   pending: {
     label: "Aguardando",
     badge: "bg-yellow-50 text-yellow-700",
     dot: "bg-yellow-500",
   },
+
   completed: {
     label: "Concluído",
     badge: "bg-blue-50 text-blue-700",
     dot: "bg-blue-500",
   },
+
   cancelled: {
     label: "Cancelado",
     badge: "bg-red-50 text-red-700",
     dot: "bg-red-500",
+  },
+
+  no_show: {
+    label: "Não compareceu",
+    badge: "bg-gray-100 text-gray-700",
+    dot: "bg-gray-500",
   },
 };
 
@@ -83,7 +94,14 @@ export default function DashboardPage() {
   const [loading, setLoading] =
     useState(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARREGAR DADOS
+  |--------------------------------------------------------------------------
+  */
 
   const load = useCallback(async () => {
     try {
@@ -96,12 +114,17 @@ export default function DashboardPage() {
         servicesResponse,
       ] = await Promise.all([
         fetch("/api/appointments", {
+          method: "GET",
           cache: "no-store",
         }),
+
         fetch("/api/clients", {
+          method: "GET",
           cache: "no-store",
         }),
+
         fetch("/api/services", {
+          method: "GET",
           cache: "no-store",
         }),
       ]);
@@ -126,24 +149,56 @@ export default function DashboardPage() {
         servicesResponse.json(),
       ]);
 
+      /*
+      |--------------------------------------------------------------------------
+      | AGENDAMENTOS
+      |--------------------------------------------------------------------------
+      */
+
       setAppointments(
-        appointmentsData.appointments ??
-          [],
+        Array.isArray(
+          appointmentsData?.appointments,
+        )
+          ? appointmentsData.appointments
+          : [],
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | CLIENTES
+      |--------------------------------------------------------------------------
+      */
 
       setClientCount(
         Array.isArray(clientsData)
           ? clientsData.length
-          : 0,
+          : Array.isArray(
+                clientsData?.clients,
+              )
+            ? clientsData.clients.length
+            : 0,
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | SERVIÇOS
+      |--------------------------------------------------------------------------
+      */
 
       setServices(
         Array.isArray(servicesData)
           ? servicesData
-          : [],
+          : Array.isArray(
+                servicesData?.services,
+              )
+            ? servicesData.services
+            : [],
       );
     } catch (caught) {
-      console.error(caught);
+      console.error(
+        "Erro ao carregar dashboard:",
+        caught,
+      );
 
       setError(
         caught instanceof Error
@@ -155,33 +210,64 @@ export default function DashboardPage() {
     }
   }, []);
 
+  /*
+  |--------------------------------------------------------------------------
+  | PRIMEIRO CARREGAMENTO
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
     load();
   }, [load]);
 
   /*
-   * Criar, editar, apagar agendamento ou receber pagamento noutra tela emite
-   * este evento — o dashboard tem de refletir sem recarregar a página.
-   */
+  |--------------------------------------------------------------------------
+  | ATUALIZAÇÃO AUTOMÁTICA
+  |--------------------------------------------------------------------------
+  |
+  | Quando um pagamento é registrado, o ReceivePayment
+  | dispara:
+  |
+  | appointments:changed
+  |
+  | O dashboard então busca os dados novamente.
+  |
+  */
+
   useEffect(() => {
+    function handleAppointmentsChanged() {
+      load();
+    }
+
     window.addEventListener(
       "appointments:changed",
-      load,
+      handleAppointmentsChanged,
     );
 
-    return () =>
+    return () => {
       window.removeEventListener(
         "appointments:changed",
-        load,
+        handleAppointmentsChanged,
       );
+    };
   }, [load]);
 
   /*
-   * Métricas derivadas dos agendamentos reais. "Receita" conta apenas o que
-   * foi efectivamente pago, para não inflar o número com agendamentos por
-   * confirmar.
-   */
+  |--------------------------------------------------------------------------
+  | MÉTRICAS
+  |--------------------------------------------------------------------------
+  */
+
   const metrics = useMemo(() => {
+    /*
+    |--------------------------------------------------------------------------
+    | SERVIÇOS REALIZADOS
+    |--------------------------------------------------------------------------
+    |
+    | Conta apenas os agendamentos concluídos.
+    |
+    */
+
     const completed =
       appointments.filter(
         (item) =>
@@ -189,17 +275,41 @@ export default function DashboardPage() {
       ).length;
 
     /*
-     * Soma o que foi recebido, nao o preco do servico: quem registou o
-     * pagamento pode ter lancado outro valor.
-     */
+    |--------------------------------------------------------------------------
+    | RECEITA RECEBIDA
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANTE:
+    |
+    | A API /api/appointments devolve:
+    |
+    | paymentAmount
+    |
+    | Portanto NÃO usamos paidAmount aqui.
+    |
+    */
+
     const revenue =
       appointments.reduce(
-        (total, item) =>
-          total +
-          (Number(item.paidAmount) ||
-            0),
+        (total, item) => {
+          const amount = Number(
+            item.paymentAmount ?? 0,
+          );
+
+          if (!Number.isFinite(amount)) {
+            return total;
+          }
+
+          return total + amount;
+        },
         0,
       );
+
+    /*
+    |--------------------------------------------------------------------------
+    | PAGAMENTOS RECEBIDOS
+    |--------------------------------------------------------------------------
+    */
 
     const paidCount =
       appointments.filter(
@@ -207,17 +317,31 @@ export default function DashboardPage() {
           item.payment === "paid",
       ).length;
 
+    /*
+    |--------------------------------------------------------------------------
+    | SERVIÇOS ATIVOS
+    |--------------------------------------------------------------------------
+    */
+
+    const activeServices =
+      services.filter(
+        (service) =>
+          service.active !== false,
+      ).length;
+
     return {
       clients: clientCount,
-      appointments: appointments.length,
+
+      appointments:
+        appointments.length,
+
       completed,
+
       revenue,
+
       paidCount,
-      activeServices:
-        services.filter(
-          (service) =>
-            service.active !== false,
-        ).length,
+
+      activeServices,
     };
   }, [
     appointments,
@@ -225,47 +349,83 @@ export default function DashboardPage() {
     services,
   ]);
 
+  /*
+  |--------------------------------------------------------------------------
+  | DATA DE HOJE
+  |--------------------------------------------------------------------------
+  */
+
   const today = todayKey();
 
-  const todayAppointments = useMemo(
-    () =>
-      appointments
+  /*
+  |--------------------------------------------------------------------------
+  | AGENDA DE HOJE
+  |--------------------------------------------------------------------------
+  */
+
+  const todayAppointments =
+    useMemo(() => {
+      return appointments
         .filter(
           (item) =>
             item.date === today,
         )
         .sort((a, b) =>
-          a.time.localeCompare(b.time),
-        ),
-    [appointments, today],
-  );
+          a.time.localeCompare(
+            b.time,
+          ),
+        );
+    }, [appointments, today]);
 
-  const todaySummary = useMemo(() => {
-    const count = (status: string) =>
-      todayAppointments.filter(
-        (item) =>
-          item.status === status,
-      ).length;
+  /*
+  |--------------------------------------------------------------------------
+  | RESUMO DO DIA
+  |--------------------------------------------------------------------------
+  */
 
-    return {
-      total: todayAppointments.length,
-      confirmed: count("confirmed"),
-      pending: count("pending"),
-      completed: count("completed"),
-    };
-  }, [todayAppointments]);
+  const todaySummary =
+    useMemo(() => {
+      const count = (
+        status: string,
+      ) =>
+        todayAppointments.filter(
+          (item) =>
+            item.status === status,
+        ).length;
+
+      return {
+        total:
+          todayAppointments.length,
+
+        confirmed:
+          count("confirmed"),
+
+        pending:
+          count("pending"),
+
+        completed:
+          count("completed"),
+      };
+    }, [todayAppointments]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <div className="min-h-full space-y-8">
-      {/* CABEÇALHO */}
-      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="mb-2 text-sm font-medium text-blue-600">
-            Visão geral
-          </p>
 
+      {/* =====================================================
+          CABEÇALHO
+      ===================================================== */}
+
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
+        <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Dashboard
+            Resumo do negócio em primeira mão
           </h1>
 
           <p className="mt-2 max-w-xl text-sm text-gray-500 sm:text-base">
@@ -274,25 +434,63 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+
+          {/* NOVO AGENDAMENTO */}
+
           <button
             type="button"
             onClick={() =>
-              router.push("/appointments")
+              router.push(
+                "/appointments",
+              )
             }
-            className="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-gray-800 hover:shadow-md active:scale-[0.98] sm:w-auto"
+            className="
+              inline-flex
+              w-full
+              items-center
+              justify-center
+              rounded-xl
+              bg-gray-900
+              px-5
+              py-3
+              text-sm
+              font-semibold
+              text-white
+              shadow-sm
+              transition-all
+              duration-200
+              hover:bg-gray-800
+              hover:shadow-md
+              active:scale-[0.98]
+              sm:w-auto
+            "
           >
             + Novo Agendamento
           </button>
 
-          {/* Recarrega para a receita refletir o pagamento na hora. */}
+          {/* RECEBER PAGAMENTO */}
+
           <ReceivePayment
             onPaymentCreated={load}
           />
+
         </div>
       </section>
 
+      {/* =====================================================
+          ERRO
+      ===================================================== */}
+
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <div
+          className="
+            rounded-xl
+            border
+            border-red-200
+            bg-red-50
+            p-4
+          "
+        >
           <p className="text-sm text-red-800">
             {error}
           </p>
@@ -300,21 +498,37 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={load}
-            className="mt-2 text-sm font-semibold text-red-900 underline"
+            className="
+              mt-2
+              text-sm
+              font-semibold
+              text-red-900
+              underline
+            "
           >
             Tentar novamente
           </button>
         </div>
       )}
 
-      {/* ESTATÍSTICAS */}
+      {/* =====================================================
+          ESTATÍSTICAS
+      ===================================================== */}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+        {/* CLIENTES */}
+
         <StatCard
           label="Clientes"
-          value={String(metrics.clients)}
+          value={String(
+            metrics.clients,
+          )}
           description="cadastrados"
           loading={loading}
         />
+
+        {/* AGENDAMENTOS */}
 
         <StatCard
           label="Agendamentos"
@@ -325,6 +539,8 @@ export default function DashboardPage() {
           loading={loading}
         />
 
+        {/* SERVIÇOS REALIZADOS */}
+
         <StatCard
           label="Serviços realizados"
           value={String(
@@ -333,6 +549,8 @@ export default function DashboardPage() {
           description={`${metrics.activeServices} serviços activos`}
           loading={loading}
         />
+
+        {/* RECEITA */}
 
         <StatCard
           label="Receita recebida"
@@ -346,13 +564,25 @@ export default function DashboardPage() {
           }
           loading={loading}
         />
+
       </section>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* =====================================================
+          CONTEÚDO PRINCIPAL
+      ===================================================== */}
+
       <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        {/* AGENDA DE HOJE */}
+
+        {/* ===================================================
+            AGENDA DE HOJE
+        =================================================== */}
+
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+
+          {/* HEADER DA AGENDA */}
+
           <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 Agenda de hoje
@@ -377,11 +607,26 @@ export default function DashboardPage() {
                   "/appointments",
                 )
               }
-              className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 sm:w-auto"
+              className="
+                w-full
+                rounded-lg
+                bg-gray-900
+                px-4
+                py-2.5
+                text-sm
+                font-medium
+                text-white
+                transition-colors
+                hover:bg-gray-800
+                sm:w-auto
+              "
             >
               Ver agenda
             </button>
+
           </div>
+
+          {/* LOADING */}
 
           {loading ? (
             <div className="p-10 text-center text-sm text-gray-500">
@@ -389,7 +634,11 @@ export default function DashboardPage() {
             </div>
           ) : todayAppointments.length ===
             0 ? (
+
+            /* SEM AGENDAMENTOS */
+
             <div className="p-10 text-center">
+
               <p className="font-medium text-gray-700">
                 Nenhum atendimento hoje
               </p>
@@ -397,11 +646,18 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-gray-500">
                 Os agendamentos de hoje aparecem aqui.
               </p>
+
             </div>
+
           ) : (
+
+            /* LISTA DE AGENDAMENTOS */
+
             <div className="divide-y divide-gray-100">
+
               {todayAppointments.map(
                 (appointment) => {
+
                   const style =
                     STATUS_STYLES[
                       appointment.status
@@ -413,14 +669,36 @@ export default function DashboardPage() {
                       key={
                         appointment.id
                       }
-                      className="flex flex-col gap-4 p-5 transition-colors hover:bg-gray-50/70 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+                      className="
+                        flex
+                        flex-col
+                        gap-4
+                        p-5
+                        transition-colors
+                        hover:bg-gray-50/70
+                        sm:flex-row
+                        sm:items-center
+                        sm:justify-between
+                        sm:p-6
+                      "
                     >
+
+                      {/* CLIENTE / SERVIÇO */}
+
                       <div className="flex min-w-0 items-center gap-4">
+
                         <div
-                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`}
+                          className={`
+                            h-2.5
+                            w-2.5
+                            shrink-0
+                            rounded-full
+                            ${style.dot}
+                          `}
                         />
 
                         <div className="min-w-0">
+
                           <p className="truncate text-sm font-semibold text-gray-900">
                             {
                               appointment.client
@@ -428,6 +706,7 @@ export default function DashboardPage() {
                           </p>
 
                           <p className="mt-1 truncate text-sm text-gray-500">
+
                             {
                               appointment.service
                             }
@@ -439,11 +718,16 @@ export default function DashboardPage() {
                             {
                               appointment.professional
                             }
+
                           </p>
+
                         </div>
                       </div>
 
+                      {/* HORA / STATUS */}
+
                       <div className="flex items-center justify-between gap-4 sm:justify-end">
+
                         <p className="text-sm font-semibold text-gray-900">
                           {
                             appointment.time
@@ -451,21 +735,38 @@ export default function DashboardPage() {
                         </p>
 
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${style.badge}`}
+                          className={`
+                            rounded-full
+                            px-3
+                            py-1
+                            text-xs
+                            font-medium
+                            ${style.badge}
+                          `}
                         >
-                          {style.label}
+                          {
+                            style.label
+                          }
                         </span>
+
                       </div>
+
                     </div>
                   );
                 },
               )}
+
             </div>
           )}
+
         </div>
 
-        {/* RESUMO DO DIA */}
+        {/* ===================================================
+            RESUMO DO DIA
+        =================================================== */}
+
         <div className="rounded-2xl bg-gray-900 p-6 text-white shadow-sm">
+
           <p className="text-sm font-medium text-gray-400">
             Resumo do dia
           </p>
@@ -483,6 +784,7 @@ export default function DashboardPage() {
           <div className="my-6 h-px bg-white/10" />
 
           <div className="space-y-5">
+
             <SummaryRow
               label="Confirmados"
               value={
@@ -506,22 +808,45 @@ export default function DashboardPage() {
               }
               loading={loading}
             />
+
           </div>
 
           <button
             type="button"
             onClick={() =>
-              router.push("/appointments")
+              router.push(
+                "/appointments",
+              )
             }
-            className="mt-7 w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
+            className="
+              mt-7
+              w-full
+              rounded-lg
+              bg-white
+              px-4
+              py-2.5
+              text-sm
+              font-semibold
+              text-gray-900
+              transition-colors
+              hover:bg-gray-100
+            "
           >
             Ver detalhes
           </button>
+
         </div>
+
       </section>
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| STAT CARD
+|--------------------------------------------------------------------------
+*/
 
 function StatCard({
   label,
@@ -535,33 +860,74 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div
+      className="
+        rounded-2xl
+        bg-white
+        p-5
+        shadow-sm
+        ring-1
+        ring-gray-100
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+        hover:shadow-md
+      "
+    >
+
       <div className="flex items-start justify-between gap-4">
+
         <div className="min-w-0">
+
           <p className="text-sm font-medium text-gray-500">
             {label}
           </p>
 
           <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            {loading ? "—" : value}
+            {loading
+              ? "—"
+              : value}
           </h2>
+
         </div>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+        <div
+          className="
+            flex
+            h-9
+            w-9
+            shrink-0
+            items-center
+            justify-center
+            rounded-lg
+            bg-blue-50
+            text-blue-600
+          "
+        >
           <span className="text-sm font-bold">
             ↗
           </span>
         </div>
+
       </div>
 
       <div className="mt-4">
+
         <span className="text-xs text-gray-400">
           {description}
         </span>
+
       </div>
+
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| SUMMARY ROW
+|--------------------------------------------------------------------------
+*/
 
 function SummaryRow({
   label,
@@ -574,13 +940,17 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between">
+
       <span className="text-sm text-gray-400">
         {label}
       </span>
 
       <span className="text-sm font-semibold text-white">
-        {loading ? "—" : value}
+        {loading
+          ? "—"
+          : value}
       </span>
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   CreditCard,
@@ -30,7 +30,7 @@ interface PaymentAppointment {
   service: {
     id: string;
     name: string;
-    price: number | string;
+    price: number | string | null;
     duration: number;
   };
 
@@ -40,6 +40,17 @@ interface PaymentAppointment {
     method: string;
     status: string;
   } | null;
+
+  // Compatibilidade caso a API devolva estes campos
+  paymentAmount?: number | string | null;
+  paymentMethod?: string | null;
+}
+
+interface ServiceRecord {
+  id: string;
+  name: string;
+  price: number | string | null;
+  active?: boolean;
 }
 
 type PaymentMethod =
@@ -52,14 +63,88 @@ interface ReceivePaymentProps {
   onPaymentCreated?: () => void;
 }
 
+function getNumericPrice(
+  value: number | string | null | undefined,
+): number {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return 0;
+  }
+
+  return numberValue;
+}
+
+function formatPrice(
+  value: number | string | null | undefined,
+) {
+  const numericValue = getNumericPrice(value);
+
+  return new Intl.NumberFormat("pt-AO", {
+    style: "currency",
+    currency: "AOA",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numericValue);
+}
+
+function formatDate(value: string) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-AO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getPaymentMethodLabel(
+  method?: string | null,
+) {
+  switch (method) {
+    case "CASH":
+      return "Dinheiro";
+
+    case "CARD":
+      return "Cartão";
+
+    case "TRANSFER":
+      return "Transferência";
+
+    case "MOBILE_MONEY":
+      return "Multicaixa Express";
+
+    default:
+      return method || "—";
+  }
+}
+
 export function ReceivePayment({
   onPaymentCreated,
 }: ReceivePaymentProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const [appointments, setAppointments] = useState<
-    PaymentAppointment[]
-  >([]);
+  const [appointments, setAppointments] =
+    useState<PaymentAppointment[]>([]);
+
+  const [services, setServices] =
+    useState<ServiceRecord[]>([]);
 
   const [selectedAppointmentId, setSelectedAppointmentId] =
     useState("");
@@ -67,100 +152,211 @@ export function ReceivePayment({
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>("CASH");
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
   const [error, setError] = useState("");
 
   const [success, setSuccess] = useState("");
 
-  function formatPrice(value: number | string) {
-    const numericValue = Number(value);
-
-    if (!Number.isFinite(numericValue)) {
-      return "0 Kz";
-    }
-
-    return new Intl.NumberFormat("pt-AO", {
-      style: "currency",
-      currency: "AOA",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(numericValue);
-  }
-
-  function formatDate(value: string) {
-    if (!value) {
-      return "-";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return "-";
-    }
-
-    return new Intl.DateTimeFormat("pt-AO", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(date);
-  }
+  /*
+  |--------------------------------------------------------------------------
+  | CARREGAR AGENDAMENTOS + SERVIÇOS
+  |--------------------------------------------------------------------------
+  */
 
   async function loadAppointments() {
     try {
       setIsLoading(true);
       setError("");
 
-      /*
-       * Rota própria: devolve os agendamentos por pagar já com client,
-       * professional e service incluídos. GET /api/appointments serve a
-       * listagem e traz tudo achatado, sem o preço do serviço.
-       */
-      const response = await fetch(
-        "/api/appointments/payments",
-        {
+      const [
+        appointmentsResponse,
+        servicesResponse,
+      ] = await Promise.all([
+        fetch(
+          "/api/appointments/payments",
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        ),
+
+        fetch("/api/services", {
           method: "GET",
           cache: "no-store",
-        }
-      );
+        }),
+      ]);
 
-      const data = await response.json();
+      const appointmentsData =
+        await appointmentsResponse.json();
 
-      if (!response.ok) {
+      const servicesData =
+        await servicesResponse.json();
+
+      if (!appointmentsResponse.ok) {
         throw new Error(
-          data?.error ||
-            "Não foi possível carregar os agendamentos."
+          appointmentsData?.error ||
+            "Não foi possível carregar os agendamentos.",
         );
       }
 
-      const apiAppointments: PaymentAppointment[] =
-        data?.appointments ?? [];
+      if (!servicesResponse.ok) {
+        throw new Error(
+          servicesData?.error ||
+            "Não foi possível carregar os serviços.",
+        );
+      }
 
-      setAppointments(apiAppointments);
+      const apiAppointments =
+        Array.isArray(
+          appointmentsData?.appointments,
+        )
+          ? appointmentsData.appointments
+          : [];
+
+      const apiServices: ServiceRecord[] =
+        Array.isArray(servicesData)
+          ? servicesData
+          : Array.isArray(
+                servicesData?.services,
+              )
+            ? servicesData.services
+            : [];
+
+      setServices(apiServices);
+
+      /*
+       * ============================================================
+       * CORREÇÃO DO PREÇO
+       * ============================================================
+       *
+       * A prioridade será:
+       *
+       * 1. service.price vindo da API de pagamentos
+       * 2. price vindo diretamente do agendamento
+       * 3. preço encontrado em /api/services pelo service.id
+       *
+       * Assim evitamos que a modal mostre 0 Kz quando o serviço
+       * realmente possui preço cadastrado.
+       */
+
+      const normalizedAppointments: PaymentAppointment[] =
+        apiAppointments.map(
+          (appointment: any) => {
+            const serviceId =
+              appointment?.service?.id ??
+              appointment?.serviceId ??
+              "";
+
+            const serviceFromApi =
+              apiServices.find(
+                (service) =>
+                  service.id === serviceId,
+              );
+
+            const nestedPrice =
+              getNumericPrice(
+                appointment?.service?.price,
+              );
+
+            const directPrice =
+              getNumericPrice(
+                appointment?.price,
+              );
+
+            const servicePrice =
+              getNumericPrice(
+                serviceFromApi?.price,
+              );
+
+            let finalPrice = nestedPrice;
+
+            /*
+             * Se o preço que veio da API de pagamento for 0,
+             * tenta encontrar o preço real no endpoint de serviços.
+             */
+            if (finalPrice <= 0) {
+              if (directPrice > 0) {
+                finalPrice = directPrice;
+              } else if (servicePrice > 0) {
+                finalPrice = servicePrice;
+              }
+            }
+
+            return {
+              ...appointment,
+
+              service: {
+                ...appointment.service,
+
+                id:
+                  appointment?.service?.id ??
+                  serviceId,
+
+                name:
+                  appointment?.service?.name ??
+                  serviceFromApi?.name ??
+                  "Serviço",
+
+                price: finalPrice,
+
+                duration:
+                  Number(
+                    appointment?.service
+                      ?.duration,
+                  ) || 0,
+              },
+            };
+          },
+        );
+
+      setAppointments(
+        normalizedAppointments,
+      );
     } catch (err) {
-      console.error("Erro ao carregar pagamentos:", err);
+      console.error(
+        "Erro ao carregar pagamentos:",
+        err,
+      );
 
       setError(
         err instanceof Error
           ? err.message
-          : "Erro ao carregar os agendamentos."
+          : "Erro ao carregar os agendamentos.",
       );
     } finally {
       setIsLoading(false);
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | ABRIR
+  |--------------------------------------------------------------------------
+  */
+
   function handleOpen() {
     setIsOpen(true);
+
     setError("");
     setSuccess("");
+
     setSelectedAppointmentId("");
+
     setPaymentMethod("CASH");
 
     loadAppointments();
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | FECHAR
+  |--------------------------------------------------------------------------
+  */
 
   function handleClose() {
     if (isSubmitting) {
@@ -168,141 +364,179 @@ export function ReceivePayment({
     }
 
     setIsOpen(false);
+
     setError("");
     setSuccess("");
+
     setSelectedAppointmentId("");
+
     setPaymentMethod("CASH");
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | AGENDAMENTO SELECIONADO
+  |--------------------------------------------------------------------------
+  */
+
   const selectedAppointment =
-    appointments.find(
-      (appointment) =>
-        appointment.id === selectedAppointmentId
-    ) ?? null;
+    useMemo(() => {
+      return (
+        appointments.find(
+          (appointment) =>
+            appointment.id ===
+            selectedAppointmentId,
+        ) ?? null
+      );
+    }, [
+      appointments,
+      selectedAppointmentId,
+    ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | PREÇO SELECIONADO
+  |--------------------------------------------------------------------------
+  */
+
+  const selectedPrice = useMemo(() => {
+    if (!selectedAppointment) {
+      return 0;
+    }
+
+    return getNumericPrice(
+      selectedAppointment.service?.price,
+    );
+  }, [selectedAppointment]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | ALTERAR AGENDAMENTO
+  |--------------------------------------------------------------------------
+  */
 
   function handleAppointmentChange(
-    appointmentId: string
+    appointmentId: string,
   ) {
-    setSelectedAppointmentId(appointmentId);
+    setSelectedAppointmentId(
+      appointmentId,
+    );
+
     setError("");
     setSuccess("");
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | REGISTRAR PAGAMENTO
+  |--------------------------------------------------------------------------
+  */
+
   async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
     setError("");
     setSuccess("");
 
-    if (!selectedAppointmentId) {
-      setError("Selecione um agendamento.");
+    if (!selectedAppointment) {
+      setError(
+        "Selecione um agendamento.",
+      );
+
       return;
     }
 
-    /*
-     * O valor não é escolhido: é o preço do serviço agendado. A API valida o
-     * mesmo, a partir do serviço.
-     */
-    const numericAmount = Number(
-      selectedAppointment?.service.price
-    );
-
-    if (
-      !Number.isFinite(numericAmount) ||
-      numericAmount <= 0
-    ) {
+    if (!selectedPrice || selectedPrice <= 0) {
       setError(
-        `O serviço ${
-          selectedAppointment?.service
-            .name ?? ""
-        } está sem preço. Defina o preço em Serviços para poder receber.`
+        `O serviço "${selectedAppointment.service.name}" está sem preço. Defina o preço em Serviços antes de receber o pagamento.`,
       );
+
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      /*
-       * IMPORTANTE:
-       *
-       * Sua API está em:
-       *
-       * /api/appointments/payments
-       *
-       * e NÃO em:
-       *
-       * /api/payments
-       */
-
       const response = await fetch(
         "/api/appointments/payments",
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
+
           body: JSON.stringify({
-            appointmentId: selectedAppointmentId,
+            appointmentId:
+              selectedAppointment.id,
+
             method: paymentMethod,
           }),
-        }
+        },
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Não foi possível registrar o pagamento."
+            "Não foi possível registrar o pagamento.",
         );
       }
 
       setSuccess(
         data?.message ||
-          "Pagamento registrado com sucesso!"
+          "Pagamento registrado com sucesso!",
       );
 
       /*
-       * Remove da lista porque agora
-       * o agendamento já possui pagamento.
+       * Remove imediatamente da lista.
+       *
+       * Como o pagamento foi criado, ele não deve aparecer
+       * novamente na lista de pagamentos pendentes.
        */
 
-      setAppointments((current) =>
-        current.filter(
-          (appointment) =>
-            appointment.id !== selectedAppointmentId
-        )
-      );
-
-      setSelectedAppointmentId("");
-      setPaymentMethod("CASH");
-
-      /*
-       * Atualiza a página pai.
-       */
-
-      onPaymentCreated?.();
-
-      /*
-       * O pagamento muda a receita e o estado do agendamento, e outras telas
-       * (dashboard, lista de agendamentos) precisam refletir isso sem
-       * recarregar a página.
-       */
-      window.dispatchEvent(
-        new Event("appointments:changed")
+      setAppointments(
+        (current) =>
+          current.filter(
+            (appointment) =>
+              appointment.id !==
+              selectedAppointment.id,
+          ),
       );
 
       toast.success(
         `Pagamento de ${formatPrice(
-          numericAmount
-        )} recebido.`
+          selectedPrice,
+        )} recebido.`,
       );
 
       /*
-       * Fecha o modal depois de 1 segundo.
+       * Atualizar dashboard e agenda.
+       */
+
+      onPaymentCreated?.();
+
+      window.dispatchEvent(
+        new Event(
+          "appointments:changed",
+        ),
+      );
+
+      /*
+       * Limpar seleção.
+       */
+
+      setSelectedAppointmentId("");
+
+      setPaymentMethod("CASH");
+
+      /*
+       * Fechar depois de um pequeno intervalo.
        */
 
       window.setTimeout(() => {
@@ -312,13 +546,13 @@ export function ReceivePayment({
     } catch (err) {
       console.error(
         "Erro ao registrar pagamento:",
-        err
+        err,
       );
 
       setError(
         err instanceof Error
           ? err.message
-          : "Não foi possível registrar o pagamento."
+          : "Não foi possível registrar o pagamento.",
       );
     } finally {
       setIsSubmitting(false);
@@ -326,8 +560,10 @@ export function ReceivePayment({
   }
 
   /*
-   * Atualiza os agendamentos sempre que o modal abre.
-   */
+  |--------------------------------------------------------------------------
+  | RECARREGAR QUANDO MODAL ABRIR
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     if (!isOpen) {
@@ -337,9 +573,17 @@ export function ReceivePayment({
     loadAppointments();
   }, [isOpen]);
 
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <>
-      {/* BOTÃO RECEBER PAGAMENTO */}
+      {/* ==========================================================
+          BOTÃO
+      ========================================================== */}
 
       <button
         type="button"
@@ -365,14 +609,23 @@ export function ReceivePayment({
           hover:bg-gray-50
           hover:shadow-md
           active:scale-[0.98]
+
+          dark:border-gray-800
+          dark:bg-gray-900
+          dark:text-white
+          dark:hover:bg-gray-800
+
           sm:w-auto
         "
       >
         <CreditCard className="h-4 w-4" />
+
         Receber Pagamento
       </button>
 
-      {/* MODAL */}
+      {/* ==========================================================
+          MODAL
+      ========================================================== */}
 
       {isOpen && (
         <div
@@ -383,46 +636,83 @@ export function ReceivePayment({
             flex
             items-center
             justify-center
-            bg-black/40
+            bg-black/50
             px-4
             py-6
             backdrop-blur-sm
+
+            dark:bg-black/75
           "
-          onClick={handleClose}
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !isSubmitting
+            ) {
+              handleClose();
+            }
+          }}
         >
           <div
             className="
-              max-h-[92vh]
+              flex
+              max-h-[90vh]
               w-full
-              max-w-md
-              overflow-y-auto
+              max-w-lg
+              flex-col
+              overflow-hidden
               rounded-2xl
+              border
+              border-gray-200
               bg-white
+              text-gray-900
               shadow-2xl
+
+              dark:border-gray-800
+              dark:bg-gray-950
+              dark:text-white
             "
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
           >
-            {/* HEADER */}
+            {/* ==================================================
+                HEADER
+            ================================================== */}
 
             <div
               className="
                 flex
+                shrink-0
                 items-center
                 justify-between
                 border-b
                 border-gray-100
                 px-6
                 py-5
+
+                dark:border-gray-800
               "
             >
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2
+                  className="
+                    text-xl
+                    font-semibold
+                    text-gray-900
+
+                    dark:text-white
+                  "
+                >
                   Receber pagamento
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    text-gray-500
+
+                    dark:text-gray-400
+                  "
+                >
                   Registe um pagamento.
                 </p>
               </div>
@@ -431,17 +721,24 @@ export function ReceivePayment({
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
+                aria-label="Fechar"
                 className="
                   flex
                   h-9
                   w-9
+                  shrink-0
                   items-center
                   justify-center
                   rounded-lg
                   text-gray-400
                   transition
+
                   hover:bg-gray-100
                   hover:text-gray-900
+
+                  dark:hover:bg-gray-800
+                  dark:hover:text-white
+
                   disabled:opacity-50
                 "
               >
@@ -449,468 +746,784 @@ export function ReceivePayment({
               </button>
             </div>
 
-            {/* FORMULÁRIO */}
+            {/* ==================================================
+                CONTEÚDO COM SCROLL
+            ================================================== */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 px-6 py-6"
+            <div
+              className="
+                min-h-0
+                flex-1
+                overflow-y-auto
+                overscroll-contain
+                px-6
+                py-6
+
+                [scrollbar-width:thin]
+                [scrollbar-color:#d1d5db_transparent]
+
+                dark:[scrollbar-color:#4b5563_transparent]
+              "
             >
-              {/* ERRO */}
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+                {/* ==================================================
+                    ERRO
+                ================================================== */}
 
-              {error && (
+                {error && (
+                  <div
+                    className="
+                      rounded-xl
+                      border
+                      border-red-200
+                      bg-red-50
+                      px-4
+                      py-3
+                      text-sm
+                      text-red-700
+
+                      dark:border-red-900/50
+                      dark:bg-red-950/40
+                      dark:text-red-300
+                    "
+                  >
+                    {error}
+                  </div>
+                )}
+
+                {/* ==================================================
+                    SUCESSO
+                ================================================== */}
+
+                {success && (
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      rounded-xl
+                      border
+                      border-emerald-200
+                      bg-emerald-50
+                      px-4
+                      py-3
+                      text-sm
+                      text-emerald-700
+
+                      dark:border-emerald-900/50
+                      dark:bg-emerald-950/40
+                      dark:text-emerald-300
+                    "
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+
+                    {success}
+                  </div>
+                )}
+
+                {/* ==================================================
+                    AGENDAMENTO
+                ================================================== */}
+
+                <div>
+                  <label
+                    htmlFor="payment-appointment"
+                    className="
+                      mb-2
+                      block
+                      text-sm
+                      font-medium
+                      text-gray-700
+
+                      dark:text-gray-300
+                    "
+                  >
+                    Agendamento
+                  </label>
+
+                  <select
+                    id="payment-appointment"
+                    value={
+                      selectedAppointmentId
+                    }
+                    onChange={(event) =>
+                      handleAppointmentChange(
+                        event.target.value,
+                      )
+                    }
+                    disabled={
+                      isLoading ||
+                      isSubmitting
+                    }
+                    required
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition
+
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+
+                      disabled:bg-gray-50
+
+                      dark:border-gray-800
+                      dark:bg-gray-900
+                      dark:text-white
+                      dark:disabled:bg-gray-900
+                    "
+                  >
+                    <option value="">
+                      {isLoading
+                        ? "Carregando agendamentos..."
+                        : appointments.length ===
+                            0
+                          ? "Nenhum agendamento confirmado"
+                          : "Selecione o agendamento"}
+                    </option>
+
+                    {appointments.map(
+                      (appointment) => {
+                        const price =
+                          getNumericPrice(
+                            appointment
+                              .service
+                              ?.price,
+                          );
+
+                        return (
+                          <option
+                            key={
+                              appointment.id
+                            }
+                            value={
+                              appointment.id
+                            }
+                          >
+                            {
+                              appointment
+                                .client
+                                .name
+                            }
+                            {" — "}
+                            {
+                              appointment
+                                .service
+                                .name
+                            }
+                            {" — "}
+                            {formatPrice(
+                              price,
+                            )}
+                          </option>
+                        );
+                      },
+                    )}
+                  </select>
+
+                  {!isLoading &&
+                    appointments.length ===
+                      0 && (
+                      <p
+                        className="
+                          mt-2
+                          text-xs
+                          text-gray-500
+
+                          dark:text-gray-400
+                        "
+                      >
+                        Só agendamentos
+                        confirmados e sem
+                        pagamento aparecem
+                        aqui.
+                      </p>
+                    )}
+                </div>
+
+                {/* ==================================================
+                    DADOS DO AGENDAMENTO
+                ================================================== */}
+
+                {selectedAppointment && (
+                  <div
+                    className="
+                      space-y-4
+                      rounded-2xl
+                      border
+                      border-gray-200
+                      bg-gray-50
+                      p-5
+
+                      dark:border-gray-800
+                      dark:bg-gray-900
+                    "
+                  >
+                    {/* CLIENTE */}
+
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="
+                          flex
+                          h-9
+                          w-9
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-white
+                          text-gray-600
+                          shadow-sm
+
+                          dark:bg-gray-800
+                          dark:text-gray-300
+                        "
+                      >
+                        <UserRound className="h-4 w-4" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            text-xs
+                            text-gray-400
+                          "
+                        >
+                          Cliente
+                        </p>
+
+                        <p
+                          className="
+                            truncate
+                            text-sm
+                            font-semibold
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          {
+                            selectedAppointment
+                              .client
+                              .name
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* SERVIÇO */}
+
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="
+                          flex
+                          h-9
+                          w-9
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-white
+                          text-gray-600
+                          shadow-sm
+
+                          dark:bg-gray-800
+                          dark:text-gray-300
+                        "
+                      >
+                        <Scissors className="h-4 w-4" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            text-xs
+                            text-gray-400
+                          "
+                        >
+                          Serviço
+                        </p>
+
+                        <p
+                          className="
+                            truncate
+                            text-sm
+                            font-semibold
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          {
+                            selectedAppointment
+                              .service
+                              .name
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* DATA */}
+
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="
+                          flex
+                          h-9
+                          w-9
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-white
+                          text-gray-600
+                          shadow-sm
+
+                          dark:bg-gray-800
+                          dark:text-gray-300
+                        "
+                      >
+                        <CalendarDays className="h-4 w-4" />
+                      </div>
+
+                      <div>
+                        <p
+                          className="
+                            text-xs
+                            text-gray-400
+                          "
+                        >
+                          Data
+                        </p>
+
+                        <p
+                          className="
+                            text-sm
+                            font-semibold
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          {formatDate(
+                            selectedAppointment.date,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* PROFISSIONAL */}
+
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="
+                          flex
+                          h-9
+                          w-9
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-white
+                          text-gray-600
+                          shadow-sm
+
+                          dark:bg-gray-800
+                          dark:text-gray-300
+                        "
+                      >
+                        <Clock className="h-4 w-4" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            text-xs
+                            text-gray-400
+                          "
+                        >
+                          Profissional
+                        </p>
+
+                        <p
+                          className="
+                            truncate
+                            text-sm
+                            font-semibold
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          {
+                            selectedAppointment
+                              .professional
+                              .name
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ==================================================
+                    VALOR A RECEBER
+                ================================================== */}
+
                 <div
                   className="
-                    rounded-xl
+                    rounded-2xl
                     border
-                    border-red-100
-                    bg-red-50
-                    px-4
-                    py-3
-                    text-sm
-                    text-red-700
+                    border-blue-100
+                    bg-blue-50
+                    p-5
+
+                    dark:border-blue-900/40
+                    dark:bg-blue-950/30
                   "
                 >
-                  {error}
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p
+                        className="
+                          text-sm
+                          font-medium
+                          text-blue-700
+
+                          dark:text-blue-300
+                        "
+                      >
+                        Valor a receber
+                      </p>
+
+                      <p
+                        className="
+                          mt-1
+                          text-xs
+                          text-blue-600/70
+
+                          dark:text-blue-400/70
+                        "
+                      >
+                        Preço definido no
+                        serviço
+                      </p>
+                    </div>
+
+                    <Banknote
+                      className="
+                        h-5
+                        w-5
+                        text-blue-600
+
+                        dark:text-blue-400
+                      "
+                    />
+                  </div>
+
+                  <div
+                    className="
+                      mt-4
+                      text-3xl
+                      font-bold
+                      tracking-tight
+                      text-gray-950
+
+                      dark:text-white
+                    "
+                  >
+                    {selectedAppointment
+                      ? formatPrice(
+                          selectedPrice,
+                        )
+                      : "—"}
+                  </div>
+
+                  {selectedAppointment && (
+                    <p
+                      className="
+                        mt-2
+                        text-xs
+                        text-blue-700/70
+
+                        dark:text-blue-300/70
+                      "
+                    >
+                      Serviço:{" "}
+                      <strong>
+                        {
+                          selectedAppointment
+                            .service
+                            .name
+                        }
+                      </strong>
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {/* SUCESSO */}
+                {/* ==================================================
+                    MÉTODO DE PAGAMENTO
+                ================================================== */}
 
-              {success && (
+                <div>
+                  <label
+                    htmlFor="payment-method"
+                    className="
+                      mb-2
+                      block
+                      text-sm
+                      font-medium
+                      text-gray-700
+
+                      dark:text-gray-300
+                    "
+                  >
+                    Método de pagamento
+                  </label>
+
+                  <select
+                    id="payment-method"
+                    value={paymentMethod}
+                    onChange={(event) =>
+                      setPaymentMethod(
+                        event.target
+                          .value as PaymentMethod,
+                      )
+                    }
+                    disabled={isSubmitting}
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-sm
+                      text-gray-900
+                      outline-none
+                      transition
+
+                      focus:border-blue-500
+                      focus:ring-4
+                      focus:ring-blue-500/10
+
+                      dark:border-gray-800
+                      dark:bg-gray-900
+                      dark:text-white
+                    "
+                  >
+                    <option value="CASH">
+                      Dinheiro
+                    </option>
+
+                    <option value="TRANSFER">
+                      Transferência
+                    </option>
+
+                    <option value="CARD">
+                      Cartão
+                    </option>
+
+                    <option value="MOBILE_MONEY">
+                      Multicaixa Express
+                    </option>
+                  </select>
+                </div>
+
+                {/* ==================================================
+                    RESUMO
+                ================================================== */}
+
+                {selectedAppointment &&
+                  selectedPrice > 0 && (
+                    <div
+                      className="
+                        flex
+                        items-center
+                        justify-between
+                        rounded-xl
+                        border
+                        border-gray-200
+                        px-4
+                        py-3
+
+                        dark:border-gray-800
+                      "
+                    >
+                      <div>
+                        <p
+                          className="
+                            text-xs
+                            text-gray-500
+
+                            dark:text-gray-400
+                          "
+                        >
+                          Total a pagar
+                        </p>
+
+                        <p
+                          className="
+                            text-sm
+                            font-medium
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          {
+                            selectedAppointment
+                              .service
+                              .name
+                          }
+                        </p>
+                      </div>
+
+                      <p
+                        className="
+                          text-lg
+                          font-bold
+                          text-gray-900
+
+                          dark:text-white
+                        "
+                      >
+                        {formatPrice(
+                          selectedPrice,
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                {/* ==================================================
+                    BOTÕES
+                ================================================== */}
+
                 <div
                   className="
                     flex
-                    items-center
-                    gap-2
-                    rounded-xl
-                    border
-                    border-emerald-100
-                    bg-emerald-50
-                    px-4
-                    py-3
-                    text-sm
-                    text-emerald-700
-                  "
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-
-                  {success}
-                </div>
-              )}
-
-              {/* AGENDAMENTO */}
-
-              <div>
-                <label
-                  htmlFor="payment-appointment"
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Agendamento
-                </label>
-
-                <select
-                  id="payment-appointment"
-                  value={selectedAppointmentId}
-                  onChange={(event) => {
-                    handleAppointmentChange(
-                      event.target.value
-                    );
-                  }}
-                  disabled={
-                    isLoading || isSubmitting
-                  }
-                  required
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    text-gray-900
-                    outline-none
-                    transition
-                    focus:border-blue-500
-                    focus:ring-4
-                    focus:ring-blue-500/10
-                    disabled:bg-gray-50
-                  "
-                >
-                  <option value="">
-                    {isLoading
-                      ? "Carregando agendamentos..."
-                      : appointments.length === 0
-                        ? "Nenhum agendamento confirmado"
-                        : "Selecione o agendamento"}
-                  </option>
-
-                  {appointments.map(
-                    (appointment) => (
-                      <option
-                        key={appointment.id}
-                        value={appointment.id}
-                      >
-                        {appointment.client.name}
-                        {" — "}
-                        {appointment.service.name}
-                        {" — "}
-                        {formatPrice(
-                          appointment.service.price
-                        )}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                {!isLoading &&
-                  appointments.length ===
-                    0 && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Só agendamentos confirmados entram para cobrança. Marque
-                      o agendamento como Confirmado na edição e ele aparece
-                      aqui.
-                    </p>
-                  )}
-              </div>
-
-              {/* DADOS DO AGENDAMENTO */}
-
-              {selectedAppointment && (
-                <div
-                  className="
-                    space-y-3
-                    rounded-xl
-                    border
+                    flex-col-reverse
+                    gap-3
+                    border-t
                     border-gray-100
-                    bg-gray-50
-                    p-4
+                    pt-5
+
+                    dark:border-gray-800
+
+                    sm:flex-row
+                    sm:justify-end
                   "
                 >
-                  {/* CLIENTE */}
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-5
+                      py-3
+                      text-sm
+                      font-medium
+                      text-gray-700
+                      transition
 
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-white
-                        text-gray-600
-                        shadow-sm
-                      "
-                    >
-                      <UserRound className="h-4 w-4" />
-                    </div>
+                      hover:bg-gray-50
 
-                    <div>
-                      <p className="text-xs text-gray-400">
-                        Cliente
-                      </p>
+                      dark:border-gray-800
+                      dark:bg-gray-900
+                      dark:text-gray-300
+                      dark:hover:bg-gray-800
 
-                      <p className="text-sm font-semibold text-gray-900">
-                        {selectedAppointment.client.name}
-                      </p>
-                    </div>
-                  </div>
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
 
-                  {/* SERVIÇO */}
+                      sm:w-auto
+                    "
+                  >
+                    Cancelar
+                  </button>
 
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-white
-                        text-gray-600
-                        shadow-sm
-                      "
-                    >
-                      <Scissors className="h-4 w-4" />
-                    </div>
+                  <button
+                    type="submit"
+                    disabled={
+                      isSubmitting ||
+                      !selectedAppointmentId ||
+                      selectedPrice <= 0
+                    }
+                    className="
+                      inline-flex
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      bg-gray-900
+                      px-5
+                      py-3
+                      text-sm
+                      font-semibold
+                      text-white
+                      transition
 
-                    <div>
-                      <p className="text-xs text-gray-400">
-                        Serviço
-                      </p>
+                      hover:bg-gray-800
+                      active:scale-[0.98]
 
-                      <p className="text-sm font-semibold text-gray-900">
-                        {selectedAppointment.service.name}
-                      </p>
-                    </div>
-                  </div>
+                      dark:bg-white
+                      dark:text-gray-900
+                      dark:hover:bg-gray-100
 
-                  {/* DATA */}
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
 
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-white
-                        text-gray-600
-                        shadow-sm
-                      "
-                    >
-                      <CalendarDays className="h-4 w-4" />
-                    </div>
+                      sm:w-auto
+                    "
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span
+                          className="
+                            h-4
+                            w-4
+                            animate-spin
+                            rounded-full
+                            border-2
+                            border-white/30
+                            border-t-white
 
-                    <div>
-                      <p className="text-xs text-gray-400">
-                        Data
-                      </p>
+                            dark:border-gray-400/30
+                            dark:border-t-gray-900
+                          "
+                        />
 
-                      <p className="text-sm font-semibold text-gray-900">
-                        {formatDate(
-                          selectedAppointment.date
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                        Registrando...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4" />
 
-                  {/* PROFISSIONAL */}
-
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-white
-                        text-gray-600
-                        shadow-sm
-                      "
-                    >
-                      <Clock className="h-4 w-4" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-400">
-                        Profissional
-                      </p>
-
-                      <p className="text-sm font-semibold text-gray-900">
-                        {
-                          selectedAppointment
-                            .professional.name
-                        }
-                      </p>
-                    </div>
-                  </div>
+                        Confirmar pagamento
+                      </>
+                    )}
+                  </button>
                 </div>
-              )}
-
-              {/* VALOR */}
-
-              {/*
-               * Não é editável: o valor cobrado é o preço do serviço que foi
-               * agendado. A API usa o preço do serviço de qualquer forma e
-               * ignora o que vier do cliente.
-               */}
-              <div>
-                <p className="mb-2 block text-sm font-medium text-gray-700">
-                  Valor a receber
-                </p>
-
-                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
-
-                  <span className="text-base font-semibold text-gray-900">
-                    {selectedAppointment
-                      ? formatPrice(
-                          selectedAppointment
-                            .service.price
-                        )
-                      : "—"}
-                  </span>
-                </div>
-
-                {selectedAppointment && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Preço do serviço{" "}
-                    <strong>
-                      {
-                        selectedAppointment
-                          .service.name
-                      }
-                    </strong>
-                    . Para alterar, edite o serviço em Serviços.
-                  </p>
-                )}
-              </div>
-
-              {/* MÉTODO DE PAGAMENTO */}
-
-              <div>
-                <label
-                  htmlFor="payment-method"
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-medium
-                    text-gray-700
-                  "
-                >
-                  Método de pagamento
-                </label>
-
-                <select
-                  id="payment-method"
-                  value={paymentMethod}
-                  onChange={(event) => {
-                    setPaymentMethod(
-                      event.target.value as PaymentMethod
-                    );
-                  }}
-                  disabled={isSubmitting}
-                  className="
-                    w-full
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    text-gray-900
-                    outline-none
-                    transition
-                    focus:border-blue-500
-                    focus:ring-4
-                    focus:ring-blue-500/10
-                    disabled:bg-gray-50
-                  "
-                >
-                  <option value="CASH">
-                    Dinheiro
-                  </option>
-
-                  <option value="TRANSFER">
-                    Transferência
-                  </option>
-
-                  <option value="CARD">
-                    Cartão
-                  </option>
-
-                  <option value="MOBILE_MONEY">
-                    Multicaixa Express
-                  </option>
-                </select>
-              </div>
-
-              {/* BOTÕES */}
-
-              <div
-                className="
-                  flex
-                  flex-col-reverse
-                  gap-3
-                  border-t
-                  border-gray-100
-                  pt-5
-                  sm:flex-row
-                  sm:justify-end
-                "
-              >
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={isSubmitting}
-                  className="
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    transition
-                    hover:bg-gray-50
-                    disabled:opacity-50
-                  "
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={
-                    isSubmitting ||
-                    !selectedAppointmentId ||
-                    Number(
-                      selectedAppointment
-                        ?.service.price
-                    ) <= 0
-                  }
-                  className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-gray-900
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-gray-800
-                    active:scale-[0.98]
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span
-                        className="
-                          h-4
-                          w-4
-                          animate-spin
-                          rounded-full
-                          border-2
-                          border-white/30
-                          border-t-white
-                        "
-                      />
-
-                      Registrando...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-4 w-4" />
-                      Confirmar pagamento
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}

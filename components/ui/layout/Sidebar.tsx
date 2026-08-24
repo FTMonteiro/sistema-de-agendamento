@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
-  Scissors,
+   ListChecks,
   UsersRound,
   Settings,
   X,
@@ -33,10 +33,10 @@ const menuItems = [
   {
     label: "Serviços",
     href: "/services",
-    icon: Scissors,
+    icon: ListChecks,
   },
   {
-    label: "Equipa",
+    label: "Equipe",
     href: "/equipe",
     icon: UsersRound,
   },
@@ -119,11 +119,11 @@ export function Sidebar({
         <div className="mb-10 flex items-start justify-between px-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-              NEVRIX
+              NEVRIX Flow
             </h1>
 
             <p className="mt-1 text-xs font-medium text-[var(--muted)]">
-              Beauty Management
+               Smart Business Manageme
             </p>
           </div>
 
