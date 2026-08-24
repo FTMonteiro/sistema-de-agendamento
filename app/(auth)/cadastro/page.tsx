@@ -227,7 +227,7 @@ export default function CadastroPage() {
               </div>
 
               <span className="text-[15px] font-bold tracking-[0.24em] text-white">
-                NEVRIX
+                NEVRIX Flow
               </span>
             </Link>
 

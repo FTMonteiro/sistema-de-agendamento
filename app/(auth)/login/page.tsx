@@ -378,7 +378,7 @@ export default function LoginPage() {
                 </div>
 
                 <span className="text-[15px] font-bold tracking-[0.24em] text-neutral-950">
-                  NEVRIX
+                  NEVRIX Flow
                 </span>
               </Link>
 
