@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
@@ -21,53 +20,20 @@ interface GoogleUser {
   email_verified?: boolean;
 }
 
-type PendingGoogleData = {
-  googleId: string;
-  email: string;
-  name: string;
-  expiresAt: number;
-};
-
-function getGooglePendingSecret() {
-  const secret =
-    process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!secret) {
-    throw new Error(
-      "GOOGLE_CLIENT_SECRET não configurado.",
-    );
-  }
-
-  return secret;
-}
-
-function createPendingGoogleSignature(
-  data: string,
-) {
-  return crypto
-    .createHmac(
-      "sha256",
-      getGooglePendingSecret(),
-    )
-    .update(data)
-    .digest("hex");
-}
-
-function createPendingGoogleValue(
-  data: PendingGoogleData,
-) {
-  const payload = Buffer.from(
-    JSON.stringify(data),
-  ).toString("base64url");
-
-  const signature =
-    createPendingGoogleSignature(payload);
-
-  return `${payload}.${signature}`;
-}
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+
+  /*
+  |--------------------------------------------------------------------------
+  | MODO
+  |--------------------------------------------------------------------------
+  |
+  | Definimos fora do try para também podermos
+  | saber para onde redirecionar em caso de erro.
+  |
+  */
+
+  let mode = "login";
 
   try {
     /*
@@ -87,6 +53,35 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
+    | COOKIES
+    |--------------------------------------------------------------------------
+    */
+
+    const cookieStore = await cookies();
+
+    mode =
+      cookieStore.get(
+        "google_oauth_mode",
+      )?.value || "login";
+
+    const savedState =
+      cookieStore.get(
+        "google_oauth_state",
+      )?.value;
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOME DA EMPRESA
+    |--------------------------------------------------------------------------
+    */
+
+    const company =
+      cookieStore.get(
+        "google_oauth_company",
+      )?.value?.trim() || "";
+
+    /*
+    |--------------------------------------------------------------------------
     | ERRO GOOGLE
     |--------------------------------------------------------------------------
     */
@@ -99,7 +94,9 @@ export async function GET(request: Request) {
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro?error=google_cancelled",
+          mode === "register"
+            ? "/cadastro?error=google_cancelled"
+            : "/login?error=google_cancelled",
           requestUrl.origin,
         ),
       );
@@ -114,29 +111,13 @@ export async function GET(request: Request) {
     if (!code) {
       return NextResponse.redirect(
         new URL(
-          "/cadastro?error=google_code_missing",
+          mode === "register"
+            ? "/cadastro?error=google_code_missing"
+            : "/login?error=google_code_missing",
           requestUrl.origin,
         ),
       );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | COOKIES OAUTH
-    |--------------------------------------------------------------------------
-    */
-
-    const cookieStore = await cookies();
-
-    const savedState =
-      cookieStore.get(
-        "google_oauth_state",
-      )?.value;
-
-    const mode =
-      cookieStore.get(
-        "google_oauth_mode",
-      )?.value || "login";
 
     /*
     |--------------------------------------------------------------------------
@@ -150,12 +131,14 @@ export async function GET(request: Request) {
       state !== savedState
     ) {
       console.error(
-        "❌ Google OAuth state inválido.",
+        "Google OAuth state inválido.",
       );
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro?error=google_invalid_state",
+          mode === "register"
+            ? "/cadastro?error=google_invalid_state"
+            : "/login?error=google_invalid_state",
           requestUrl.origin,
         ),
       );
@@ -175,9 +158,13 @@ export async function GET(request: Request) {
       "google_oauth_mode",
     );
 
+    cookieStore.delete(
+      "google_oauth_company",
+    );
+
     /*
     |--------------------------------------------------------------------------
-    | GOOGLE CLIENT
+    | GOOGLE ENV
     |--------------------------------------------------------------------------
     */
 
@@ -261,7 +248,7 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR UTILIZADOR GOOGLE
+    | BUSCAR DADOS DO GOOGLE
     |--------------------------------------------------------------------------
     */
 
@@ -293,7 +280,7 @@ export async function GET(request: Request) {
 
     if (!googleUser.sub) {
       throw new Error(
-        "Google não retornou o ID do usuário.",
+        "Google não retornou o ID do utilizador.",
       );
     }
 
@@ -303,21 +290,35 @@ export async function GET(request: Request) {
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | EMAIL VERIFICADO
+    |--------------------------------------------------------------------------
+    */
+
     if (
       googleUser.email_verified !== true
     ) {
       console.error(
-        "❌ Email Google não verificado:",
+        "Email Google não verificado:",
         googleUser.email,
       );
 
       return NextResponse.redirect(
         new URL(
-          "/login?error=google_email_not_verified",
+          mode === "register"
+            ? "/cadastro?error=google_email_not_verified"
+            : "/login?error=google_email_not_verified",
           requestUrl.origin,
         ),
       );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DADOS NORMALIZADOS
+    |--------------------------------------------------------------------------
+    */
 
     const email =
       googleUser.email
@@ -339,7 +340,7 @@ export async function GET(request: Request) {
 
     if (mode === "login") {
       console.log(
-        "🔵 Login Google para:",
+        "🔵 Login Google:",
         email,
       );
 
@@ -362,13 +363,13 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | NÃO CADASTRADO
+      | CONTA NÃO EXISTE
       |--------------------------------------------------------------------------
       */
 
       if (!user) {
         console.log(
-          "❌ Conta Google não cadastrada:",
+          "Conta Google não cadastrada:",
           email,
         );
 
@@ -396,6 +397,11 @@ export async function GET(request: Request) {
             emailVerified: true,
           },
         });
+
+        console.log(
+          "✅ Email marcado como verificado:",
+          user.email,
+        );
       }
 
       /*
@@ -410,6 +416,12 @@ export async function GET(request: Request) {
         "✅ Login Google realizado:",
         user.email,
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | DASHBOARD
+      |--------------------------------------------------------------------------
+      */
 
       return NextResponse.redirect(
         new URL(
@@ -427,13 +439,32 @@ export async function GET(request: Request) {
 
     if (mode === "register") {
       console.log(
-        "🟢 Cadastro Google para:",
+        "🟢 Cadastro Google:",
         email,
       );
 
       /*
       |--------------------------------------------------------------------------
-      | GOOGLE ID JÁ EXISTE
+      | EMPRESA OBRIGATÓRIA
+      |--------------------------------------------------------------------------
+      */
+
+      if (!company) {
+        console.error(
+          "❌ Nome da empresa não encontrado.",
+        );
+
+        return NextResponse.redirect(
+          new URL(
+            "/cadastro?error=company_required",
+            requestUrl.origin,
+          ),
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | VERIFICAR GOOGLE ID
       |--------------------------------------------------------------------------
       */
 
@@ -445,6 +476,11 @@ export async function GET(request: Request) {
         });
 
       if (googleUserExists) {
+        console.log(
+          "⚠️ Google ID já cadastrado:",
+          email,
+        );
+
         return NextResponse.redirect(
           new URL(
             "/login?error=google_already_registered",
@@ -455,7 +491,7 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | EMAIL JÁ EXISTE
+      | VERIFICAR EMAIL
       |--------------------------------------------------------------------------
       */
 
@@ -482,55 +518,100 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | NÃO CRIAR A CONTA AINDA
+      | CRIAR BUSINESS + USER
       |--------------------------------------------------------------------------
-      |
-      | Precisamos primeiro saber o nome da empresa.
-      |
       */
 
-      const pendingGoogleData: PendingGoogleData = {
-        googleId,
-        email,
-        name,
-        expiresAt:
-          Date.now() + 10 * 60 * 1000,
-      };
+      const user =
+        await prisma.$transaction(
+          async (tx) => {
+            /*
+            |--------------------------------------------------------------------------
+            | BUSINESS
+            |--------------------------------------------------------------------------
+            */
 
-      const pendingValue =
-        createPendingGoogleValue(
-          pendingGoogleData,
+            const business =
+              await tx.business.create({
+                data: {
+                  /*
+                  |--------------------------------------------------------------------------
+                  | NOME DA EMPRESA
+                  |--------------------------------------------------------------------------
+                  |
+                  | Usa exatamente o nome digitado no cadastro.
+                  |
+                  */
+
+                  name: company,
+
+                  email,
+                },
+              });
+
+            /*
+            |--------------------------------------------------------------------------
+            | USER OWNER
+            |--------------------------------------------------------------------------
+            */
+
+            const createdUser =
+              await tx.user.create({
+                data: {
+                  name,
+
+                  email,
+
+                  password: null,
+
+                  googleId,
+
+                  role: "OWNER",
+
+                  /*
+                  |--------------------------------------------------------------------------
+                  | GOOGLE JÁ VERIFICOU O EMAIL
+                  |--------------------------------------------------------------------------
+                  */
+
+                  emailVerified: true,
+
+                  businessId:
+                    business.id,
+                },
+              });
+
+            return createdUser;
+          },
         );
 
       /*
       |--------------------------------------------------------------------------
-      | COOKIE TEMPORÁRIO
+      | CRIAR SESSÃO
       |--------------------------------------------------------------------------
       */
 
-      cookieStore.set(
-        "google_pending_registration",
-        pendingValue,
-        {
-          httpOnly: true,
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 10,
-        },
+      await createSession(user.id);
+
+      console.log(
+        "✅ Cadastro Google realizado:",
+        user.email,
+      );
+
+      console.log(
+        "🏢 Empresa criada:",
+        company,
       );
 
       /*
       |--------------------------------------------------------------------------
-      | IR PARA PÁGINA DE EMPRESA
+      | DASHBOARD
       |--------------------------------------------------------------------------
       */
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro/google",
+          "/dashboard",
           requestUrl.origin,
         ),
       );
@@ -550,13 +631,15 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error(
-      " Erro no login/cadastro Google:",
+      "Erro no login/cadastro Google:",
       error,
     );
 
     return NextResponse.redirect(
       new URL(
-        "/login?error=google_auth_failed",
+        mode === "register"
+          ? "/cadastro?error=google_auth_failed"
+          : "/login?error=google_auth_failed",
         requestUrl.origin,
       ),
     );

@@ -1,7 +1,14 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import {
+  FormEvent,
+  ReactNode,
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
+
 import {
   ArrowRight,
   Building2,
@@ -37,30 +44,61 @@ type FocusedField =
   | null;
 
 export default function CadastroPage() {
-  const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] =
+    useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
+  const [company, setCompany] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+
+  const [showPassword, setShowPassword] =
     useState(false);
 
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] =
+    useState(false);
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] =
+    useState(false);
+
+  const [googleLoading, setGoogleLoading] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
 
   const [focusedField, setFocusedField] =
     useState<FocusedField>(null);
 
+  /*
+  |--------------------------------------------------------------------------
+  | ERROS DO CALLBACK GOOGLE
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const error = params.get("error");
+    const params =
+      new URLSearchParams(
+        window.location.search,
+      );
+
+    const error =
+      params.get("error");
 
     if (!error) {
       return;
@@ -68,7 +106,9 @@ export default function CadastroPage() {
 
     switch (error) {
       case "account_exists":
+
       case "email_already_registered":
+
       case "google_already_registered":
         setErrorMessage(
           "Esta conta já está cadastrada. Entre na sua conta ou utilize outro email.",
@@ -106,12 +146,48 @@ export default function CadastroPage() {
         );
         break;
 
+      case "google_email_not_verified":
+        setErrorMessage(
+          "O Google não confirmou o email desta conta.",
+        );
+        break;
+
+      case "google_code_missing":
+        setErrorMessage(
+          "O Google não devolveu o código de autenticação.",
+        );
+        break;
+
+      case "company_required":
+        setErrorMessage(
+          "Digite o nome da empresa antes de continuar com o Google.",
+        );
+        break;
+
+      case "company_invalid":
+        setErrorMessage(
+          "O nome da empresa informado não é válido.",
+        );
+        break;
+
+      case "company_too_long":
+        setErrorMessage(
+          "O nome da empresa é demasiado longo.",
+        );
+        break;
+
       default:
         setErrorMessage(
           "Não foi possível concluir o cadastro.",
         );
         break;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | LIMPAR QUERY STRING
+    |--------------------------------------------------------------------------
+    */
 
     window.history.replaceState(
       {},
@@ -120,21 +196,43 @@ export default function CadastroPage() {
     );
   }, []);
 
+  /*
+  |--------------------------------------------------------------------------
+  | CADASTRO NORMAL
+  |--------------------------------------------------------------------------
+  */
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    if (loading || googleLoading) {
+    if (
+      loading ||
+      googleLoading
+    ) {
       return;
     }
 
     setErrorMessage("");
     setSuccessMessage("");
 
-    const normalizedName = name.trim();
-    const normalizedCompany = company.trim();
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedName =
+      name.trim();
+
+    const normalizedCompany =
+      company.trim();
+
+    const normalizedEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAMPOS
+    |--------------------------------------------------------------------------
+    */
 
     if (
       !normalizedName ||
@@ -146,80 +244,134 @@ export default function CadastroPage() {
       setErrorMessage(
         "Preencha todos os campos obrigatórios.",
       );
+
       return;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TERMOS
+    |--------------------------------------------------------------------------
+    */
 
     if (!acceptedTerms) {
       setErrorMessage(
         "É necessário aceitar os Termos de utilização e a Política de privacidade.",
       );
+
       return;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PASSWORD
+    |--------------------------------------------------------------------------
+    */
 
     if (password.length < 8) {
       setErrorMessage(
         "A palavra-passe deve ter pelo menos 8 caracteres.",
       );
+
       return;
     }
 
-    if (password !== confirmPassword) {
+    /*
+    |--------------------------------------------------------------------------
+    | CONFIRMAR PASSWORD
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      password !==
+      confirmPassword
+    ) {
       setErrorMessage(
         "As palavras-passe não coincidem.",
       );
+
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "/api/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            name: normalizedName,
-            company: normalizedCompany,
-            email: normalizedEmail,
-            password,
-          }),
-        },
-      );
+      const response =
+        await fetch(
+          "/api/auth/register",
+          {
+            method: "POST",
 
-      let data: RegisterResponse | null = null;
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            credentials:
+              "include",
+
+            body: JSON.stringify({
+              name:
+                normalizedName,
+
+              company:
+                normalizedCompany,
+
+              email:
+                normalizedEmail,
+
+              password,
+            }),
+          },
+        );
+
+      let data:
+        | RegisterResponse
+        | null = null;
 
       try {
-        data = await response.json();
+        data =
+          await response.json();
       } catch {
         data = null;
       }
 
       /*
-       * CONTA JÁ EXISTE
-       */
-      const duplicateAccount =
-        response.status === 409 ||
-        data?.code === "ACCOUNT_EXISTS" ||
-        data?.code === "EMAIL_ALREADY_REGISTERED" ||
-        data?.error === "ACCOUNT_EXISTS" ||
-        data?.error === "EMAIL_ALREADY_REGISTERED";
+      |--------------------------------------------------------------------------
+      | CONTA EXISTE
+      |--------------------------------------------------------------------------
+      */
 
-      if (duplicateAccount) {
+      const duplicateAccount =
+        response.status ===
+          409 ||
+        data?.code ===
+          "ACCOUNT_EXISTS" ||
+        data?.code ===
+          "EMAIL_ALREADY_REGISTERED" ||
+        data?.error ===
+          "ACCOUNT_EXISTS" ||
+        data?.error ===
+          "EMAIL_ALREADY_REGISTERED";
+
+      if (
+        duplicateAccount
+      ) {
         setErrorMessage(
           "Esta conta já está cadastrada. Entre na sua conta ou utilize outro email.",
         );
 
         setLoading(false);
+
         return;
       }
 
       /*
-       * OUTROS ERROS
-       */
+      |--------------------------------------------------------------------------
+      | OUTROS ERROS
+      |--------------------------------------------------------------------------
+      */
+
       if (!response.ok) {
         throw new Error(
           data?.message ||
@@ -229,18 +381,27 @@ export default function CadastroPage() {
       }
 
       /*
-       * SUCESSO
-       */
+      |--------------------------------------------------------------------------
+      | SUCESSO
+      |--------------------------------------------------------------------------
+      */
+
       setSuccessMessage(
         "Conta criada com sucesso! Redirecionando para o login...",
       );
 
       const redirectTo =
-        data?.redirectTo || "/login";
+        data?.redirectTo ||
+        "/login";
 
-      window.setTimeout(() => {
-        window.location.replace(redirectTo);
-      }, 1000);
+      window.setTimeout(
+        () => {
+          window.location.replace(
+            redirectTo,
+          );
+        },
+        1000,
+      );
     } catch (error) {
       console.error(
         "Erro ao criar conta:",
@@ -257,21 +418,100 @@ export default function CadastroPage() {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | CADASTRO GOOGLE
+  |--------------------------------------------------------------------------
+  */
+
   function handleGoogleRegister() {
-    if (loading || googleLoading) {
+    if (
+      loading ||
+      googleLoading
+    ) {
       return;
     }
 
     setErrorMessage("");
     setSuccessMessage("");
+
+    /*
+    |--------------------------------------------------------------------------
+    | EMPRESA OBRIGATÓRIA
+    |--------------------------------------------------------------------------
+    |
+    | Antes de ir para o Google precisamos garantir
+    | que temos o nome da empresa.
+    |
+    */
+
+    const normalizedCompany =
+      company.trim();
+
+    if (!normalizedCompany) {
+      setErrorMessage(
+        "Digite o nome da empresa antes de continuar com o Google.",
+      );
+
+      return;
+    }
+
+    if (
+      normalizedCompany.length <
+      2
+    ) {
+      setErrorMessage(
+        "O nome da empresa deve ter pelo menos 2 caracteres.",
+      );
+
+      return;
+    }
+
+    if (
+      normalizedCompany.length >
+      120
+    ) {
+      setErrorMessage(
+        "O nome da empresa é demasiado longo.",
+      );
+
+      return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | GOOGLE LOADING
+    |--------------------------------------------------------------------------
+    */
+
     setGoogleLoading(true);
 
+    /*
+    |--------------------------------------------------------------------------
+    | ENVIAR EMPRESA PARA O BACKEND
+    |--------------------------------------------------------------------------
+    */
+
+    const googleUrl =
+      `/api/auth/google?mode=register&company=${encodeURIComponent(
+        normalizedCompany,
+      )}`;
+
     window.location.href =
-      "/api/auth/google?mode=register";
+      googleUrl;
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | APPLE
+  |--------------------------------------------------------------------------
+    */
+
   function handleAppleRegister() {
-    if (loading || googleLoading) {
+    if (
+      loading ||
+      googleLoading
+    ) {
       return;
     }
 
@@ -289,6 +529,7 @@ export default function CadastroPage() {
         {/* PAINEL ESQUERDO */}
 
         <section className="relative hidden min-h-screen overflow-hidden bg-[#080a0f] lg:flex">
+
           <div
             aria-hidden="true"
             className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[120px]"
@@ -321,6 +562,7 @@ export default function CadastroPage() {
             </Link>
 
             <div className="flex flex-1 items-center">
+
               <div className="max-w-[600px]">
 
                 <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-400">
@@ -344,6 +586,7 @@ export default function CadastroPage() {
                 </p>
 
                 <div className="mt-10 space-y-5">
+
                   <Benefit
                     title="Gestão centralizada"
                     description="Organize toda a operação do seu negócio."
@@ -358,17 +601,22 @@ export default function CadastroPage() {
                     title="Cresça com dados"
                     description="Acompanhe o desempenho do seu negócio."
                   />
+
                 </div>
 
               </div>
+
             </div>
 
             <p className="text-[9px] tracking-wide text-slate-700">
-              © {new Date().getFullYear()} NEVRIX.
-              Todos os direitos reservados.
+              ©{" "}
+              {new Date().getFullYear()}{" "}
+              NEVRIX. Todos os direitos
+              reservados.
             </p>
 
           </div>
+
         </section>
 
         {/* PAINEL DIREITO */}
@@ -385,10 +633,12 @@ export default function CadastroPage() {
             {/* LOGO MOBILE */}
 
             <div className="mb-10 lg:hidden">
+
               <Link
                 href="/"
                 className="inline-flex items-center gap-3"
               >
+
                 <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
                   N
                 </div>
@@ -396,12 +646,15 @@ export default function CadastroPage() {
                 <span className="text-[15px] font-bold tracking-[0.24em]">
                   NEVRIX
                 </span>
+
               </Link>
+
             </div>
 
             {/* CABEÇALHO */}
 
             <div className="mb-8">
+
               <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-blue-600">
                 Criar conta
               </p>
@@ -414,6 +667,7 @@ export default function CadastroPage() {
                 Crie a sua conta para começar a
                 utilizar a NEVRIX.
               </p>
+
             </div>
 
             {/* SUCESSO */}
@@ -436,6 +690,7 @@ export default function CadastroPage() {
                 aria-live="assertive"
                 className="mb-5 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] leading-5 text-red-700"
               >
+
                 <div className="flex items-start gap-2">
 
                   <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600">
@@ -443,29 +698,42 @@ export default function CadastroPage() {
                   </span>
 
                   <div>
-                    <div>{errorMessage}</div>
+
+                    <div>
+                      {errorMessage}
+                    </div>
 
                     {errorMessage.includes(
                       "já está cadastrada",
                     ) && (
                       <div className="mt-2">
+
                         <Link
                           href="/login"
                           className="font-semibold text-red-800 underline underline-offset-2 hover:text-red-950"
                         >
                           Entrar na minha conta
                         </Link>
+
                       </div>
                     )}
+
                   </div>
 
                 </div>
+
               </div>
             )}
 
             {/* FORMULÁRIO */}
 
-            <form onSubmit={handleSubmit}>
+            <form
+              onSubmit={
+                handleSubmit
+              }
+            >
+
+              {/* NOME */}
 
               <Field
                 id="name"
@@ -474,38 +742,56 @@ export default function CadastroPage() {
                   <UserRound
                     size={16}
                     className={
-                      focusedField === "name"
+                      focusedField ===
+                      "name"
                         ? "text-blue-500"
                         : "text-neutral-400"
                     }
                   />
                 }
               >
+
                 <input
                   id="name"
                   type="text"
                   value={name}
                   onFocus={() =>
-                    setFocusedField("name")
+                    setFocusedField(
+                      "name",
+                    )
                   }
                   onBlur={() =>
-                    setFocusedField(null)
+                    setFocusedField(
+                      null,
+                    )
                   }
                   onChange={(event) => {
-                    setName(event.target.value);
-                    setErrorMessage("");
+                    setName(
+                      event.target.value,
+                    );
+
+                    setErrorMessage(
+                      "",
+                    );
                   }}
                   placeholder="O seu nome completo"
                   autoComplete="name"
                   required
                   disabled={
-                    loading || googleLoading
+                    loading ||
+                    googleLoading
                   }
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                 />
+
               </Field>
 
+              {/* EMPRESA */}
+
               <div className="mt-5">
+
                 <Field
                   id="company"
                   label="Nome da empresa"
@@ -513,41 +799,58 @@ export default function CadastroPage() {
                     <Building2
                       size={16}
                       className={
-                        focusedField === "company"
+                        focusedField ===
+                        "company"
                           ? "text-blue-500"
                           : "text-neutral-400"
                       }
                     />
                   }
                 >
+
                   <input
                     id="company"
                     type="text"
                     value={company}
                     onFocus={() =>
-                      setFocusedField("company")
+                      setFocusedField(
+                        "company",
+                      )
                     }
                     onBlur={() =>
-                      setFocusedField(null)
+                      setFocusedField(
+                        null,
+                      )
                     }
                     onChange={(event) => {
                       setCompany(
                         event.target.value,
                       );
-                      setErrorMessage("");
+
+                      setErrorMessage(
+                        "",
+                      );
                     }}
                     placeholder="Nome da sua empresa"
                     autoComplete="organization"
                     required
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
-                    className={inputClass}
+                    className={
+                      inputClass
+                    }
                   />
+
                 </Field>
+
               </div>
 
+              {/* EMAIL */}
+
               <div className="mt-5">
+
                 <Field
                   id="email"
                   label="Email"
@@ -555,43 +858,58 @@ export default function CadastroPage() {
                     <Mail
                       size={16}
                       className={
-                        focusedField === "email"
+                        focusedField ===
+                        "email"
                           ? "text-blue-500"
                           : "text-neutral-400"
                       }
                     />
                   }
                 >
+
                   <input
                     id="email"
                     type="email"
                     value={email}
                     onFocus={() =>
-                      setFocusedField("email")
+                      setFocusedField(
+                        "email",
+                      )
                     }
                     onBlur={() =>
-                      setFocusedField(null)
+                      setFocusedField(
+                        null,
+                      )
                     }
                     onChange={(event) => {
                       setEmail(
                         event.target.value,
                       );
-                      setErrorMessage("");
+
+                      setErrorMessage(
+                        "",
+                      );
                     }}
                     placeholder="seu@email.com"
                     autoComplete="email"
                     required
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
-                    className={inputClass}
+                    className={
+                      inputClass
+                    }
                   />
+
                 </Field>
+
               </div>
 
               {/* PASSWORD */}
 
               <div className="mt-5">
+
                 <label
                   htmlFor="password"
                   className="mb-2 block text-[11px] font-semibold text-neutral-800"
@@ -620,19 +938,25 @@ export default function CadastroPage() {
                       )
                     }
                     onBlur={() =>
-                      setFocusedField(null)
+                      setFocusedField(
+                        null,
+                      )
                     }
                     onChange={(event) => {
                       setPassword(
                         event.target.value,
                       );
-                      setErrorMessage("");
+
+                      setErrorMessage(
+                        "",
+                      );
                     }}
                     placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
                     required
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
                     className={`${inputClass} pr-12`}
                   />
@@ -640,11 +964,13 @@ export default function CadastroPage() {
                   <button
                     type="button"
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
                     onClick={() =>
                       setShowPassword(
-                        (value) => !value,
+                        (value) =>
+                          !value,
                       )
                     }
                     aria-label={
@@ -654,19 +980,27 @@ export default function CadastroPage() {
                     }
                     className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
                   >
+
                     {showPassword ? (
-                      <EyeOff size={16} />
+                      <EyeOff
+                        size={16}
+                      />
                     ) : (
-                      <Eye size={16} />
+                      <Eye
+                        size={16}
+                      />
                     )}
+
                   </button>
 
                 </div>
+
               </div>
 
               {/* CONFIRMAR PASSWORD */}
 
               <div className="mt-5">
+
                 <label
                   htmlFor="confirmPassword"
                   className="mb-2 block text-[11px] font-semibold text-neutral-800"
@@ -688,26 +1022,34 @@ export default function CadastroPage() {
                         ? "text"
                         : "password"
                     }
-                    value={confirmPassword}
+                    value={
+                      confirmPassword
+                    }
                     onFocus={() =>
                       setFocusedField(
                         "confirmPassword",
                       )
                     }
                     onBlur={() =>
-                      setFocusedField(null)
+                      setFocusedField(
+                        null,
+                      )
                     }
                     onChange={(event) => {
                       setConfirmPassword(
                         event.target.value,
                       );
-                      setErrorMessage("");
+
+                      setErrorMessage(
+                        "",
+                      );
                     }}
                     placeholder="Repita a palavra-passe"
                     autoComplete="new-password"
                     required
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
                     className={`${inputClass} pr-12`}
                   />
@@ -715,11 +1057,13 @@ export default function CadastroPage() {
                   <button
                     type="button"
                     disabled={
-                      loading || googleLoading
+                      loading ||
+                      googleLoading
                     }
                     onClick={() =>
                       setShowConfirmPassword(
-                        (value) => !value,
+                        (value) =>
+                          !value,
                       )
                     }
                     aria-label={
@@ -729,14 +1073,21 @@ export default function CadastroPage() {
                     }
                     className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
                   >
+
                     {showConfirmPassword ? (
-                      <EyeOff size={16} />
+                      <EyeOff
+                        size={16}
+                      />
                     ) : (
-                      <Eye size={16} />
+                      <Eye
+                        size={16}
+                      />
                     )}
+
                   </button>
 
                 </div>
+
               </div>
 
               {/* TERMOS */}
@@ -746,16 +1097,23 @@ export default function CadastroPage() {
                 <input
                   id="terms"
                   type="checkbox"
-                  checked={acceptedTerms}
+                  checked={
+                    acceptedTerms
+                  }
                   onChange={(event) => {
                     setAcceptedTerms(
-                      event.target.checked,
+                      event.target
+                        .checked,
                     );
-                    setErrorMessage("");
+
+                    setErrorMessage(
+                      "",
+                    );
                   }}
                   required
                   disabled={
-                    loading || googleLoading
+                    loading ||
+                    googleLoading
                   }
                   className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
                 />
@@ -802,12 +1160,14 @@ export default function CadastroPage() {
                 }
                 className="group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.12)] transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
+
                 {loading ? (
                   <>
                     <Loader2
                       size={16}
                       className="animate-spin"
                     />
+
                     Criando conta...
                   </>
                 ) : (
@@ -820,6 +1180,7 @@ export default function CadastroPage() {
                     />
                   </>
                 )}
+
               </button>
 
             </form>
@@ -842,12 +1203,18 @@ export default function CadastroPage() {
 
             <button
               type="button"
-              onClick={handleGoogleRegister}
-              disabled={
-                googleLoading || loading
+              onClick={
+                handleGoogleRegister
               }
-              className={socialButtonClass}
+              disabled={
+                googleLoading ||
+                loading
+              }
+              className={
+                socialButtonClass
+              }
             >
+
               {googleLoading ? (
                 <Loader2
                   size={18}
@@ -862,28 +1229,35 @@ export default function CadastroPage() {
                   ? "A ligar ao Google..."
                   : "Continuar com Google"}
               </span>
+
             </button>
 
             {/* APPLE */}
 
             <button
               type="button"
-              onClick={handleAppleRegister}
+              onClick={
+                handleAppleRegister
+              }
               disabled={
-                googleLoading || loading
+                googleLoading ||
+                loading
               }
               className={`${socialButtonClass} mt-3`}
             >
+
               <AppleIcon />
 
               <span>
                 Continuar com Apple
               </span>
+
             </button>
 
             {/* LOGIN */}
 
             <p className="mt-7 text-center text-[13px] text-neutral-500">
+
               Já tem uma conta?{" "}
 
               <Link
@@ -892,25 +1266,37 @@ export default function CadastroPage() {
               >
                 Entrar
               </Link>
+
             </p>
 
             {/* SEGURANÇA */}
 
             <div className="mt-5 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
-              <ShieldCheck size={11} />
+
+              <ShieldCheck
+                size={11}
+              />
 
               <span>
                 Os seus dados permanecem protegidos.
               </span>
+
             </div>
 
           </div>
+
         </section>
 
       </div>
     </main>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| FIELD
+|--------------------------------------------------------------------------
+*/
 
 function Field({
   id,
@@ -925,6 +1311,7 @@ function Field({
 }) {
   return (
     <div>
+
       <label
         htmlFor={id}
         className="mb-2 block text-[11px] font-semibold text-neutral-800"
@@ -933,15 +1320,24 @@ function Field({
       </label>
 
       <div className="relative">
+
         <div className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2">
           {icon}
         </div>
 
         {children}
+
       </div>
+
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| BENEFIT
+|--------------------------------------------------------------------------
+*/
 
 function Benefit({
   title,
@@ -952,11 +1348,13 @@ function Benefit({
 }) {
   return (
     <div className="flex gap-3">
+
       <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
         ✓
       </div>
 
       <div>
+
         <p className="text-[11px] font-semibold text-slate-200">
           {title}
         </p>
@@ -964,10 +1362,18 @@ function Benefit({
         <p className="mt-1 text-[10px] leading-5 text-slate-600">
           {description}
         </p>
+
       </div>
+
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| GOOGLE ICON
+|--------------------------------------------------------------------------
+*/
 
 function GoogleIcon() {
   return (
@@ -978,6 +1384,7 @@ function GoogleIcon() {
       fill="none"
       aria-hidden="true"
     >
+
       <path
         fill="#4285F4"
         d="M21.35 12.23c0-.7-.06-1.38-.18-2.03H12v3.84h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.7 2.91-4.2 2.91-7.2Z"
@@ -997,9 +1404,16 @@ function GoogleIcon() {
         fill="#EA4335"
         d="M12 6.1c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.16 14.63 2.18 12 2.18A9.75 9.75 0 0 0 3.3 7.6l3.24 2.53C7.31 7.82 9.46 6.1 12 6.1Z"
       />
+
     </svg>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| APPLE ICON
+|--------------------------------------------------------------------------
+*/
 
 function AppleIcon() {
   return (
@@ -1010,7 +1424,9 @@ function AppleIcon() {
       fill="currentColor"
       aria-hidden="true"
     >
+
       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.09.8 1.2-.24 2.35-.93 3.63-.84 1.54.12 2.7.73 3.46 1.85-3.18 1.9-2.43 6.07.49 7.23-.58 1.52-1.33 3.03-2.67 3.93ZM12.03 7.25C11.88 4.99 13.71 3.13 15.8 3c.29 2.61-2.36 4.55-3.77 4.25Z" />
+
     </svg>
   );
 }

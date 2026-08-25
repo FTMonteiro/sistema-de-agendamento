@@ -22,8 +22,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         {
-          error:
-            "Email e palavra-passe são obrigatórios.",
+          error: "Email e palavra-passe são obrigatórios.",
         },
         { status: 400 }
       );
@@ -34,12 +33,11 @@ export async function POST(request: NextRequest) {
       email
     );
 
-    const user =
-      await prisma.user.findUnique({
-        where: {
-          email,
-        },
-      });
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
     if (!user) {
       console.log(
@@ -75,11 +73,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const passwordCorrect =
-      await compare(
-        password,
-        user.password
-      );
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR PALAVRA-PASSE
+    |--------------------------------------------------------------------------
+    */
+
+    const passwordCorrect = await compare(
+      password,
+      user.password
+    );
 
     console.log(
       "LOGIN: palavra-passe correta:",
@@ -96,6 +99,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR EMAIL
+    |--------------------------------------------------------------------------
+    |
+    | A conta só pode entrar depois que o utilizador
+    | confirmar o seu endereço de email.
+    |
+    */
+
+    if (!user.emailVerified) {
+      console.log(
+        "LOGIN: email ainda não confirmado:",
+        user.email
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "O seu email ainda não foi confirmado. Verifique a sua caixa de entrada para ativar a conta.",
+          code: "EMAIL_NOT_VERIFIED",
+          email: user.email,
+        },
+        { status: 403 }
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRIAR SESSÃO
+    |--------------------------------------------------------------------------
+    */
+
     console.log(
       "LOGIN: criando sessão..."
     );
@@ -105,6 +141,12 @@ export async function POST(request: NextRequest) {
     console.log(
       "LOGIN: sessão criada com sucesso"
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | LOGIN CONCLUÍDO
+    |--------------------------------------------------------------------------
+    */
 
     return NextResponse.json({
       message:
@@ -188,6 +230,12 @@ export async function GET(
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | GOOGLE CLIENT ID
+    |--------------------------------------------------------------------------
+    */
+
     const clientId =
       process.env.GOOGLE_CLIENT_ID;
 
@@ -206,14 +254,19 @@ export async function GET(
     }
 
     /*
-     * Detecta automaticamente:
-     *
-     * http://localhost:3000
-     *
-     * ou
-     *
-     * https://sistema-de-agendamento-livid.vercel.app
-     */
+    |--------------------------------------------------------------------------
+    | REDIRECT URI
+    |--------------------------------------------------------------------------
+    |
+    | Em desenvolvimento:
+    |
+    | http://localhost:3000/api/auth/google/callback
+    |
+    | Em produção:
+    |
+    | https://sistema-de-agendamento-livid.vercel.app/api/auth/google/callback
+    |
+    */
 
     const origin =
       request.nextUrl.origin;
@@ -222,8 +275,10 @@ export async function GET(
       `${origin}/api/auth/google/callback`;
 
     /*
-     * URL do Google OAuth
-     */
+    |--------------------------------------------------------------------------
+    | URL DO GOOGLE OAUTH
+    |--------------------------------------------------------------------------
+    */
 
     const googleUrl =
       new URL(

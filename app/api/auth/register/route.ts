@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
+import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================
-    // CRIAR HASH DA PALAVRA-PASSE
+    // HASH DA PALAVRA-PASSE
     // ============================================================
 
     const hashedPassword = await bcrypt.hash(
@@ -137,7 +139,24 @@ export async function POST(request: NextRequest) {
     );
 
     // ============================================================
-    // CRIAR EMPRESA + UTILIZADOR
+    // GERAR TOKEN DE VERIFICAÇÃO
+    // ============================================================
+
+    const verificationToken =
+      crypto.randomBytes(32).toString("hex");
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+    // 24 horas
+    const verificationExpires = new Date(
+      Date.now() + 24 * 60 * 60 * 1000,
+    );
+
+    // ============================================================
+    // CRIAR EMPRESA + UTILIZADOR + TOKEN
     // ============================================================
 
     const result = await prisma.$transaction(
@@ -157,9 +176,22 @@ export async function POST(request: NextRequest) {
               email,
               password: hashedPassword,
               role: "OWNER",
+
+              // IMPORTANTE:
+              // a conta começa não verificada
+              emailVerified: false,
+
               businessId: business.id,
             },
           });
+
+        await transaction.emailVerificationToken.create({
+          data: {
+            tokenHash,
+            userId: user.id,
+            expiresAt: verificationExpires,
+          },
+        });
 
         return {
           business,
@@ -169,19 +201,50 @@ export async function POST(request: NextRequest) {
     );
 
     // ============================================================
+    // ENVIAR EMAIL DE CONFIRMAÇÃO
+    // ============================================================
+
+    try {
+      await sendVerificationEmail(
+        result.user.email,
+        result.user.name,
+        verificationToken,
+      );
+    } catch (emailError) {
+      console.error(
+        "❌ Conta criada, mas não foi possível enviar o email:",
+        emailError,
+      );
+
+      return NextResponse.json(
+        {
+          success: true,
+          requiresEmailVerification: true,
+          emailSent: false,
+          message:
+            "A conta foi criada, mas não foi possível enviar o email de confirmação. Tente reenviar o email.",
+        },
+        { status: 201 },
+      );
+    }
+
+    // ============================================================
     // SUCESSO
     // ============================================================
 
     console.log(
-      "✅ Conta criada com sucesso:",
+      "✅ Conta criada e email de confirmação enviado:",
       result.user.email,
     );
 
     return NextResponse.json(
       {
         success: true,
+        requiresEmailVerification: true,
+        emailSent: true,
+
         message:
-          "Conta criada com sucesso. Faça login para continuar.",
+          "Conta criada. Verifique o seu email para ativar a conta.",
 
         user: {
           id: result.user.id,
@@ -189,6 +252,7 @@ export async function POST(request: NextRequest) {
           email: result.user.email,
           role: result.user.role,
           businessId: result.user.businessId,
+          emailVerified: result.user.emailVerified,
         },
 
         business: {
@@ -197,7 +261,7 @@ export async function POST(request: NextRequest) {
           email: result.business.email,
         },
 
-        redirectTo: "/login",
+        redirectTo: "/login?verification=pending",
       },
       { status: 201 },
     );
