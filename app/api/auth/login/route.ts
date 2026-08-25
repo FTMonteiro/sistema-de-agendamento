@@ -104,12 +104,27 @@ export async function POST(request: NextRequest) {
     | VERIFICAR EMAIL
     |--------------------------------------------------------------------------
     |
-    | A conta só pode entrar depois que o utilizador
-    | confirmar o seu endereço de email.
+    | TEMPORARIAMENTE:
+    |
+    | Durante o desenvolvimento, o Resend está desativado.
+    | Por isso não podemos bloquear o login esperando
+    | uma confirmação por email.
+    |
+    | EM PRODUÇÃO:
+    |
+    | Quando o envio de email estiver ativo novamente,
+    | esta verificação deverá voltar a bloquear contas
+    | não verificadas.
     |
     */
 
-    if (!user.emailVerified) {
+    const isProduction =
+      process.env.NODE_ENV === "production";
+
+    if (
+      isProduction &&
+      !user.emailVerified
+    ) {
       console.log(
         "LOGIN: email ainda não confirmado:",
         user.email
@@ -123,6 +138,22 @@ export async function POST(request: NextRequest) {
           email: user.email,
         },
         { status: 403 }
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | MODO DE DESENVOLVIMENTO
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      !isProduction &&
+      !user.emailVerified
+    ) {
+      console.log(
+        "LOGIN DEV: permitindo entrada sem confirmação de email:",
+        user.email
       );
     }
 
@@ -158,6 +189,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         businessId: user.businessId,
+        emailVerified: user.emailVerified,
       },
     });
   } catch (error) {
@@ -203,7 +235,6 @@ export async function POST(request: NextRequest) {
 |
 | /api/auth/login?provider=google
 |
-| Esta função redireciona o utilizador para o Google.
 |--------------------------------------------------------------------------
 */
 
@@ -257,15 +288,6 @@ export async function GET(
     |--------------------------------------------------------------------------
     | REDIRECT URI
     |--------------------------------------------------------------------------
-    |
-    | Em desenvolvimento:
-    |
-    | http://localhost:3000/api/auth/google/callback
-    |
-    | Em produção:
-    |
-    | https://sistema-de-agendamento-livid.vercel.app/api/auth/google/callback
-    |
     */
 
     const origin =

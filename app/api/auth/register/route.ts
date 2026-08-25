@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
-import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -150,7 +149,7 @@ export async function POST(request: NextRequest) {
       .update(verificationToken)
       .digest("hex");
 
-    // 24 horas
+    // Token válido por 24 horas
     const verificationExpires = new Date(
       Date.now() + 24 * 60 * 60 * 1000,
     );
@@ -177,8 +176,7 @@ export async function POST(request: NextRequest) {
               password: hashedPassword,
               role: "OWNER",
 
-              // IMPORTANTE:
-              // a conta começa não verificada
+              // A conta começa não verificada
               emailVerified: false,
 
               businessId: business.id,
@@ -201,50 +199,42 @@ export async function POST(request: NextRequest) {
     );
 
     // ============================================================
-    // ENVIAR EMAIL DE CONFIRMAÇÃO
+    // EMAIL TEMPORARIAMENTE DESATIVADO
     // ============================================================
-
-    try {
-      await sendVerificationEmail(
-        result.user.email,
-        result.user.name,
-        verificationToken,
-      );
-    } catch (emailError) {
-      console.error(
-        "❌ Conta criada, mas não foi possível enviar o email:",
-        emailError,
-      );
-
-      return NextResponse.json(
-        {
-          success: true,
-          requiresEmailVerification: true,
-          emailSent: false,
-          message:
-            "A conta foi criada, mas não foi possível enviar o email de confirmação. Tente reenviar o email.",
-        },
-        { status: 201 },
-      );
-    }
-
-    // ============================================================
-    // SUCESSO
+    //
+    // O Resend está temporariamente desativado porque
+    // onboarding@resend.dev só permite envio para o email
+    // autorizado pelo Resend.
+    //
+    // Quando tivermos um domínio verificado, vamos reativar:
+    //
+    // await sendVerificationEmail(
+    //   result.user.email,
+    //   result.user.name,
+    //   verificationToken,
+    // );
+    //
     // ============================================================
 
     console.log(
-      "✅ Conta criada e email de confirmação enviado:",
+      "✅ Conta criada:",
       result.user.email,
     );
+
+    // ============================================================
+    // RESPOSTA
+    // ============================================================
 
     return NextResponse.json(
       {
         success: true,
+
         requiresEmailVerification: true,
-        emailSent: true,
+
+        emailSent: false,
 
         message:
-          "Conta criada. Verifique o seu email para ativar a conta.",
+          "Conta criada com sucesso. A verificação de email está temporariamente desativada.",
 
         user: {
           id: result.user.id,
