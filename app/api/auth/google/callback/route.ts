@@ -28,6 +28,12 @@ type PendingGoogleData = {
   expiresAt: number;
 };
 
+/*
+|--------------------------------------------------------------------------
+| GOOGLE PENDING SECRET
+|--------------------------------------------------------------------------
+*/
+
 function getGooglePendingSecret() {
   const secret =
     process.env.GOOGLE_CLIENT_SECRET;
@@ -41,6 +47,12 @@ function getGooglePendingSecret() {
   return secret;
 }
 
+/*
+|--------------------------------------------------------------------------
+| ASSINATURA DO REGISTRO GOOGLE PENDENTE
+|--------------------------------------------------------------------------
+*/
+
 function createPendingGoogleSignature(
   data: string,
 ) {
@@ -52,6 +64,12 @@ function createPendingGoogleSignature(
     .update(data)
     .digest("hex");
 }
+
+/*
+|--------------------------------------------------------------------------
+| CRIAR VALOR TEMPORÁRIO
+|--------------------------------------------------------------------------
+*/
 
 function createPendingGoogleValue(
   data: PendingGoogleData,
@@ -65,6 +83,12 @@ function createPendingGoogleValue(
 
   return `${payload}.${signature}`;
 }
+
+/*
+|--------------------------------------------------------------------------
+| GOOGLE CALLBACK
+|--------------------------------------------------------------------------
+*/
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -303,21 +327,15 @@ export async function GET(request: Request) {
       );
     }
 
-    if (
-      googleUser.email_verified !== true
-    ) {
-      console.error(
-        "❌ Email Google não verificado:",
-        googleUser.email,
-      );
-
-      return NextResponse.redirect(
-        new URL(
-          "/login?error=google_email_not_verified",
-          requestUrl.origin,
-        ),
-      );
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | EMAIL
+    |--------------------------------------------------------------------------
+    |
+    | TEMPORARIAMENTE:
+    | Não bloqueamos o fluxo com base em email_verified.
+    |
+    */
 
     const email =
       googleUser.email
@@ -382,21 +400,17 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | GARANTIR EMAIL VERIFICADO
+      | VERIFICAÇÃO TEMPORARIAMENTE DESATIVADA
       |--------------------------------------------------------------------------
+      |
+      | Não bloqueamos nem alteramos emailVerified aqui.
+      |
       */
 
-      if (!user.emailVerified) {
-        await prisma.user.update({
-          where: {
-            id: user.id,
-          },
-
-          data: {
-            emailVerified: true,
-          },
-        });
-      }
+      console.log(
+        "GOOGLE LOGIN: verificação de email temporariamente desativada:",
+        user.emailVerified,
+      );
 
       /*
       |--------------------------------------------------------------------------
@@ -513,11 +527,15 @@ export async function GET(request: Request) {
         pendingValue,
         {
           httpOnly: true,
+
           secure:
             process.env.NODE_ENV ===
             "production",
+
           sameSite: "lax",
+
           path: "/",
+
           maxAge: 60 * 10,
         },
       );
@@ -550,7 +568,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error(
-      " Erro no login/cadastro Google:",
+      "❌ Erro no login/cadastro Google:",
       error,
     );
 
