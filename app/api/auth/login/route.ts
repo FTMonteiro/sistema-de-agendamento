@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
@@ -6,6 +7,11 @@ import { createSession } from "@/lib/auth";
 /*
 |--------------------------------------------------------------------------
 | LOGIN NORMAL — EMAIL + PALAVRA-PASSE
+|--------------------------------------------------------------------------
+|
+| TEMPORARIAMENTE:
+| A confirmação de email NÃO bloqueia o login.
+|
 |--------------------------------------------------------------------------
 */
 
@@ -18,6 +24,12 @@ export async function POST(request: NextRequest) {
       .toLowerCase();
 
     const password = String(body.password || "");
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR CAMPOS
+    |--------------------------------------------------------------------------
+    */
 
     if (!email || !password) {
       return NextResponse.json(
@@ -33,6 +45,12 @@ export async function POST(request: NextRequest) {
       email
     );
 
+    /*
+    |--------------------------------------------------------------------------
+    | PROCURAR UTILIZADOR
+    |--------------------------------------------------------------------------
+    */
+
     const user = await prisma.user.findUnique({
       where: {
         email,
@@ -46,8 +64,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error:
-            "Email ou palavra-passe incorretos.",
+          error: "Email ou palavra-passe incorretos.",
         },
         { status: 401 }
       );
@@ -59,9 +76,14 @@ export async function POST(request: NextRequest) {
     );
 
     /*
-     * Usuários criados exclusivamente pelo Google
-     * podem não possuir uma palavra-passe válida.
-     */
+    |--------------------------------------------------------------------------
+    | VERIFICAR SE EXISTE PALAVRA-PASSE
+    |--------------------------------------------------------------------------
+    |
+    | Contas criadas exclusivamente através do Google
+    | podem não possuir uma palavra-passe.
+    |
+    */
 
     if (!user.password) {
       return NextResponse.json(
@@ -92,8 +114,7 @@ export async function POST(request: NextRequest) {
     if (!passwordCorrect) {
       return NextResponse.json(
         {
-          error:
-            "Email ou palavra-passe incorretos.",
+          error: "Email ou palavra-passe incorretos.",
         },
         { status: 401 }
       );
@@ -101,61 +122,22 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | VERIFICAR EMAIL
+    | VERIFICAÇÃO DE EMAIL DESATIVADA TEMPORARIAMENTE
     |--------------------------------------------------------------------------
     |
-    | TEMPORARIAMENTE:
+    | NÃO verificamos:
     |
-    | Durante o desenvolvimento, o Resend está desativado.
-    | Por isso não podemos bloquear o login esperando
-    | uma confirmação por email.
+    | user.emailVerified
     |
-    | EM PRODUÇÃO:
-    |
-    | Quando o envio de email estiver ativo novamente,
-    | esta verificação deverá voltar a bloquear contas
-    | não verificadas.
+    | Portanto, o utilizador pode entrar mesmo que
+    | ainda não tenha confirmado o email.
     |
     */
 
-    const isProduction =
-      process.env.NODE_ENV === "production";
-
-    if (
-      isProduction &&
-      !user.emailVerified
-    ) {
-      console.log(
-        "LOGIN: email ainda não confirmado:",
-        user.email
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "O seu email ainda não foi confirmado. Verifique a sua caixa de entrada para ativar a conta.",
-          code: "EMAIL_NOT_VERIFIED",
-          email: user.email,
-        },
-        { status: 403 }
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | MODO DE DESENVOLVIMENTO
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      !isProduction &&
-      !user.emailVerified
-    ) {
-      console.log(
-        "LOGIN DEV: permitindo entrada sem confirmação de email:",
-        user.email
-      );
-    }
+    console.log(
+      "LOGIN: confirmação de email ignorada temporariamente:",
+      user.emailVerified
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -180,8 +162,7 @@ export async function POST(request: NextRequest) {
     */
 
     return NextResponse.json({
-      message:
-        "Login realizado com sucesso.",
+      message: "Login realizado com sucesso.",
 
       user: {
         id: user.id,
@@ -193,6 +174,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO
+    |--------------------------------------------------------------------------
+    */
+
     console.error(
       "LOGIN: ERRO COMPLETO"
     );
@@ -242,14 +229,16 @@ export async function GET(
   request: NextRequest
 ) {
   try {
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR PROVIDER
+    |--------------------------------------------------------------------------
+    */
+
     const provider =
       request.nextUrl.searchParams.get(
         "provider"
       );
-
-    /*
-     * Se não for Google, não fazemos nada.
-     */
 
     if (provider !== "google") {
       return NextResponse.json(
@@ -288,6 +277,19 @@ export async function GET(
     |--------------------------------------------------------------------------
     | REDIRECT URI
     |--------------------------------------------------------------------------
+    |
+    | Desenvolvimento:
+    |
+    | http://localhost:3000/api/auth/google/callback
+    |
+    | Produção:
+    |
+    | https://sistema-de-agendamento-livid.vercel.app/api/auth/google/callback
+    |
+    |
+    | Usamos request.nextUrl.origin para funcionar
+    | automaticamente nos dois ambientes.
+    |
     */
 
     const origin =
@@ -295,6 +297,11 @@ export async function GET(
 
     const redirectUri =
       `${origin}/api/auth/google/callback`;
+
+    console.log(
+      "GOOGLE LOGIN CALLBACK:",
+      redirectUri
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -337,19 +344,26 @@ export async function GET(
       "select_account"
     );
 
-    console.log(
-      "GOOGLE LOGIN: redirecionando..."
-    );
+    /*
+    |--------------------------------------------------------------------------
+    | REDIRECIONAR PARA GOOGLE
+    |--------------------------------------------------------------------------
+    */
 
     console.log(
-      "GOOGLE LOGIN CALLBACK:",
-      redirectUri
+      "GOOGLE LOGIN: redirecionando..."
     );
 
     return NextResponse.redirect(
       googleUrl
     );
   } catch (error) {
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GOOGLE
+    |--------------------------------------------------------------------------
+    */
+
     console.error(
       "GOOGLE LOGIN: erro:",
       error
@@ -364,3 +378,4 @@ export async function GET(
     );
   }
 }
+
