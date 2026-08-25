@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
@@ -174,7 +175,7 @@ export async function GET(request: Request) {
       state !== savedState
     ) {
       console.error(
-        "❌ Google OAuth state inválido.",
+        "Google OAuth state inválido.",
       );
 
       return NextResponse.redirect(
@@ -187,7 +188,7 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
-    | LIMPAR COOKIES OAUTH
+    | LIMPAR COOKIES
     |--------------------------------------------------------------------------
     */
 
@@ -317,7 +318,7 @@ export async function GET(request: Request) {
 
     if (!googleUser.sub) {
       throw new Error(
-        "Google não retornou o ID do usuário.",
+        "Google não retornou o ID do utilizador.",
       );
     }
 
@@ -329,11 +330,10 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
-    | EMAIL
+    | NORMALIZAR DADOS
     |--------------------------------------------------------------------------
     |
-    | TEMPORARIAMENTE:
-    | Não bloqueamos o fluxo com base em email_verified.
+    | A verificação de email está temporariamente desativada.
     |
     */
 
@@ -357,7 +357,7 @@ export async function GET(request: Request) {
 
     if (mode === "login") {
       console.log(
-        "🔵 Login Google para:",
+        "🔵 Login Google:",
         email,
       );
 
@@ -380,13 +380,13 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | NÃO CADASTRADO
+      | CONTA NÃO EXISTE
       |--------------------------------------------------------------------------
       */
 
       if (!user) {
         console.log(
-          "❌ Conta Google não cadastrada:",
+          "Conta Google não cadastrada:",
           email,
         );
 
@@ -402,14 +402,10 @@ export async function GET(request: Request) {
       |--------------------------------------------------------------------------
       | VERIFICAÇÃO TEMPORARIAMENTE DESATIVADA
       |--------------------------------------------------------------------------
-      |
-      | Não bloqueamos nem alteramos emailVerified aqui.
-      |
       */
 
       console.log(
-        "GOOGLE LOGIN: verificação de email temporariamente desativada:",
-        user.emailVerified,
+        "GOOGLE LOGIN: verificação de email desativada.",
       );
 
       /*
@@ -424,6 +420,12 @@ export async function GET(request: Request) {
         "✅ Login Google realizado:",
         user.email,
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | DASHBOARD
+      |--------------------------------------------------------------------------
+      */
 
       return NextResponse.redirect(
         new URL(
@@ -441,65 +443,16 @@ export async function GET(request: Request) {
 
     if (mode === "register") {
       console.log(
-        "🟢 Cadastro Google para:",
+        "🟢 Cadastro Google:",
         email,
       );
 
       /*
       |--------------------------------------------------------------------------
-      | GOOGLE ID JÁ EXISTE
-      |--------------------------------------------------------------------------
-      */
-
-      const googleUserExists =
-        await prisma.user.findUnique({
-          where: {
-            googleId,
-          },
-        });
-
-      if (googleUserExists) {
-        return NextResponse.redirect(
-          new URL(
-            "/login?error=google_already_registered",
-            requestUrl.origin,
-          ),
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | EMAIL JÁ EXISTE
-      |--------------------------------------------------------------------------
-      */
-
-      const emailUser =
-        await prisma.user.findUnique({
-          where: {
-            email,
-          },
-        });
-
-      if (emailUser) {
-        console.log(
-          "⚠️ Email já cadastrado:",
-          email,
-        );
-
-        return NextResponse.redirect(
-          new URL(
-            "/cadastro?error=email_already_registered",
-            requestUrl.origin,
-          ),
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | NÃO CRIAR A CONTA AINDA
+      | NÃO CRIAR CONTA AINDA
       |--------------------------------------------------------------------------
       |
-      | Precisamos primeiro saber o nome da empresa.
+      | O nome da empresa será solicitado na etapa seguinte.
       |
       */
 
@@ -568,15 +521,16 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error(
-      "❌ Erro no login/cadastro Google:",
+      " Erro no login/cadastro Google:",
       error,
     );
 
-    return NextResponse.redirect(
-      new URL(
-        "/login?error=google_auth_failed",
-        requestUrl.origin,
-      ),
-    );
+return NextResponse.redirect(
+  new URL(
+    "/login?error=google_auth_failed",
+    requestUrl.origin,
+  ),
+);
   }
 }
+
