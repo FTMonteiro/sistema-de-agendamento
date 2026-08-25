@@ -1,194 +1,76 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
-
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 
-interface GoogleTokenResponse {
-  access_token: string;
-  expires_in: number;
-  token_type: string;
-  scope?: string;
-  id_token?: string;
-}
-
-interface GoogleUser {
-  sub: string;
-  name?: string;
-  email?: string;
-  picture?: string;
-  email_verified?: boolean;
-}
-
-type PendingGoogleData = {
-  googleId: string;
-  email: string;
-  name: string;
-  expiresAt: number;
-};
-
-/*
-|--------------------------------------------------------------------------
-| GOOGLE PENDING SECRET
-|--------------------------------------------------------------------------
-*/
-
-function getGooglePendingSecret() {
-  const secret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!secret) {
-    throw new Error("GOOGLE_CLIENT_SECRET não configurado.");
-  }
-
-  return secret;
-}
-
-/*
-|--------------------------------------------------------------------------
-| ASSINATURA DO REGISTRO GOOGLE PENDENTE
-|--------------------------------------------------------------------------
-*/
-
-function createPendingGoogleSignature(data: string) {
-  return crypto
-    .createHmac("sha256", getGooglePendingSecret())
-    .update(data)
-    .digest("hex");
-}
-
-/*
-|--------------------------------------------------------------------------
-| CRIAR VALOR TEMPORÁRIO
-|--------------------------------------------------------------------------
-*/
-
-function createPendingGoogleValue(data: PendingGoogleData) {
-  const payload = Buffer.from(
-    JSON.stringify(data),
-  ).toString("base64url");
-
-  const signature = createPendingGoogleSignature(payload);
-
-  return `${payload}.${signature}`;
-}
-
-/*
-|--------------------------------------------------------------------------
-| GOOGLE CALLBACK
-|--------------------------------------------------------------------------
-*/
-
-export async function GET(request: Request) {
-  const requestUrl = new URL(request.url);
-
+export async function GET(request: NextRequest) {
   try {
-    /*
-    |--------------------------------------------------------------------------
-    | PARÂMETROS
-    |--------------------------------------------------------------------------
-    */
+    const code =
+      request.nextUrl.searchParams.get("code");
 
-    const code = requestUrl.searchParams.get("code");
-
-    const state = requestUrl.searchParams.get("state");
-
-    const googleError = requestUrl.searchParams.get("error");
+    const googleError =
+      request.nextUrl.searchParams.get("error");
 
     /*
     |--------------------------------------------------------------------------
-    | ERRO GOOGLE
+    | GOOGLE CANCELADO
     |--------------------------------------------------------------------------
     */
 
     if (googleError) {
-      console.error("Google OAuth:", googleError);
+      console.log(
+        "GOOGLE CALLBACK: login cancelado:",
+        googleError
+      );
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro?error=google_cancelled",
-          requestUrl.origin,
-        ),
+          "/login?error=google_cancelled",
+          request.url
+        )
       );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | CODE
+    | CODE AUSENTE
     |--------------------------------------------------------------------------
     */
 
     if (!code) {
-      return NextResponse.redirect(
-        new URL(
-          "/cadastro?error=google_code_missing",
-          requestUrl.origin,
-        ),
+      console.error(
+        "GOOGLE CALLBACK: code não encontrado."
       );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | COOKIES OAUTH
-    |--------------------------------------------------------------------------
-    */
-
-    const cookieStore = await cookies();
-
-    const savedState = cookieStore.get(
-      "google_oauth_state",
-    )?.value;
-
-    const mode =
-      cookieStore.get("google_oauth_mode")?.value ||
-      "login";
-
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDAR STATE
-    |--------------------------------------------------------------------------
-    */
-
-    if (!state || !savedState || state !== savedState) {
-      console.error("❌ Google OAuth state inválido.");
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro?error=google_invalid_state",
-          requestUrl.origin,
-        ),
+          "/login?error=google",
+          request.url
+        )
       );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | LIMPAR COOKIES OAUTH
+    | CONFIGURAÇÃO
     |--------------------------------------------------------------------------
     */
 
-    cookieStore.delete("google_oauth_state");
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID;
 
-    cookieStore.delete("google_oauth_mode");
+    const clientSecret =
+      process.env.GOOGLE_CLIENT_SECRET;
 
-    /*
-    |--------------------------------------------------------------------------
-    | GOOGLE CLIENT
-    |--------------------------------------------------------------------------
-    */
-
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-    if (!clientId) {
-      throw new Error(
-        "GOOGLE_CLIENT_ID não configurado.",
+    if (!clientId || !clientSecret) {
+      console.error(
+        "GOOGLE CALLBACK: configuração incompleta."
       );
-    }
 
-    if (!clientSecret) {
-      throw new Error(
-        "GOOGLE_CLIENT_SECRET não configurado.",
+      return NextResponse.redirect(
+        new URL(
+          "/login?error=google_config",
+          request.url
+        )
       );
     }
 
@@ -198,329 +80,202 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
+    const origin =
+      request.nextUrl.origin;
+
     const redirectUri =
-      `${requestUrl.origin}/api/auth/google/callback`;
+      `${origin}/api/auth/google/callback`;
 
     /*
     |--------------------------------------------------------------------------
-    | TROCAR CODE POR TOKEN
+    | TROCAR CODE PELO ACCESS TOKEN
     |--------------------------------------------------------------------------
     */
 
-    const tokenResponse = await fetch(
-      "https://oauth2.googleapis.com/token",
-      {
-        method: "POST",
+    const tokenResponse =
+      await fetch(
+        "https://oauth2.googleapis.com/token",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded",
-        },
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
 
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-          grant_type: "authorization_code",
-        }),
-      },
-    );
+          body: new URLSearchParams({
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type:
+              "authorization_code",
+          }),
+        }
+      );
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
+      const tokenError =
+        await tokenResponse.text();
 
       console.error(
-        "Erro ao trocar código Google:",
-        errorText,
+        "GOOGLE CALLBACK: erro ao obter token:",
+        tokenError
       );
 
-      throw new Error(
-        "Não foi possível obter o token do Google.",
-      );
-    }
-
-    const tokenData =
-      (await tokenResponse.json()) as GoogleTokenResponse;
-
-    if (!tokenData.access_token) {
-      throw new Error(
-        "Google não retornou access_token.",
+      return NextResponse.redirect(
+        new URL(
+          "/login?error=google",
+          request.url
+        )
       );
     }
+
+    const tokens =
+      await tokenResponse.json();
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR UTILIZADOR GOOGLE
+    | OBTER DADOS DO UTILIZADOR
     |--------------------------------------------------------------------------
     */
 
-    const googleUserResponse = await fetch(
-      "https://www.googleapis.com/oauth2/v3/userinfo",
-      {
-        headers: {
-          Authorization:
-            `Bearer ${tokenData.access_token}`,
-        },
-      },
-    );
+    const userResponse =
+      await fetch(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {
+          headers: {
+            Authorization:
+              `Bearer ${tokens.access_token}`,
+          },
+        }
+      );
 
-    if (!googleUserResponse.ok) {
-      throw new Error(
-        "Não foi possível obter os dados do Google.",
+    if (!userResponse.ok) {
+      console.error(
+        "GOOGLE CALLBACK: não foi possível obter perfil."
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          "/login?error=google",
+          request.url
+        )
       );
     }
 
     const googleUser =
-      (await googleUserResponse.json()) as GoogleUser;
+      await userResponse.json();
+
+    const googleEmail =
+      String(googleUser.email || "")
+        .trim()
+        .toLowerCase();
+
+    const googleName =
+      String(
+        googleUser.name ||
+        googleUser.given_name ||
+        ""
+      ).trim();
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDAR GOOGLE USER
+    | VALIDAR EMAIL
     |--------------------------------------------------------------------------
     */
 
-    if (!googleUser.sub) {
-      throw new Error(
-        "Google não retornou o ID do usuário.",
-      );
-    }
-
-    if (!googleUser.email) {
-      throw new Error(
-        "Google não retornou o email.",
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | DADOS DO UTILIZADOR
-    |--------------------------------------------------------------------------
-    */
-
-    const email = googleUser.email
-      .trim()
-      .toLowerCase();
-
-    const name =
-      googleUser.name?.trim() ||
-      email.split("@")[0];
-
-    const googleId = googleUser.sub;
-
-    /*
-    |--------------------------------------------------------------------------
-    | LOGIN COM GOOGLE
-    |--------------------------------------------------------------------------
-    */
-
-    if (mode === "login") {
-      console.log(
-        "🔵 Login Google para:",
-        email,
-      );
-
-      const user =
-        await prisma.user.findUnique({
-          where: {
-            googleId,
-          },
-
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            businessId: true,
-            googleId: true,
-          },
-        });
-
-      /*
-      |--------------------------------------------------------------------------
-      | NÃO CADASTRADO
-      |--------------------------------------------------------------------------
-      */
-
-      if (!user) {
-        console.log(
-          "❌ Conta Google não cadastrada:",
-          email,
-        );
-
-        return NextResponse.redirect(
-          new URL(
-            "/login?error=google_not_registered",
-            requestUrl.origin,
-          ),
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | CRIAR SESSÃO
-      |--------------------------------------------------------------------------
-      */
-
-      await createSession(user.id);
-
-      console.log(
-        "✅ Login Google realizado:",
-        user.email,
+    if (!googleEmail) {
+      console.error(
+        "GOOGLE CALLBACK: Google não devolveu email."
       );
 
       return NextResponse.redirect(
         new URL(
-          "/dashboard",
-          requestUrl.origin,
-        ),
+          "/login?error=google",
+          request.url
+        )
       );
     }
 
+    console.log(
+      "GOOGLE CALLBACK: email:",
+      googleEmail
+    );
+
     /*
     |--------------------------------------------------------------------------
-    | CADASTRO COM GOOGLE
+    | PROCURAR UTILIZADOR
     |--------------------------------------------------------------------------
+    |
+    | mode=login:
+    |
+    | NÃO criar uma conta automaticamente.
+    |
+    | Só entra quem já possui conta NEVRIX.
+    |
     */
 
-    if (mode === "register") {
-      console.log(
-        "🟢 Cadastro Google para:",
-        email,
-      );
-
-      /*
-      |--------------------------------------------------------------------------
-      | GOOGLE ID JÁ EXISTE
-      |--------------------------------------------------------------------------
-      */
-
-      const googleUserExists =
-        await prisma.user.findUnique({
-          where: {
-            googleId,
-          },
-        });
-
-      if (googleUserExists) {
-        return NextResponse.redirect(
-          new URL(
-            "/login?error=google_already_registered",
-            requestUrl.origin,
-          ),
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | EMAIL JÁ EXISTE
-      |--------------------------------------------------------------------------
-      */
-
-      const emailUser =
-        await prisma.user.findUnique({
-          where: {
-            email,
-          },
-        });
-
-      if (emailUser) {
-        console.log(
-          "⚠️ Email já cadastrado:",
-          email,
-        );
-
-        return NextResponse.redirect(
-          new URL(
-            "/cadastro?error=email_already_registered",
-            requestUrl.origin,
-          ),
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | NÃO CRIAR A CONTA AINDA
-      |--------------------------------------------------------------------------
-      |
-      | Primeiro precisamos saber o nome da empresa.
-      |
-      */
-
-      const pendingGoogleData: PendingGoogleData = {
-        googleId,
-        email,
-        name,
-        expiresAt:
-          Date.now() + 10 * 60 * 1000,
-      };
-
-      const pendingValue =
-        createPendingGoogleValue(
-          pendingGoogleData,
-        );
-
-      /*
-      |--------------------------------------------------------------------------
-      | COOKIE TEMPORÁRIO
-      |--------------------------------------------------------------------------
-      */
-
-      cookieStore.set(
-        "google_pending_registration",
-        pendingValue,
-        {
-          httpOnly: true,
-
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-
-          sameSite: "lax",
-
-          path: "/",
-
-          maxAge: 60 * 10,
+    const user =
+      await prisma.user.findUnique({
+        where: {
+          email: googleEmail,
         },
-      );
+      });
 
-      /*
-      |--------------------------------------------------------------------------
-      | IR PARA PÁGINA DE EMPRESA
-      |--------------------------------------------------------------------------
-      */
+    if (!user) {
+      console.log(
+        "GOOGLE CALLBACK: utilizador não cadastrado."
+      );
 
       return NextResponse.redirect(
         new URL(
-          "/cadastro/google",
-          requestUrl.origin,
-        ),
+          "/login?error=google_not_registered",
+          request.url
+        )
       );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | MODO INVÁLIDO
+    | CRIAR SESSÃO
+    |--------------------------------------------------------------------------
+    |
+    | EXATAMENTE COMO NO LOGIN NORMAL
+    |
+    */
+
+    console.log(
+      "GOOGLE CALLBACK: criando sessão:",
+      user.id
+    );
+
+    await createSession(user.id);
+
+    console.log(
+      "GOOGLE CALLBACK: sessão criada."
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | IR PARA O DASHBOARD
     |--------------------------------------------------------------------------
     */
 
     return NextResponse.redirect(
-      new URL(
-        "/login?error=google_invalid_mode",
-        requestUrl.origin,
-      ),
+      new URL("/dashboard", request.url)
     );
   } catch (error) {
     console.error(
-      "❌ Erro no login/cadastro Google:",
-      error,
+      "GOOGLE CALLBACK: erro completo:",
+      error
     );
 
     return NextResponse.redirect(
       new URL(
-        "/login?error=google_auth_failed",
-        requestUrl.origin,
-      ),
+        "/login?error=google",
+        request.url
+      )
     );
   }
 }
