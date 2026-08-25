@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
@@ -36,13 +35,10 @@ type PendingGoogleData = {
 */
 
 function getGooglePendingSecret() {
-  const secret =
-    process.env.GOOGLE_CLIENT_SECRET;
+  const secret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!secret) {
-    throw new Error(
-      "GOOGLE_CLIENT_SECRET não configurado.",
-    );
+    throw new Error("GOOGLE_CLIENT_SECRET não configurado.");
   }
 
   return secret;
@@ -54,14 +50,9 @@ function getGooglePendingSecret() {
 |--------------------------------------------------------------------------
 */
 
-function createPendingGoogleSignature(
-  data: string,
-) {
+function createPendingGoogleSignature(data: string) {
   return crypto
-    .createHmac(
-      "sha256",
-      getGooglePendingSecret(),
-    )
+    .createHmac("sha256", getGooglePendingSecret())
     .update(data)
     .digest("hex");
 }
@@ -72,15 +63,12 @@ function createPendingGoogleSignature(
 |--------------------------------------------------------------------------
 */
 
-function createPendingGoogleValue(
-  data: PendingGoogleData,
-) {
+function createPendingGoogleValue(data: PendingGoogleData) {
   const payload = Buffer.from(
     JSON.stringify(data),
   ).toString("base64url");
 
-  const signature =
-    createPendingGoogleSignature(payload);
+  const signature = createPendingGoogleSignature(payload);
 
   return `${payload}.${signature}`;
 }
@@ -101,14 +89,11 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
-    const code =
-      requestUrl.searchParams.get("code");
+    const code = requestUrl.searchParams.get("code");
 
-    const state =
-      requestUrl.searchParams.get("state");
+    const state = requestUrl.searchParams.get("state");
 
-    const googleError =
-      requestUrl.searchParams.get("error");
+    const googleError = requestUrl.searchParams.get("error");
 
     /*
     |--------------------------------------------------------------------------
@@ -117,10 +102,7 @@ export async function GET(request: Request) {
     */
 
     if (googleError) {
-      console.error(
-        "Google OAuth:",
-        googleError,
-      );
+      console.error("Google OAuth:", googleError);
 
       return NextResponse.redirect(
         new URL(
@@ -153,15 +135,13 @@ export async function GET(request: Request) {
 
     const cookieStore = await cookies();
 
-    const savedState =
-      cookieStore.get(
-        "google_oauth_state",
-      )?.value;
+    const savedState = cookieStore.get(
+      "google_oauth_state",
+    )?.value;
 
     const mode =
-      cookieStore.get(
-        "google_oauth_mode",
-      )?.value || "login";
+      cookieStore.get("google_oauth_mode")?.value ||
+      "login";
 
     /*
     |--------------------------------------------------------------------------
@@ -169,14 +149,8 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
-    if (
-      !state ||
-      !savedState ||
-      state !== savedState
-    ) {
-      console.error(
-        "Google OAuth state inválido.",
-      );
+    if (!state || !savedState || state !== savedState) {
+      console.error("❌ Google OAuth state inválido.");
 
       return NextResponse.redirect(
         new URL(
@@ -188,17 +162,13 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
-    | LIMPAR COOKIES
+    | LIMPAR COOKIES OAUTH
     |--------------------------------------------------------------------------
     */
 
-    cookieStore.delete(
-      "google_oauth_state",
-    );
+    cookieStore.delete("google_oauth_state");
 
-    cookieStore.delete(
-      "google_oauth_mode",
-    );
+    cookieStore.delete("google_oauth_mode");
 
     /*
     |--------------------------------------------------------------------------
@@ -206,11 +176,9 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
-    const clientId =
-      process.env.GOOGLE_CLIENT_ID;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
 
-    const clientSecret =
-      process.env.GOOGLE_CLIENT_SECRET;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId) {
       throw new Error(
@@ -239,31 +207,28 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
-    const tokenResponse =
-      await fetch(
-        "https://oauth2.googleapis.com/token",
-        {
-          method: "POST",
+    const tokenResponse = await fetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/x-www-form-urlencoded",
-          },
-
-          body: new URLSearchParams({
-            code,
-            client_id: clientId,
-            client_secret: clientSecret,
-            redirect_uri: redirectUri,
-            grant_type:
-              "authorization_code",
-          }),
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
         },
-      );
+
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      },
+    );
 
     if (!tokenResponse.ok) {
-      const errorText =
-        await tokenResponse.text();
+      const errorText = await tokenResponse.text();
 
       console.error(
         "Erro ao trocar código Google:",
@@ -290,16 +255,15 @@ export async function GET(request: Request) {
     |--------------------------------------------------------------------------
     */
 
-    const googleUserResponse =
-      await fetch(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        {
-          headers: {
-            Authorization:
-              `Bearer ${tokenData.access_token}`,
-          },
+    const googleUserResponse = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization:
+            `Bearer ${tokenData.access_token}`,
         },
-      );
+      },
+    );
 
     if (!googleUserResponse.ok) {
       throw new Error(
@@ -318,7 +282,7 @@ export async function GET(request: Request) {
 
     if (!googleUser.sub) {
       throw new Error(
-        "Google não retornou o ID do utilizador.",
+        "Google não retornou o ID do usuário.",
       );
     }
 
@@ -330,24 +294,19 @@ export async function GET(request: Request) {
 
     /*
     |--------------------------------------------------------------------------
-    | NORMALIZAR DADOS
+    | DADOS DO UTILIZADOR
     |--------------------------------------------------------------------------
-    |
-    | A verificação de email está temporariamente desativada.
-    |
     */
 
-    const email =
-      googleUser.email
-        .trim()
-        .toLowerCase();
+    const email = googleUser.email
+      .trim()
+      .toLowerCase();
 
     const name =
       googleUser.name?.trim() ||
       email.split("@")[0];
 
-    const googleId =
-      googleUser.sub;
+    const googleId = googleUser.sub;
 
     /*
     |--------------------------------------------------------------------------
@@ -357,7 +316,7 @@ export async function GET(request: Request) {
 
     if (mode === "login") {
       console.log(
-        "🔵 Login Google:",
+        "🔵 Login Google para:",
         email,
       );
 
@@ -374,19 +333,18 @@ export async function GET(request: Request) {
             role: true,
             businessId: true,
             googleId: true,
-            emailVerified: true,
           },
         });
 
       /*
       |--------------------------------------------------------------------------
-      | CONTA NÃO EXISTE
+      | NÃO CADASTRADO
       |--------------------------------------------------------------------------
       */
 
       if (!user) {
         console.log(
-          "Conta Google não cadastrada:",
+          "❌ Conta Google não cadastrada:",
           email,
         );
 
@@ -400,16 +358,6 @@ export async function GET(request: Request) {
 
       /*
       |--------------------------------------------------------------------------
-      | VERIFICAÇÃO TEMPORARIAMENTE DESATIVADA
-      |--------------------------------------------------------------------------
-      */
-
-      console.log(
-        "GOOGLE LOGIN: verificação de email desativada.",
-      );
-
-      /*
-      |--------------------------------------------------------------------------
       | CRIAR SESSÃO
       |--------------------------------------------------------------------------
       */
@@ -420,12 +368,6 @@ export async function GET(request: Request) {
         "✅ Login Google realizado:",
         user.email,
       );
-
-      /*
-      |--------------------------------------------------------------------------
-      | DASHBOARD
-      |--------------------------------------------------------------------------
-      */
 
       return NextResponse.redirect(
         new URL(
@@ -443,16 +385,65 @@ export async function GET(request: Request) {
 
     if (mode === "register") {
       console.log(
-        "🟢 Cadastro Google:",
+        "🟢 Cadastro Google para:",
         email,
       );
 
       /*
       |--------------------------------------------------------------------------
-      | NÃO CRIAR CONTA AINDA
+      | GOOGLE ID JÁ EXISTE
+      |--------------------------------------------------------------------------
+      */
+
+      const googleUserExists =
+        await prisma.user.findUnique({
+          where: {
+            googleId,
+          },
+        });
+
+      if (googleUserExists) {
+        return NextResponse.redirect(
+          new URL(
+            "/login?error=google_already_registered",
+            requestUrl.origin,
+          ),
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | EMAIL JÁ EXISTE
+      |--------------------------------------------------------------------------
+      */
+
+      const emailUser =
+        await prisma.user.findUnique({
+          where: {
+            email,
+          },
+        });
+
+      if (emailUser) {
+        console.log(
+          "⚠️ Email já cadastrado:",
+          email,
+        );
+
+        return NextResponse.redirect(
+          new URL(
+            "/cadastro?error=email_already_registered",
+            requestUrl.origin,
+          ),
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | NÃO CRIAR A CONTA AINDA
       |--------------------------------------------------------------------------
       |
-      | O nome da empresa será solicitado na etapa seguinte.
+      | Primeiro precisamos saber o nome da empresa.
       |
       */
 
@@ -521,16 +512,15 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error(
-      " Erro no login/cadastro Google:",
+      "❌ Erro no login/cadastro Google:",
       error,
     );
 
-return NextResponse.redirect(
-  new URL(
-    "/login?error=google_auth_failed",
-    requestUrl.origin,
-  ),
-);
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=google_auth_failed",
+        requestUrl.origin,
+      ),
+    );
   }
 }
-
