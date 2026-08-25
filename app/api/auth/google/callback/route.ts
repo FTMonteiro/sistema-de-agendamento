@@ -4,11 +4,40 @@ import { createSession } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    /*
+    |--------------------------------------------------------------------------
+    | DADOS RECEBIDOS DO GOOGLE
+    |--------------------------------------------------------------------------
+    */
+
     const code =
       request.nextUrl.searchParams.get("code");
 
     const googleError =
       request.nextUrl.searchParams.get("error");
+
+    const mode =
+      request.nextUrl.searchParams.get("state") || "login";
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR MODE
+    |--------------------------------------------------------------------------
+    */
+
+    if (mode !== "login" && mode !== "register") {
+      console.error(
+        "GOOGLE CALLBACK: mode inválido:",
+        mode
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          "/login?error=google_mode",
+          request.url
+        )
+      );
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -18,15 +47,17 @@ export async function GET(request: NextRequest) {
 
     if (googleError) {
       console.log(
-        "GOOGLE CALLBACK: login cancelado:",
+        "GOOGLE CALLBACK: operação cancelada:",
         googleError
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google_cancelled"
+          : "/login?error=google_cancelled";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google_cancelled",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
@@ -41,11 +72,13 @@ export async function GET(request: NextRequest) {
         "GOOGLE CALLBACK: code não encontrado."
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google"
+          : "/login?error=google";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
@@ -66,11 +99,13 @@ export async function GET(request: NextRequest) {
         "GOOGLE CALLBACK: configuração incompleta."
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google_config"
+          : "/login?error=google_config";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google_config",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
@@ -88,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | TROCAR CODE PELO ACCESS TOKEN
+    | TROCAR CODE POR TOKEN
     |--------------------------------------------------------------------------
     */
 
@@ -119,15 +154,17 @@ export async function GET(request: NextRequest) {
         await tokenResponse.text();
 
       console.error(
-        "GOOGLE CALLBACK: erro ao obter token:",
+        "GOOGLE CALLBACK: erro token:",
         tokenError
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google"
+          : "/login?error=google";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
@@ -136,7 +173,7 @@ export async function GET(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | OBTER DADOS DO UTILIZADOR
+    | OBTER PERFIL DO GOOGLE
     |--------------------------------------------------------------------------
     */
 
@@ -153,14 +190,16 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error(
-        "GOOGLE CALLBACK: não foi possível obter perfil."
+        "GOOGLE CALLBACK: erro ao obter perfil."
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google"
+          : "/login?error=google";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
@@ -187,50 +226,153 @@ export async function GET(request: NextRequest) {
 
     if (!googleEmail) {
       console.error(
-        "GOOGLE CALLBACK: Google não devolveu email."
+        "GOOGLE CALLBACK: email não encontrado."
       );
 
+      const redirect =
+        mode === "register"
+          ? "/register?error=google_email"
+          : "/login?error=google_email";
+
       return NextResponse.redirect(
-        new URL(
-          "/login?error=google",
-          request.url
-        )
+        new URL(redirect, request.url)
       );
     }
 
     console.log(
-      "GOOGLE CALLBACK: email:",
-      googleEmail
+      "GOOGLE CALLBACK:",
+      {
+        mode,
+        email: googleEmail,
+        name: googleName,
+      }
     );
 
     /*
     |--------------------------------------------------------------------------
-    | PROCURAR UTILIZADOR
+    | PROCURAR CONTA EXISTENTE
     |--------------------------------------------------------------------------
-    |
-    | mode=login:
-    |
-    | NÃO criar uma conta automaticamente.
-    |
-    | Só entra quem já possui conta NEVRIX.
-    |
     */
 
-    const user =
+    const existingUser =
       await prisma.user.findUnique({
         where: {
           email: googleEmail,
         },
       });
 
-    if (!user) {
+    /*
+    |--------------------------------------------------------------------------
+    | ================================================================
+    | CADASTRO COM GOOGLE
+    | ================================================================
+    */
+
+    if (mode === "register") {
+      /*
+      |--------------------------------------------------------------------------
+      | EMAIL JÁ EXISTE
+      |--------------------------------------------------------------------------
+      |
+      | NÃO PERMITIMOS criar outra conta.
+      |
+      */
+
+      if (existingUser) {
+        console.log(
+          "GOOGLE REGISTER: conta já existe:",
+          googleEmail
+        );
+
+        return NextResponse.redirect(
+          new URL(
+            "/register?error=google_account_exists",
+            request.url
+          )
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | CRIAR EMPRESA + UTILIZADOR
+      |--------------------------------------------------------------------------
+      */
+
+      const result =
+        await prisma.$transaction(
+          async (transaction) => {
+            const business =
+              await transaction.business.create({
+                data: {
+                  name:
+                    googleName ||
+                    "Minha Empresa",
+                  email: googleEmail,
+                },
+              });
+
+            const user =
+              await transaction.user.create({
+                data: {
+                  name:
+                    googleName ||
+                    "Utilizador",
+
+                  email: googleEmail,
+
+                  /*
+                  | Conta Google não precisa
+                  | de password.
+                  */
+                  password: null,
+
+                  role: "OWNER",
+
+                  /*
+                  | Google já confirmou
+                  | a posse do email.
+                  */
+                  emailVerified: true,
+
+                  businessId: business.id,
+                },
+              });
+
+            return {
+              business,
+              user,
+            };
+          }
+        );
+
       console.log(
-        "GOOGLE CALLBACK: utilizador não cadastrado."
+        "GOOGLE REGISTER: conta criada:",
+        result.user.email
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | CRIAR SESSÃO
+      |--------------------------------------------------------------------------
+      */
+
+      await createSession(
+        result.user.id
+      );
+
+      console.log(
+        "GOOGLE REGISTER: sessão criada."
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | ENTRAR DIRETAMENTE NO SISTEMA
+      |--------------------------------------------------------------------------
+      */
 
       return NextResponse.redirect(
         new URL(
-          "/login?error=google_not_registered",
+          "/dashboard",
           request.url
         )
       );
@@ -238,32 +380,76 @@ export async function GET(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | CRIAR SESSÃO
-    |--------------------------------------------------------------------------
-    |
-    | EXATAMENTE COMO NO LOGIN NORMAL
-    |
+    | ================================================================
+    | LOGIN COM GOOGLE
+    | ================================================================
     */
 
-    console.log(
-      "GOOGLE CALLBACK: criando sessão:",
-      user.id
-    );
+    if (mode === "login") {
+      /*
+      |--------------------------------------------------------------------------
+      | CONTA NÃO EXISTE
+      |--------------------------------------------------------------------------
+      */
 
-    await createSession(user.id);
+      if (!existingUser) {
+        console.log(
+          "GOOGLE LOGIN: conta não encontrada:",
+          googleEmail
+        );
 
-    console.log(
-      "GOOGLE CALLBACK: sessão criada."
-    );
+        return NextResponse.redirect(
+          new URL(
+            "/login?error=google_not_registered",
+            request.url
+          )
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | CRIAR SESSÃO
+      |--------------------------------------------------------------------------
+      */
+
+      console.log(
+        "GOOGLE LOGIN: criando sessão:",
+        existingUser.id
+      );
+
+      await createSession(
+        existingUser.id
+      );
+
+      console.log(
+        "GOOGLE LOGIN: sessão criada."
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | DASHBOARD
+      |--------------------------------------------------------------------------
+      */
+
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard",
+          request.url
+        )
+      );
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | IR PARA O DASHBOARD
+    | FALLBACK
     |--------------------------------------------------------------------------
     */
 
     return NextResponse.redirect(
-      new URL("/dashboard", request.url)
+      new URL(
+        "/login?error=google",
+        request.url
+      )
     );
   } catch (error) {
     console.error(

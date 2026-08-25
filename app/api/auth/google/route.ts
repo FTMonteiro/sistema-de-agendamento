@@ -12,6 +12,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | DEFINIR MODO
+    |--------------------------------------------------------------------------
+    |
+    | /api/auth/google?mode=login
+    | /api/auth/google?mode=register
+    |
+    */
+
+    const mode =
+      request.nextUrl.searchParams.get("mode") || "login";
+
+    if (mode !== "login" && mode !== "register") {
+      return NextResponse.redirect(
+        new URL("/login?error=google_mode", request.url)
+      );
+    }
+
     const origin = request.nextUrl.origin;
 
     const redirectUri =
@@ -49,6 +68,24 @@ export async function GET(request: NextRequest) {
     googleUrl.searchParams.set(
       "prompt",
       "select_account"
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | ENVIAR MODO PARA O CALLBACK
+    |--------------------------------------------------------------------------
+    */
+
+    googleUrl.searchParams.set(
+      "state",
+      mode
+    );
+
+    console.log(
+      "GOOGLE:",
+      mode,
+      "→",
+      redirectUri
     );
 
     return NextResponse.redirect(googleUrl);
