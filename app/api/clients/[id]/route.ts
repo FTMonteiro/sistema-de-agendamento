@@ -10,6 +10,8 @@ import {
   requireOwner,
 } from "@/lib/auth";
 
+import { createNotification } from "@/lib/notifications";
+
 interface RouteContext {
   params: Promise<{
     id: string;
@@ -111,7 +113,7 @@ export async function PUT(
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR CLIENTE DENTRO DA EMPRESA
+    | BUSCAR CLIENTE
     |--------------------------------------------------------------------------
     */
 
@@ -234,6 +236,7 @@ export async function PUT(
         where: {
           id,
         },
+
         data: {
           name,
           email,
@@ -241,6 +244,35 @@ export async function PUT(
           active,
         },
       });
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOTIFICAÇÃO
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+      await createNotification({
+        userId: user.id,
+        businessId: user.businessId,
+
+        title: "Cliente atualizado",
+
+        message:
+          `${client.name} foi atualizado.`,
+
+        type: "INFO",
+
+        resourceId: client.id,
+
+        resourceType: "CLIENT",
+      });
+    } catch (notificationError) {
+      console.error(
+        "Erro ao criar notificação de cliente atualizado:",
+        notificationError,
+      );
+    }
 
     return NextResponse.json(client);
   } catch (error) {
@@ -406,9 +438,45 @@ export async function DELETE(
       },
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | NOTIFICAÇÃO
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+      await createNotification({
+        userId: user.id,
+        businessId: user.businessId,
+
+        title: "Cliente excluído",
+
+        message:
+          `${existing.name} foi removido dos clientes.`,
+
+        type: "WARNING",
+
+        resourceId: existing.id,
+
+        resourceType: "CLIENT",
+      });
+    } catch (notificationError) {
+      console.error(
+        "Erro ao criar notificação de cliente excluído:",
+        notificationError,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       {
         success: true,
+
         message:
           "Cliente excluído com sucesso.",
       },

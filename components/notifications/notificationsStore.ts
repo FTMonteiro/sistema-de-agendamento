@@ -1,42 +1,56 @@
-export type NotificationKind =
-  | "created"
-  | "updated"
-  | "deleted";
+"use client";
+
+/*
+|--------------------------------------------------------------------------
+| TIPOS
+|--------------------------------------------------------------------------
+*/
+
+export type NotificationType =
+  | "INFO"
+  | "SUCCESS"
+  | "WARNING"
+  | "ERROR";
 
 export interface AppNotification {
   id: string;
-  kind: NotificationKind;
+
   title: string;
-  description: string;
-  /** ISO. Guardado como string para sobreviver ao JSON do localStorage. */
-  createdAt: string;
+
+  message: string;
+
+  type: NotificationType;
+
   read: boolean;
+
+  resourceId: string | null;
+
+  resourceType: string | null;
+
+  createdAt: string;
+
+  readAt: string | null;
 }
 
-const STORAGE_KEY =
-  "nevrix-notifications";
-
-const MAX_ITEMS = 30;
+type Listener = () => void;
 
 /*
- * Store fora do React, consumida com useSyncExternalStore. Estar fora permite
- * ler o localStorage sem sincronizar estado num efeito, e dá um snapshot
- * separado para o servidor — onde a lista é sempre vazia — evitando
- * descasamento na hidratação do contador do sino.
- *
- * Sem tabela no banco, as notificações vivem no browser de quem usa: sobrevivem
- * a recargas e à navegação, mas são locais a este dispositivo. Um histórico
- * partilhado exigiria um modelo no Prisma.
- */
+|--------------------------------------------------------------------------
+| STORE
+|--------------------------------------------------------------------------
+*/
+
 let items: AppNotification[] = [];
 
-let hydrated = false;
+const listeners = new Set<Listener>();
 
-/* Referência estável: o snapshot do servidor não pode mudar entre chamadas. */
-const SERVER_SNAPSHOT: AppNotification[] =
-  [];
+const SERVER_SNAPSHOT: AppNotification[] = [];
 
-const listeners = new Set<() => void>();
+/*
+|--------------------------------------------------------------------------
+| EMIT
+|--------------------------------------------------------------------------
+*/
 
 function emit() {
   for (const listener of listeners) {
@@ -44,72 +58,27 @@ function emit() {
   }
 }
 
-function persist() {
-  try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(items),
-    );
-  } catch {
-    // Storage indisponível: mantemos apenas em memória.
-  }
-}
-
-function readStored(): AppNotification[] {
-  try {
-    const raw =
-      window.localStorage.getItem(
-        STORAGE_KEY,
-      );
-
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (item): item is AppNotification =>
-        item &&
-        typeof item.id === "string" &&
-        typeof item.title === "string" &&
-        typeof item.kind === "string",
-    );
-  } catch {
-    return [];
-  }
-}
+/*
+|--------------------------------------------------------------------------
+| SUBSCRIBE
+|--------------------------------------------------------------------------
+*/
 
 export function subscribe(
-  onStoreChange: () => void,
+  listener: Listener,
 ) {
-  /*
-   * A primeira subscrição acontece depois da hidratação, e é aí que o conteúdo
-   * guardado entra — nunca durante a renderização.
-   */
-  if (!hydrated) {
-    hydrated = true;
-
-    const stored = readStored();
-
-    if (stored.length > 0) {
-      items = stored;
-
-      // Fora do ciclo actual, para não avisar durante a renderização.
-      queueMicrotask(emit);
-    }
-  }
-
-  listeners.add(onStoreChange);
+  listeners.add(listener);
 
   return () => {
-    listeners.delete(onStoreChange);
+    listeners.delete(listener);
   };
 }
+
+/*
+|--------------------------------------------------------------------------
+| SNAPSHOT
+|--------------------------------------------------------------------------
+*/
 
 export function getSnapshot() {
   return items;
@@ -119,52 +88,208 @@ export function getServerSnapshot() {
   return SERVER_SNAPSHOT;
 }
 
-export function notify(
-  input: Omit<
-    AppNotification,
-    "id" | "createdAt" | "read"
-  >,
-) {
-  const item: AppNotification = {
-    ...input,
-    id: `${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`,
-    createdAt:
-      new Date().toISOString(),
-    read: false,
-  };
+/*
+|--------------------------------------------------------------------------
+| DEFINIR NOTIFICAÇÕES
+|--------------------------------------------------------------------------
+|
+| Substitui completamente o estado local pelo estado vindo da API.
+|
+|--------------------------------------------------------------------------
+*/
 
-  items = [item, ...items].slice(
-    0,
-    MAX_ITEMS,
+export function setNotifications(
+  notifications: AppNotification[],
+) {
+  items = notifications;
+
+  emit();
+}
+
+/*
+|--------------------------------------------------------------------------
+| ADICIONAR NOTIFICAÇÃO
+|--------------------------------------------------------------------------
+*/
+
+export function addNotification(
+  notification: AppNotification,
+) {
+  const exists = items.some(
+    (item) =>
+      item.id === notification.id,
   );
 
-  persist();
-  emit();
-}
-
-export function markAllAsRead() {
-  if (items.every((item) => item.read)) {
+  if (exists) {
     return;
   }
 
-  items = items.map((item) => ({
-    ...item,
-    read: true,
-  }));
+  items = [
+    notification,
+    ...items,
+  ];
 
-  persist();
   emit();
 }
 
-export function clearAll() {
-  if (items.length === 0) {
+/*
+|--------------------------------------------------------------------------
+| CARREGAR NOTIFICAÇÕES DA API
+|--------------------------------------------------------------------------
+*/
+
+export async function loadNotifications() {
+  try {
+    const response =
+      await fetch(
+        "/api/notifications",
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data =
+      await response.json();
+
+    if (
+      !data.success ||
+      !Array.isArray(
+        data.notifications,
+      )
+    ) {
+      return false;
+    }
+
+    setNotifications(
+      data.notifications as AppNotification[],
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      "Erro ao carregar notificações:",
+      error,
+    );
+
+    return false;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| HIDRATAR NOTIFICAÇÕES
+|--------------------------------------------------------------------------
+|
+| Mantemos esta função porque o NotificationsProvider
+| chama hydrateNotifications().
+|
+|--------------------------------------------------------------------------
+*/
+
+let hydrationStarted = false;
+
+export function hydrateNotifications() {
+  if (hydrationStarted) {
     return;
   }
 
-  items = [];
+  hydrationStarted = true;
 
-  persist();
-  emit();
+  void loadNotifications();
+}
+
+/*
+|--------------------------------------------------------------------------
+| MARCAR TODAS COMO LIDAS
+|--------------------------------------------------------------------------
+*/
+
+export async function markAllAsRead() {
+  try {
+    const response =
+      await fetch(
+        "/api/notifications/read-all",
+        {
+          method: "PATCH",
+          credentials: "include",
+        },
+      );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    /*
+     * Actualização imediata da interface.
+     */
+
+    items = items.map(
+      (item) => ({
+        ...item,
+
+        read: true,
+
+        readAt:
+          item.readAt ??
+          new Date().toISOString(),
+      }),
+    );
+
+    emit();
+
+    return true;
+  } catch (error) {
+    console.error(
+      "Erro ao marcar notificações como lidas:",
+      error,
+    );
+
+    return false;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| LIMPAR TODAS
+|--------------------------------------------------------------------------
+|
+| Apaga definitivamente do PostgreSQL.
+|
+|--------------------------------------------------------------------------
+*/
+
+export async function clearAll() {
+  try {
+    const response =
+      await fetch(
+        "/api/notifications",
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    items = [];
+
+    emit();
+
+    return true;
+  } catch (error) {
+    console.error(
+      "Erro ao limpar notificações:",
+      error,
+    );
+
+    return false;
+  }
 }

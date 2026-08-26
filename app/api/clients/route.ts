@@ -1,7 +1,9 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { createNotification } from "@/lib/notifications";
 
 /*
 |--------------------------------------------------------------------------
@@ -9,11 +11,6 @@ import { getCurrentUser } from "@/lib/auth";
 |--------------------------------------------------------------------------
 |
 | OWNER + EMPLOYEE
-|
-| Agora também retorna:
-| - número real de visitas
-| - total realmente gasto
-| - última visita
 |
 */
 
@@ -108,8 +105,10 @@ export async function GET() {
           phone: client.phone,
           active: client.active,
           businessId: client.businessId,
+
           createdAt:
             client.createdAt.toISOString(),
+
           updatedAt:
             client.updatedAt.toISOString(),
 
@@ -299,6 +298,45 @@ export async function POST(
         },
       });
 
+    /*
+    |--------------------------------------------------------------------------
+    | CRIAR NOTIFICAÇÃO
+    |--------------------------------------------------------------------------
+    |
+    | A falha da notificação NÃO pode fazer o cadastro
+    | do cliente falhar.
+    |
+    */
+
+    try {
+      await createNotification({
+        userId: user.id,
+        businessId,
+
+        title: "Cliente criado",
+
+        message:
+          `${client.name} foi adicionado aos clientes.`,
+
+        type: "SUCCESS",
+
+        resourceId: client.id,
+
+        resourceType: "CLIENT",
+      });
+    } catch (notificationError) {
+      console.error(
+        "Erro ao criar notificação de cliente criado:",
+        notificationError,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       {
         ...client,
@@ -330,3 +368,4 @@ export async function POST(
     );
   }
 }
+

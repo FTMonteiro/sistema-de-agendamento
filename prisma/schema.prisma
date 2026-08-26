@@ -38,6 +38,7 @@ model Business {
   professionals Professional[]
   services      Service[]
   users         User[]
+  notifications Notification[]
 }
 
 model User {
@@ -47,9 +48,9 @@ model User {
   password String?
   googleId String? @unique
 
-  role UserRole @default(EMPLOYEE)
+  role   UserRole @default(EMPLOYEE)
+  active Boolean  @default(true)
 
-  // Email confirmado?
   emailVerified Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -61,8 +62,8 @@ model User {
 
   professional Professional?
 
-  // Tokens usados para confirmação do email
   emailVerificationTokens EmailVerificationToken[]
+  notifications           Notification[]
 }
 
 enum UserRole {
@@ -213,4 +214,40 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  title   String
+  message String
+
+  type NotificationType @default(INFO)
+
+  read Boolean @default(false)
+
+  userId     String
+  businessId String
+
+  resourceId   String?
+  resourceType String?
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
 }

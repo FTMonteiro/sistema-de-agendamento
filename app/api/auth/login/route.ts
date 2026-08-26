@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
@@ -9,8 +8,15 @@ import { createSession } from "@/lib/auth";
 | LOGIN NORMAL — EMAIL + PALAVRA-PASSE
 |--------------------------------------------------------------------------
 |
-| TEMPORARIAMENTE:
-| A confirmação de email NÃO bloqueia o login.
+| Regras:
+|
+| 1. Email e palavra-passe são obrigatórios.
+| 2. Conta inexistente → erro de credenciais.
+| 3. Conta desativada → LOGIN BLOQUEADO.
+| 4. Conta sem palavra-passe → login com Google.
+| 5. Palavra-passe incorreta → erro de credenciais.
+| 6. Email não verificado NÃO bloqueia temporariamente.
+| 7. Somente contas ativas podem criar sessão.
 |
 |--------------------------------------------------------------------------
 */
@@ -57,6 +63,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | UTILIZADOR NÃO EXISTE
+    |--------------------------------------------------------------------------
+    */
+
     if (!user) {
       console.log(
         "LOGIN: utilizador não encontrado"
@@ -65,6 +77,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Email ou palavra-passe incorretos.",
+          code: "INVALID_CREDENTIALS",
         },
         { status: 401 }
       );
@@ -77,19 +90,60 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
+    | VERIFICAR SE A CONTA ESTÁ ATIVA
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANTE:
+    |
+    | Esta verificação acontece ANTES de criar a sessão.
+    |
+    | Quando o proprietário desativa um funcionário:
+    |
+    | Professional.active = false
+    | User.active = false
+    |
+    | Portanto, mesmo que o funcionário saiba a palavra-passe correta,
+    | ele NÃO poderá entrar.
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    if (!user.active) {
+      console.log(
+        "LOGIN: conta desativada:",
+        user.email
+      );
+
+      return NextResponse.json(
+        {
+          error: "Esta conta está desativada.",
+          code: "ACCOUNT_DISABLED",
+        },
+        { status: 403 }
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | VERIFICAR SE EXISTE PALAVRA-PASSE
     |--------------------------------------------------------------------------
     |
     | Contas criadas exclusivamente através do Google
     | podem não possuir uma palavra-passe.
     |
+    |--------------------------------------------------------------------------
     */
 
     if (!user.password) {
+      console.log(
+        "LOGIN: conta sem palavra-passe."
+      );
+
       return NextResponse.json(
         {
           error:
             "Esta conta utiliza o login com Google. Entre com o Google.",
+          code: "GOOGLE_ACCOUNT",
         },
         { status: 401 }
       );
@@ -115,6 +169,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Email ou palavra-passe incorretos.",
+          code: "INVALID_CREDENTIALS",
         },
         { status: 401 }
       );
@@ -122,16 +177,16 @@ export async function POST(request: NextRequest) {
 
     /*
     |--------------------------------------------------------------------------
-    | VERIFICAÇÃO DE EMAIL DESATIVADA TEMPORARIAMENTE
+    | VERIFICAÇÃO DE EMAIL
     |--------------------------------------------------------------------------
     |
-    | NÃO verificamos:
+    | TEMPORARIAMENTE DESATIVADA.
     |
-    | user.emailVerified
+    | O utilizador pode entrar mesmo que:
     |
-    | Portanto, o utilizador pode entrar mesmo que
-    | ainda não tenha confirmado o email.
+    | user.emailVerified === false
     |
+    |--------------------------------------------------------------------------
     */
 
     console.log(
@@ -142,6 +197,17 @@ export async function POST(request: NextRequest) {
     /*
     |--------------------------------------------------------------------------
     | CRIAR SESSÃO
+    |--------------------------------------------------------------------------
+    |
+    | ATENÇÃO:
+    |
+    | Só chegamos aqui se:
+    |
+    | - utilizador existe
+    | - conta está ativa
+    | - possui palavra-passe
+    | - palavra-passe está correta
+    |
     |--------------------------------------------------------------------------
     */
 
@@ -171,6 +237,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         businessId: user.businessId,
         emailVerified: user.emailVerified,
+        active: user.active,
       },
     });
   } catch (error) {
@@ -287,9 +354,10 @@ export async function GET(
     | https://sistema-de-agendamento-livid.vercel.app/api/auth/google/callback
     |
     |
-    | Usamos request.nextUrl.origin para funcionar
-    | automaticamente nos dois ambientes.
+    | request.nextUrl.origin funciona automaticamente
+    | em desenvolvimento e produção.
     |
+    |--------------------------------------------------------------------------
     */
 
     const origin =
@@ -378,4 +446,3 @@ export async function GET(
     );
   }
 }
-

@@ -1,102 +1,207 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
+    /*
+    |--------------------------------------------------------------------------
+    | GOOGLE CLIENT ID
+    |--------------------------------------------------------------------------
+    */
+
     const clientId = process.env.GOOGLE_CLIENT_ID;
 
     if (!clientId) {
-      console.error("GOOGLE_CLIENT_ID não configurado.");
+      console.error(
+        "GOOGLE OAUTH: GOOGLE_CLIENT_ID não configurado.",
+      );
 
       return NextResponse.redirect(
-        new URL("/login?error=google_config", request.url)
+        new URL(
+          "/login?error=google_config",
+          request.url,
+        ),
       );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | DEFINIR MODO
+    | MODO
     |--------------------------------------------------------------------------
     |
+    | Login:
     | /api/auth/google?mode=login
+    |
+    | Cadastro:
     | /api/auth/google?mode=register
     |
     */
 
+    const requestedMode =
+      request.nextUrl.searchParams.get("mode");
+
     const mode =
-      request.nextUrl.searchParams.get("mode") || "login";
+      requestedMode === "register"
+        ? "register"
+        : "login";
 
-    if (mode !== "login" && mode !== "register") {
-      return NextResponse.redirect(
-        new URL("/login?error=google_mode", request.url)
-      );
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | ORIGEM
+    |--------------------------------------------------------------------------
+    |
+    | Em produção usamos a URL oficial do sistema.
+    |
+    | Isso evita que o redirect_uri mude dependendo
+    | de como a aplicação foi acessada.
+    |
+    */
 
-    const origin = request.nextUrl.origin;
+    const productionUrl =
+      process.env.NEXT_PUBLIC_APP_URL;
+
+    const origin =
+      productionUrl ||
+      request.nextUrl.origin;
+
+    const cleanOrigin =
+      origin.replace(/\/$/, "");
 
     const redirectUri =
-      `${origin}/api/auth/google/callback`;
+      `${cleanOrigin}/api/auth/google/callback`;
 
-    const googleUrl = new URL(
-      "https://accounts.google.com/o/oauth2/v2/auth"
+    /*
+    |--------------------------------------------------------------------------
+    | LOGS
+    |--------------------------------------------------------------------------
+    */
+
+    console.log(
+      "==================================================",
     );
 
-    googleUrl.searchParams.set(
-      "client_id",
-      clientId
+    console.log(
+      "GOOGLE OAUTH: INICIANDO",
     );
 
-    googleUrl.searchParams.set(
-      "redirect_uri",
-      redirectUri
+    console.log(
+      "MODE:",
+      mode,
     );
 
-    googleUrl.searchParams.set(
-      "response_type",
-      "code"
+    console.log(
+      "ORIGIN:",
+      cleanOrigin,
     );
 
-    googleUrl.searchParams.set(
-      "scope",
-      "openid email profile"
+    console.log(
+      "REDIRECT URI:",
+      redirectUri,
     );
 
-    googleUrl.searchParams.set(
-      "access_type",
-      "offline"
-    );
-
-    googleUrl.searchParams.set(
-      "prompt",
-      "select_account"
+    console.log(
+      "==================================================",
     );
 
     /*
     |--------------------------------------------------------------------------
-    | ENVIAR MODO PARA O CALLBACK
+    | GOOGLE OAUTH URL
+    |--------------------------------------------------------------------------
+    */
+
+    const googleUrl =
+      new URL(
+        "https://accounts.google.com/o/oauth2/v2/auth",
+      );
+
+    /*
+    |--------------------------------------------------------------------------
+    | PARÂMETROS
     |--------------------------------------------------------------------------
     */
 
     googleUrl.searchParams.set(
-      "state",
-      mode
+      "client_id",
+      clientId,
     );
+
+    googleUrl.searchParams.set(
+      "redirect_uri",
+      redirectUri,
+    );
+
+    googleUrl.searchParams.set(
+      "response_type",
+      "code",
+    );
+
+    googleUrl.searchParams.set(
+      "scope",
+      "openid email profile",
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | ACCESS TYPE
+    |--------------------------------------------------------------------------
+    */
+
+    googleUrl.searchParams.set(
+      "access_type",
+      "offline",
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | ESCOLHER CONTA
+    |--------------------------------------------------------------------------
+    */
+
+    googleUrl.searchParams.set(
+      "prompt",
+      "select_account",
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATE
+    |--------------------------------------------------------------------------
+    |
+    | O callback usa este valor para saber se
+    | estamos fazendo login ou cadastro.
+    |
+    */
+
+    googleUrl.searchParams.set(
+      "state",
+      mode,
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | REDIRECIONAR PARA GOOGLE
+    |--------------------------------------------------------------------------
+    */
 
     console.log(
-      "GOOGLE:",
-      mode,
-      "→",
-      redirectUri
-    );
-
-    return NextResponse.redirect(googleUrl);
-  } catch (error) {
-    console.error(
-      "GOOGLE LOGIN: erro:",
-      error
+      "GOOGLE OAUTH: redirecionando para Google...",
     );
 
     return NextResponse.redirect(
-      new URL("/login?error=google", request.url)
+      googleUrl,
+    );
+  } catch (error) {
+    console.error(
+      "GOOGLE OAUTH: erro ao iniciar:",
+      error,
+    );
+
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=google",
+        request.url,
+      ),
     );
   }
 }
+

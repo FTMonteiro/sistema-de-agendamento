@@ -11,6 +11,9 @@ import {
   Power,
   X,
   Save,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from "lucide-react";
 
 export interface TeamMember {
@@ -22,6 +25,7 @@ export interface TeamMember {
   active: boolean;
   emailVerified: boolean;
   businessId: string;
+  userId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,25 +43,61 @@ export default function TeamList({
   onUpdateMember,
   onDeleteMember,
 }: TeamListProps) {
+  // ============================================================
+  // PESQUISA
+  // ============================================================
+
   const [query, setQuery] = useState("");
 
+  // ============================================================
+  // MENUS
+  // ============================================================
+
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  // ============================================================
+  // MODAIS
+  // ============================================================
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
 
+  // ============================================================
+  // LOADING
+  // ============================================================
+
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  // ============================================================
+  // CAMPOS DE EDIÇÃO
+  // ============================================================
+
   const [editName, setEditName] = useState("");
-
   const [editEmail, setEditEmail] = useState("");
-
   const [editPhone, setEditPhone] = useState("");
-
   const [editSpecialty, setEditSpecialty] = useState("");
 
+  // ============================================================
+  // SENHA
+  // ============================================================
+
+  const [editPassword, setEditPassword] = useState("");
+  const [editConfirmPassword, setEditConfirmPassword] = useState("");
+
+  const [showEditPassword, setShowEditPassword] = useState(false);
+
+  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
+
+  // ============================================================
+  // ERRO
+  // ============================================================
+
   const [error, setError] = useState("");
+
+  // ============================================================
+  // FILTRAR
+  // ============================================================
 
   const filteredMembers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -76,6 +116,10 @@ export default function TeamList({
     });
   }, [members, query]);
 
+  // ============================================================
+  // ABRIR EDIÇÃO
+  // ============================================================
+
   function openEdit(member: TeamMember) {
     setEditingMember(member);
 
@@ -84,9 +128,46 @@ export default function TeamList({
     setEditPhone(member.phone);
     setEditSpecialty(member.specialty);
 
+    // Nunca mostramos a senha atual.
+    // O campo serve apenas para definir uma nova senha.
+    setEditPassword("");
+    setEditConfirmPassword("");
+
+    setShowEditPassword(false);
+    setShowEditConfirmPassword(false);
+
     setOpenMenu(null);
     setError("");
   }
+
+  // ============================================================
+  // FECHAR EDIÇÃO
+  // ============================================================
+
+  function closeEdit() {
+    if (loadingId === editingMember?.id) {
+      return;
+    }
+
+    setEditingMember(null);
+
+    setEditName("");
+    setEditEmail("");
+    setEditPhone("");
+    setEditSpecialty("");
+
+    setEditPassword("");
+    setEditConfirmPassword("");
+
+    setShowEditPassword(false);
+    setShowEditConfirmPassword(false);
+
+    setError("");
+  }
+
+  // ============================================================
+  // EDITAR
+  // ============================================================
 
   async function handleEdit() {
     if (!editingMember) return;
@@ -95,24 +176,26 @@ export default function TeamList({
 
     const name = editName.trim();
     const email = editEmail.trim().toLowerCase();
+    const phone = editPhone.trim();
+    const specialty = editSpecialty.trim();
+    const password = editPassword;
+    const confirmPassword = editConfirmPassword;
+
+    // ==========================================================
+    // VALIDAR NOME
+    // ==========================================================
 
     if (!name) {
       setError("Digite o nome.");
       return;
     }
 
+    // ==========================================================
+    // VALIDAR EMAIL
+    // ==========================================================
+
     if (!email) {
       setError("Digite o email.");
-      return;
-    }
-
-    if (!editPhone.trim()) {
-      setError("Digite o telefone.");
-      return;
-    }
-
-    if (!editSpecialty.trim()) {
-      setError("Digite a especialidade.");
       return;
     }
 
@@ -123,57 +206,194 @@ export default function TeamList({
       return;
     }
 
+    // ==========================================================
+    // VALIDAR TELEFONE
+    // ==========================================================
+
+    if (!phone) {
+      setError("Digite o telefone.");
+      return;
+    }
+
+    // ==========================================================
+    // VALIDAR ESPECIALIDADE
+    // ==========================================================
+
+    if (!specialty) {
+      setError("Digite a especialidade.");
+      return;
+    }
+
+    // ==========================================================
+    // VALIDAR NOVA SENHA
+    //
+    // Se os dois campos estiverem vazios:
+    // mantém a senha atual.
+    //
+    // Se preencher:
+    // altera a senha.
+    // ==========================================================
+
+    if (password || confirmPassword) {
+      if (!password) {
+        setError("Digite a nova palavra-passe.");
+        return;
+      }
+
+      if (password.length < 8) {
+        setError("A nova palavra-passe deve ter pelo menos 8 caracteres.");
+        return;
+      }
+
+      if (!confirmPassword) {
+        setError("Confirme a nova palavra-passe.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("As palavras-passe não coincidem.");
+        return;
+      }
+    }
+
     try {
       setLoadingId(editingMember.id);
 
+      // ========================================================
+      // ENVIAR PARA API
+      // ========================================================
+
       const response = await fetch(`/api/professionals/${editingMember.id}`, {
         method: "PUT",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           name,
           email,
-          phone: editPhone.trim(),
-          specialty: editSpecialty.trim(),
+          phone,
+          specialty,
+
+          // Só enviamos senha quando o administrador
+          // realmente informou uma nova senha.
+          ...(password
+            ? {
+                password,
+                confirmPassword,
+              }
+            : {}),
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Não foi possível editar.");
+        throw new Error(
+          data?.error || "Não foi possível editar o profissional.",
+        );
       }
 
-      onUpdateMember({
-        ...data,
-        email: data.email ?? "",
-        phone: data.phone ?? "",
-        specialty: data.specialty ?? "",
-        active: data.active === true,
-        emailVerified: data.emailVerified === true,
-      });
+      // ========================================================
+      // A API retorna:
+      //
+      // {
+      //   success: true,
+      //   professional: {...}
+      // }
+      // ========================================================
 
-      setEditingMember(null);
+      const professional = data?.professional;
+
+      if (!professional) {
+        throw new Error("A API não retornou os dados atualizados.");
+      }
+
+      // ========================================================
+      // ATUALIZAR LISTA
+      // ========================================================
+
+      const updatedMember: TeamMember = {
+        ...editingMember,
+
+        id: String(professional.id ?? editingMember.id),
+
+        name: String(professional.name ?? name),
+
+        email: String(professional.email ?? email),
+
+        phone: String(professional.phone ?? phone),
+
+        specialty: String(professional.specialty ?? specialty),
+
+        active: professional.active === true,
+
+        emailVerified: professional.emailVerified === true,
+
+        businessId: String(professional.businessId ?? editingMember.businessId),
+
+        userId: professional.userId ?? editingMember.userId ?? null,
+
+        createdAt: String(professional.createdAt ?? editingMember.createdAt),
+
+        updatedAt: String(professional.updatedAt ?? editingMember.updatedAt),
+      };
+
+      onUpdateMember(updatedMember);
+
+      // ========================================================
+      // MENSAGEM
+      // ========================================================
+
+      if (data?.passwordChanged === true) {
+        toast.success("Profissional e palavra-passe atualizados com sucesso.");
+      } else {
+        toast.success("Profissional atualizado com sucesso.");
+      }
+
+      closeEdit();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Erro ao editar.");
+      console.error("Erro ao editar profissional:", error);
+
+      setError(
+        error instanceof Error ? error.message : "Erro ao editar profissional.",
+      );
     } finally {
       setLoadingId(null);
     }
   }
+
+  // ============================================================
+  // ATIVAR / DESATIVAR
+  //
+  // A API também altera User.active.
+  //
+  // Profissional:
+  // active = false
+  //
+  // Conta:
+  // active = false
+  //
+  // Portanto o EMPLOYEE não consegue entrar.
+  // ============================================================
 
   async function handleToggleActive(member: TeamMember) {
     try {
       setLoadingId(member.id);
       setOpenMenu(null);
 
+      const newActive = !member.active;
+
       const response = await fetch(`/api/professionals/${member.id}`, {
         method: "PATCH",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
-          active: !member.active,
+          active: newActive,
         }),
       });
 
@@ -183,12 +403,36 @@ export default function TeamList({
         throw new Error(data?.error || "Não foi possível alterar o estado.");
       }
 
+      // ========================================================
+      // ATUALIZAR LISTA
+      // ========================================================
+
+      const updatedProfessional = data?.professional;
+
       onUpdateMember({
         ...member,
-        ...data,
-        active: data.active === true,
+
+        ...(updatedProfessional ?? {}),
+
+        active: newActive,
       });
+
+      // ========================================================
+      // MENSAGEM
+      // ========================================================
+
+      if (newActive) {
+        toast.success(
+          `${member.name} foi ativado e a conta de acesso também foi ativada.`,
+        );
+      } else {
+        toast.success(
+          `${member.name} foi desativado e a conta de acesso também foi desativada.`,
+        );
+      }
     } catch (error) {
+      console.error("Erro ao alterar estado:", error);
+
       toast.error(
         error instanceof Error ? error.message : "Erro ao alterar estado.",
       );
@@ -196,6 +440,10 @@ export default function TeamList({
       setLoadingId(null);
     }
   }
+
+  // ============================================================
+  // EXCLUIR
+  // ============================================================
 
   async function handleDelete() {
     if (!deletingMember) return;
@@ -210,16 +458,21 @@ export default function TeamList({
       const data = await response.json();
 
       if (!response.ok) {
-        // Bloqueio por agendamentos nunca vai passar em nova tentativa, entao
-        // fecha a confirmacao em vez de deixar o usuario clicar de novo. A
-        // mensagem e longa e acionavel, por isso fica mais tempo em tela.
+        // ======================================================
+        // POSSUI AGENDAMENTOS
+        // ======================================================
+
         if (data?.reason === "has_appointments") {
           setDeletingMember(null);
           setOpenMenu(null);
 
-          toast.error(data.error, {
-            duration: 10000,
-          });
+          toast.error(
+            data.error ||
+              "Este profissional possui agendamentos. Desative-o em vez de excluir.",
+            {
+              duration: 10000,
+            },
+          );
 
           return;
         }
@@ -227,13 +480,21 @@ export default function TeamList({
         throw new Error(data?.error || "Não foi possível excluir.");
       }
 
+      // ========================================================
+      // REMOVER DA LISTA
+      // ========================================================
+
       onDeleteMember(deletingMember.id);
 
       setDeletingMember(null);
       setOpenMenu(null);
 
-      toast.success(`${deletingMember.name} foi excluído.`);
+      toast.success(
+        `${deletingMember.name} e a conta de acesso foram excluídos.`,
+      );
     } catch (error) {
+      console.error("Erro ao excluir profissional:", error);
+
       toast.error(error instanceof Error ? error.message : "Erro ao excluir.");
     } finally {
       setLoadingId(null);
@@ -242,7 +503,15 @@ export default function TeamList({
 
   return (
     <>
+      {/* ======================================================
+          LISTA
+      ====================================================== */}
+
       <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
+
         <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-lg font-bold text-gray-950">Profissionais</h2>
@@ -263,10 +532,14 @@ export default function TeamList({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Pesquisar profissional..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
             />
           </div>
         </div>
+
+        {/* ====================================================
+            PROFISSIONAIS
+        ==================================================== */}
 
         <div className="divide-y divide-gray-100">
           {filteredMembers.length === 0 ? (
@@ -288,11 +561,17 @@ export default function TeamList({
                   key={member.id}
                   className="flex flex-col gap-4 p-5 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
                 >
+                  {/* ==================================================
+                      INFORMAÇÕES
+                  ================================================== */}
+
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
                       <h3 className="font-semibold text-gray-950">
                         {member.name}
                       </h3>
+
+                      {/* ESTADO */}
 
                       {member.active ? (
                         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -303,6 +582,8 @@ export default function TeamList({
                           Inativo
                         </span>
                       )}
+
+                      {/* EMAIL */}
 
                       {member.email &&
                         (member.emailVerified ? (
@@ -325,7 +606,9 @@ export default function TeamList({
                     </div>
                   </div>
 
-                  {/* TRÊS PONTOS */}
+                  {/* ==================================================
+                      MENU
+                  ================================================== */}
 
                   <div className="relative shrink-0">
                     <button
@@ -342,6 +625,8 @@ export default function TeamList({
 
                     {openMenu === member.id && (
                       <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
+                        {/* EDITAR */}
+
                         <button
                           type="button"
                           onClick={() => openEdit(member)}
@@ -350,6 +635,8 @@ export default function TeamList({
                           <Pencil size={16} />
                           Editar
                         </button>
+
+                        {/* ATIVAR / DESATIVAR */}
 
                         <button
                           type="button"
@@ -362,10 +649,13 @@ export default function TeamList({
                           {member.active ? "Desativar" : "Ativar"}
                         </button>
 
+                        {/* EXCLUIR */}
+
                         <button
                           type="button"
                           onClick={() => {
                             setDeletingMember(member);
+
                             setOpenMenu(null);
                           }}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
@@ -383,35 +673,55 @@ export default function TeamList({
         </div>
       </section>
 
-      {/*MODAL EDITAR */}
+      {/* ========================================================
+          MODAL EDITAR
+      ======================================================== */}
 
       {editingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-8 w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+            {/* ==================================================
+                HEADER
+            ================================================== */}
+
             <div className="flex items-center justify-between border-b border-gray-100 p-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-950">
                   Editar profissional
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">Atualize os dados.</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Atualize os dados ou defina uma nova palavra-passe.
+                </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setEditingMember(null)}
-                className="rounded-xl p-2 text-gray-500 hover:bg-gray-100"
+                disabled={loadingId === editingMember.id}
+                onClick={closeEdit}
+                className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
+                aria-label="Fechar"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-5 p-6">
+            {/* ==================================================
+                CAMPOS
+            ================================================== */}
+
+            <div className="max-h-[70vh] space-y-5 overflow-y-auto p-6">
+              {/* ERRO */}
+
               {error && (
-                <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700">
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
                   {error}
                 </div>
               )}
+
+              {/* =================================================
+                  NOME
+              ================================================= */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -419,11 +729,17 @@ export default function TeamList({
                 </label>
 
                 <input
+                  type="text"
                   value={editName}
+                  disabled={loadingId === editingMember.id}
                   onChange={(event) => setEditName(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
+
+              {/* =================================================
+                  EMAIL
+              ================================================= */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -433,10 +749,19 @@ export default function TeamList({
                 <input
                   type="email"
                   value={editEmail}
+                  disabled={loadingId === editingMember.id}
                   onChange={(event) => setEditEmail(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
+
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Se alterar o email, será necessário verificá-lo novamente.
+                </p>
               </div>
+
+              {/* =================================================
+                  TELEFONE
+              ================================================= */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -444,11 +769,17 @@ export default function TeamList({
                 </label>
 
                 <input
+                  type="tel"
                   value={editPhone}
+                  disabled={loadingId === editingMember.id}
                   onChange={(event) => setEditPhone(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
+
+              {/* =================================================
+                  ESPECIALIDADE
+              ================================================= */}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -456,18 +787,140 @@ export default function TeamList({
                 </label>
 
                 <input
+                  type="text"
                   value={editSpecialty}
+                  disabled={loadingId === editingMember.id}
                   onChange={(event) => setEditSpecialty(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
                 />
               </div>
+
+              {/* =================================================
+                  SENHA
+              ================================================= */}
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white">
+                    <KeyRound size={18} className="text-gray-600" />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Palavra-passe
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      Por segurança, a palavra-passe atual nunca é mostrada.
+                      Preencha os campos abaixo somente se quiser definir uma
+                      nova.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  {/* NOVA SENHA */}
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Nova palavra-passe
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type={showEditPassword ? "text" : "password"}
+                        value={editPassword}
+                        disabled={loadingId === editingMember.id}
+                        onChange={(event) =>
+                          setEditPassword(event.target.value)
+                        }
+                        placeholder="Mínimo de 8 caracteres"
+                        autoComplete="new-password"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={loadingId === editingMember.id}
+                        onClick={() =>
+                          setShowEditPassword((current) => !current)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                        aria-label={
+                          showEditPassword
+                            ? "Ocultar nova senha"
+                            : "Mostrar nova senha"
+                        }
+                      >
+                        {showEditPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CONFIRMAR SENHA */}
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Confirmar nova palavra-passe
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type={showEditConfirmPassword ? "text" : "password"}
+                        value={editConfirmPassword}
+                        disabled={loadingId === editingMember.id}
+                        onChange={(event) =>
+                          setEditConfirmPassword(event.target.value)
+                        }
+                        placeholder="Digite novamente"
+                        autoComplete="new-password"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={loadingId === editingMember.id}
+                        onClick={() =>
+                          setShowEditConfirmPassword((current) => !current)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                        aria-label={
+                          showEditConfirmPassword
+                            ? "Ocultar confirmação"
+                            : "Mostrar confirmação"
+                        }
+                      >
+                        {showEditConfirmPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Deixe os dois campos vazios para manter a palavra-passe
+                    atual.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* ==================================================
+                BOTÕES
+            ================================================== */}
 
             <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
               <button
                 type="button"
-                onClick={() => setEditingMember(null)}
-                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                disabled={loadingId === editingMember.id}
+                onClick={closeEdit}
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -476,40 +929,60 @@ export default function TeamList({
                 type="button"
                 onClick={handleEdit}
                 disabled={loadingId === editingMember.id}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save size={16} />
 
-                {loadingId === editingMember.id ? "A guardar..." : "Guardar"}
+                {loadingId === editingMember.id
+                  ? "A guardar..."
+                  : "Guardar alterações"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL EXCLUIR */}
+      {/* ========================================================
+          MODAL EXCLUIR
+      ======================================================== */}
 
       {deletingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            {/* ÍCONE */}
+
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
               <Trash2 size={22} className="text-red-600" />
             </div>
 
+            {/* TÍTULO */}
+
             <h2 className="mt-5 text-xl font-bold text-gray-950">
               Excluir profissional?
             </h2>
+
+            {/* TEXTO */}
 
             <p className="mt-2 text-sm leading-6 text-gray-500">
               Tem certeza que deseja excluir{" "}
               <strong className="text-gray-800">{deletingMember.name}</strong>?
             </p>
 
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-xs leading-5 text-amber-800">
+                A conta de acesso
+                <strong> EMPLOYEE</strong> vinculada também será excluída.
+              </p>
+            </div>
+
+            {/* BOTÕES */}
+
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
+                disabled={loadingId === deletingMember.id}
                 onClick={() => setDeletingMember(null)}
-                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -518,7 +991,7 @@ export default function TeamList({
                 type="button"
                 onClick={handleDelete}
                 disabled={loadingId === deletingMember.id}
-                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loadingId === deletingMember.id
                   ? "A excluir..."

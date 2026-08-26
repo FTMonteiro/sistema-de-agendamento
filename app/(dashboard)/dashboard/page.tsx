@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -115,16 +116,19 @@ export default function DashboardPage() {
       ] = await Promise.all([
         fetch("/api/appointments", {
           method: "GET",
+          credentials: "include",
           cache: "no-store",
         }),
 
         fetch("/api/clients", {
           method: "GET",
+          credentials: "include",
           cache: "no-store",
         }),
 
         fetch("/api/services", {
           method: "GET",
+          credentials: "include",
           cache: "no-store",
         }),
       ]);
@@ -217,7 +221,7 @@ export default function DashboardPage() {
   */
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   /*
@@ -225,18 +229,20 @@ export default function DashboardPage() {
   | ATUALIZAÇÃO AUTOMÁTICA
   |--------------------------------------------------------------------------
   |
-  | Quando um pagamento é registrado, o ReceivePayment
-  | dispara:
+  | O ReceivePayment dispara:
   |
-  | appointments:changed
+  | window.dispatchEvent(
+  |   new Event("appointments:changed")
+  | )
   |
-  | O dashboard então busca os dados novamente.
+  | Quando isso acontece, o dashboard carrega novamente
+  | os agendamentos e os valores dos pagamentos.
   |
   */
 
   useEffect(() => {
     function handleAppointmentsChanged() {
-      load();
+      void load();
     }
 
     window.addEventListener(
@@ -263,9 +269,6 @@ export default function DashboardPage() {
     |--------------------------------------------------------------------------
     | SERVIÇOS REALIZADOS
     |--------------------------------------------------------------------------
-    |
-    | Conta apenas os agendamentos concluídos.
-    |
     */
 
     const completed =
@@ -279,13 +282,9 @@ export default function DashboardPage() {
     | RECEITA RECEBIDA
     |--------------------------------------------------------------------------
     |
-    | IMPORTANTE:
-    |
-    | A API /api/appointments devolve:
+    | A API deve devolver:
     |
     | paymentAmount
-    |
-    | Portanto NÃO usamos paidAmount aqui.
     |
     */
 
@@ -331,16 +330,10 @@ export default function DashboardPage() {
 
     return {
       clients: clientCount,
-
-      appointments:
-        appointments.length,
-
+      appointments: appointments.length,
       completed,
-
       revenue,
-
       paidCount,
-
       activeServices,
     };
   }, [
@@ -440,9 +433,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() =>
-              router.push(
-                "/appointments",
-              )
+              router.push("/appointments")
             }
             className="
               inline-flex
@@ -471,7 +462,15 @@ export default function DashboardPage() {
           {/* RECEBER PAGAMENTO */}
 
           <ReceivePayment
-            onPaymentCreated={load}
+            onPaymentCreated={() => {
+              /*
+              |--------------------------------------------------------------------------
+              | ATUALIZAR DASHBOARD
+              |--------------------------------------------------------------------------
+              */
+
+              void load();
+            }}
           />
 
         </div>
@@ -497,7 +496,9 @@ export default function DashboardPage() {
 
           <button
             type="button"
-            onClick={load}
+            onClick={() => {
+              void load();
+            }}
             className="
               mt-2
               text-sm
@@ -517,46 +518,30 @@ export default function DashboardPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        {/* CLIENTES */}
-
         <StatCard
           label="Clientes"
-          value={String(
-            metrics.clients,
-          )}
+          value={String(metrics.clients)}
           description="cadastrados"
           loading={loading}
         />
 
-        {/* AGENDAMENTOS */}
-
         <StatCard
           label="Agendamentos"
-          value={String(
-            metrics.appointments,
-          )}
+          value={String(metrics.appointments)}
           description="no total"
           loading={loading}
         />
 
-        {/* SERVIÇOS REALIZADOS */}
-
         <StatCard
           label="Serviços realizados"
-          value={String(
-            metrics.completed,
-          )}
+          value={String(metrics.completed)}
           description={`${metrics.activeServices} serviços activos`}
           loading={loading}
         />
 
-        {/* RECEITA */}
-
         <StatCard
           label="Receita recebida"
-          value={formatPrice(
-            metrics.revenue,
-          )}
+          value={formatPrice(metrics.revenue)}
           description={
             metrics.paidCount === 1
               ? "1 pagamento recebido"
@@ -579,8 +564,6 @@ export default function DashboardPage() {
 
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
 
-          {/* HEADER DA AGENDA */}
-
           <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
 
             <div>
@@ -592,8 +575,7 @@ export default function DashboardPage() {
                 {loading
                   ? "Carregando..."
                   : `${todaySummary.total} atendimento${
-                      todaySummary.total ===
-                      1
+                      todaySummary.total === 1
                         ? ""
                         : "s"
                     } para hoje`}
@@ -603,9 +585,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() =>
-                router.push(
-                  "/appointments",
-                )
+                router.push("/appointments")
               }
               className="
                 w-full
@@ -626,16 +606,11 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* LOADING */}
-
           {loading ? (
             <div className="p-10 text-center text-sm text-gray-500">
               Carregando agendamentos...
             </div>
-          ) : todayAppointments.length ===
-            0 ? (
-
-            /* SEM AGENDAMENTOS */
+          ) : todayAppointments.length === 0 ? (
 
             <div className="p-10 text-center">
 
@@ -651,13 +626,10 @@ export default function DashboardPage() {
 
           ) : (
 
-            /* LISTA DE AGENDAMENTOS */
-
             <div className="divide-y divide-gray-100">
 
               {todayAppointments.map(
                 (appointment) => {
-
                   const style =
                     STATUS_STYLES[
                       appointment.status
@@ -666,9 +638,7 @@ export default function DashboardPage() {
 
                   return (
                     <div
-                      key={
-                        appointment.id
-                      }
+                      key={appointment.id}
                       className="
                         flex
                         flex-col
@@ -682,8 +652,6 @@ export default function DashboardPage() {
                         sm:p-6
                       "
                     >
-
-                      {/* CLIENTE / SERVIÇO */}
 
                       <div className="flex min-w-0 items-center gap-4">
 
@@ -700,38 +668,28 @@ export default function DashboardPage() {
                         <div className="min-w-0">
 
                           <p className="truncate text-sm font-semibold text-gray-900">
-                            {
-                              appointment.client
-                            }
+                            {appointment.client}
                           </p>
 
                           <p className="mt-1 truncate text-sm text-gray-500">
 
-                            {
-                              appointment.service
-                            }
+                            {appointment.service}
 
                             <span className="mx-1.5 text-gray-300">
                               •
                             </span>
 
-                            {
-                              appointment.professional
-                            }
+                            {appointment.professional}
 
                           </p>
 
                         </div>
                       </div>
 
-                      {/* HORA / STATUS */}
-
                       <div className="flex items-center justify-between gap-4 sm:justify-end">
 
                         <p className="text-sm font-semibold text-gray-900">
-                          {
-                            appointment.time
-                          }
+                          {appointment.time}
                         </p>
 
                         <span
@@ -744,9 +702,7 @@ export default function DashboardPage() {
                             ${style.badge}
                           `}
                         >
-                          {
-                            style.label
-                          }
+                          {style.label}
                         </span>
 
                       </div>
@@ -787,25 +743,19 @@ export default function DashboardPage() {
 
             <SummaryRow
               label="Confirmados"
-              value={
-                todaySummary.confirmed
-              }
+              value={todaySummary.confirmed}
               loading={loading}
             />
 
             <SummaryRow
               label="Aguardando"
-              value={
-                todaySummary.pending
-              }
+              value={todaySummary.pending}
               loading={loading}
             />
 
             <SummaryRow
               label="Concluídos"
-              value={
-                todaySummary.completed
-              }
+              value={todaySummary.completed}
               loading={loading}
             />
 
@@ -814,9 +764,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() =>
-              router.push(
-                "/appointments",
-              )
+              router.push("/appointments")
             }
             className="
               mt-7
@@ -874,7 +822,6 @@ function StatCard({
         hover:shadow-md
       "
     >
-
       <div className="flex items-start justify-between gap-4">
 
         <div className="min-w-0">
@@ -884,9 +831,7 @@ function StatCard({
           </p>
 
           <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            {loading
-              ? "—"
-              : value}
+            {loading ? "—" : value}
           </h2>
 
         </div>
@@ -946,11 +891,10 @@ function SummaryRow({
       </span>
 
       <span className="text-sm font-semibold text-white">
-        {loading
-          ? "—"
-          : value}
+        {loading ? "—" : value}
       </span>
 
     </div>
   );
 }
+

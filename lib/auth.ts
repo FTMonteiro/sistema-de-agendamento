@@ -36,13 +36,6 @@ export type AuthUser = {
 |--------------------------------------------------------------------------
 | SECRET
 |--------------------------------------------------------------------------
-|
-| O AUTH_SECRET nunca deve ser enviado para o frontend.
-|
-| .env
-|
-| AUTH_SECRET="uma-chave-com-pelo-menos-32-caracteres"
-|
 */
 
 function getSecretKey() {
@@ -61,9 +54,7 @@ function getSecretKey() {
     );
   }
 
-  return new TextEncoder().encode(
-    secret,
-  );
+  return new TextEncoder().encode(secret);
 }
 
 /*
@@ -98,7 +89,7 @@ export async function createSession(
 
   /*
   |--------------------------------------------------------------------------
-  | CONFIRMAR QUE O UTILIZADOR EXISTE
+  | CONFIRMAR UTILIZADOR
   |--------------------------------------------------------------------------
   */
 
@@ -111,12 +102,25 @@ export async function createSession(
       select: {
         id: true,
         businessId: true,
+        active: true,
       },
     });
 
   if (!user) {
     throw new Error(
       "Utilizador não encontrado.",
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | NÃO CRIAR SESSÃO PARA CONTA DESATIVADA
+  |--------------------------------------------------------------------------
+  */
+
+  if (!user.active) {
+    throw new Error(
+      "ACCOUNT_DISABLED",
     );
   }
 
@@ -134,13 +138,10 @@ export async function createSession(
 
   /*
   |--------------------------------------------------------------------------
-  | JWT
+  | CRIAR JWT
   |--------------------------------------------------------------------------
   |
-  | Não colocamos role, businessId, email ou outros dados
-  | dentro do JWT.
-  |
-  | Guardamos apenas o ID.
+  | Guardamos somente o ID do utilizador.
   |
   */
 
@@ -266,11 +267,16 @@ export async function getSessionUserId(): Promise<
 |
 | IMPORTANTE:
 |
-| O role e o businessId vêm SEMPRE do banco.
+| Todas as informações importantes vêm do banco.
 |
-| Nunca confiamos nesses dados enviados pelo frontend
-| ou armazenados no JWT.
+| NÃO confiamos em:
 |
+| - role dentro do frontend
+| - businessId dentro do frontend
+| - active dentro do frontend
+| - dados antigos da sessão
+|
+|--------------------------------------------------------------------------
 */
 
 export async function getCurrentUser(): Promise<
@@ -296,6 +302,16 @@ export async function getCurrentUser(): Promise<
           email: true,
           role: true,
           businessId: true,
+
+          /*
+          |--------------------------------------------------------------------------
+          | IMPORTANTE
+          |--------------------------------------------------------------------------
+          |
+          | Consultamos o active diretamente no banco.
+          |
+          */
+          active: true,
         },
       });
 
@@ -303,9 +319,52 @@ export async function getCurrentUser(): Promise<
     |--------------------------------------------------------------------------
     | UTILIZADOR NÃO EXISTE
     |--------------------------------------------------------------------------
+    |
+    | Isto acontece, por exemplo, quando a conta User
+    | foi realmente excluída.
+    |
     */
 
     if (!user) {
+      console.log(
+        "🔒 Sessão inválida: utilizador não existe.",
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | APAGAR COOKIE INVÁLIDO
+      |--------------------------------------------------------------------------
+      */
+
+      await destroySession();
+
+      return null;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONTA DESATIVADA
+    |--------------------------------------------------------------------------
+    |
+    | Mesmo que o funcionário já tivesse uma sessão,
+    | a sessão deixa de funcionar imediatamente.
+    |
+    */
+
+    if (!user.active) {
+      console.log(
+        "🔒 Sessão bloqueada: conta desativada:",
+        user.email,
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | DESTRUIR SESSÃO
+      |--------------------------------------------------------------------------
+      */
+
+      await destroySession();
+
       return null;
     }
 
@@ -316,6 +375,13 @@ export async function getCurrentUser(): Promise<
     */
 
     if (!user.businessId) {
+      console.error(
+        "❌ Utilizador sem empresa:",
+        user.id,
+      );
+
+      await destroySession();
+
       return null;
     }
 
@@ -330,6 +396,8 @@ export async function getCurrentUser(): Promise<
         "❌ Role inválido para utilizador:",
         user.id,
       );
+
+      await destroySession();
 
       return null;
     }
@@ -368,7 +436,7 @@ export async function getCurrentUser(): Promise<
 |--------------------------------------------------------------------------
 |
 | OWNER + EMPLOYEE
-|
+|--------------------------------------------------------------------------
 */
 
 export async function requireAuth(): Promise<AuthUser> {
@@ -391,6 +459,7 @@ export async function requireAuth(): Promise<AuthUser> {
 |
 | Somente OWNER.
 |
+|--------------------------------------------------------------------------
 */
 
 export async function requireOwner(): Promise<AuthUser> {
@@ -412,7 +481,7 @@ export async function requireOwner(): Promise<AuthUser> {
 |--------------------------------------------------------------------------
 |
 | OWNER + EMPLOYEE
-|
+|--------------------------------------------------------------------------
 */
 
 export async function requireStaff(): Promise<AuthUser> {
@@ -463,10 +532,6 @@ export function isEmployee(
 |--------------------------------------------------------------------------
 | VERIFICAR SE PERTENCE À EMPRESA
 |--------------------------------------------------------------------------
-|
-| Esta função ajuda a evitar que um utilizador acesse
-| recursos pertencentes a outra empresa.
-|
 */
 
 export function belongsToBusiness(
@@ -483,14 +548,6 @@ export function belongsToBusiness(
 |--------------------------------------------------------------------------
 | EXIGIR QUE O RECURSO PERTENÇA À EMPRESA
 |--------------------------------------------------------------------------
-|
-| Uso:
-|
-| requireBusinessResource(
-|   user,
-|   resource.businessId
-| );
-|
 */
 
 export function requireBusinessResource(

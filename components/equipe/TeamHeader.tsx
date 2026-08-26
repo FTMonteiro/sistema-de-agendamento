@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -9,6 +8,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Copy,
+  Check,
 } from "lucide-react";
 
 import type { TeamMember } from "./TeamList";
@@ -17,9 +18,7 @@ interface TeamHeaderProps {
   onMemberCreated: (member: TeamMember) => void;
 }
 
-export default function TeamHeader({
-  onMemberCreated,
-}: TeamHeaderProps) {
+export default function TeamHeader({ onMemberCreated }: TeamHeaderProps) {
   const [open, setOpen] = useState(false);
 
   // ============================================================
@@ -36,22 +35,38 @@ export default function TeamHeader({
   // ============================================================
 
   const [createAccess, setCreateAccess] = useState(false);
+
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // ============================================================
+  // CREDENCIAIS CRIADAS
+  //
+  // Estas informações existem somente na memória do frontend
+  // depois que o cadastro é concluído.
+  // ============================================================
+
+  const [createdEmail, setCreatedEmail] = useState("");
+
+  const [createdPassword, setCreatedPassword] = useState("");
+
+  const [showCreatedPassword, setShowCreatedPassword] = useState(true);
+
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   // ============================================================
   // ESTADOS
   // ============================================================
 
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState("");
+
   const [success, setSuccess] = useState("");
 
   // ============================================================
@@ -65,11 +80,18 @@ export default function TeamHeader({
     setSpecialty("");
 
     setCreateAccess(false);
+
     setPassword("");
     setConfirmPassword("");
 
     setShowPassword(false);
     setShowConfirmPassword(false);
+
+    setCreatedEmail("");
+    setCreatedPassword("");
+
+    setShowCreatedPassword(true);
+    setPasswordCopied(false);
 
     setError("");
     setSuccess("");
@@ -87,53 +109,56 @@ export default function TeamHeader({
   }
 
   // ============================================================
+  // COPIAR SENHA
+  // ============================================================
+
+  async function copyCreatedPassword() {
+    if (!createdPassword) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createdPassword);
+
+      setPasswordCopied(true);
+
+      setTimeout(() => {
+        setPasswordCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Erro ao copiar senha:", error);
+
+      setError("Não foi possível copiar a senha.");
+    }
+  }
+
+  // ============================================================
   // SUBMIT
   // ============================================================
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
     setSuccess("");
+    setCreatedEmail("");
+    setCreatedPassword("");
+    setPasswordCopied(false);
 
     const cleanName = name.trim();
-    const cleanEmail =
-      email.trim().toLowerCase();
+
+    const cleanEmail = email.trim().toLowerCase();
+
     const cleanPhone = phone.trim();
-    const cleanSpecialty =
-      specialty.trim();
+
+    const cleanSpecialty = specialty.trim();
 
     // ========================================================
-    // VALIDAR CAMPOS
+    // VALIDAR NOME
     // ========================================================
 
     if (!cleanName) {
-      setError(
-        "Digite o nome do profissional.",
-      );
-      return;
-    }
-
-    if (!cleanEmail) {
-      setError(
-        "Digite o email do profissional.",
-      );
-      return;
-    }
-
-    if (!cleanPhone) {
-      setError(
-        "Digite o telefone do profissional.",
-      );
-      return;
-    }
-
-    if (!cleanSpecialty) {
-      setError(
-        "Digite a especialidade do profissional.",
-      );
+      setError("Digite o nome do profissional.");
       return;
     }
 
@@ -141,8 +166,34 @@ export default function TeamHeader({
     // VALIDAR EMAIL
     // ========================================================
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail) {
+      setError("Digite o email do profissional.");
+      return;
+    }
+
+    // ========================================================
+    // VALIDAR TELEFONE
+    // ========================================================
+
+    if (!cleanPhone) {
+      setError("Digite o telefone do profissional.");
+      return;
+    }
+
+    // ========================================================
+    // VALIDAR ESPECIALIDADE
+    // ========================================================
+
+    if (!cleanSpecialty) {
+      setError("Digite a especialidade do profissional.");
+      return;
+    }
+
+    // ========================================================
+    // VALIDAR EMAIL
+    // ========================================================
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
       setError("Digite um email válido.");
@@ -155,32 +206,22 @@ export default function TeamHeader({
 
     if (createAccess) {
       if (!password) {
-        setError(
-          "Digite uma palavra-passe.",
-        );
+        setError("Digite uma palavra-passe.");
         return;
       }
 
       if (password.length < 8) {
-        setError(
-          "A palavra-passe deve ter pelo menos 8 caracteres.",
-        );
+        setError("A palavra-passe deve ter pelo menos 8 caracteres.");
         return;
       }
 
       if (!confirmPassword) {
-        setError(
-          "Confirme a palavra-passe.",
-        );
+        setError("Confirme a palavra-passe.");
         return;
       }
 
-      if (
-        password !== confirmPassword
-      ) {
-        setError(
-          "As palavras-passe não coincidem.",
-        );
+      if (password !== confirmPassword) {
+        setError("As palavras-passe não coincidem.");
         return;
       }
     }
@@ -192,33 +233,31 @@ export default function TeamHeader({
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "/api/professionals",
-        {
-          method: "POST",
+      const response = await fetch("/api/professionals", {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            name: cleanName,
-            email: cleanEmail,
-            phone: cleanPhone,
-            specialty: cleanSpecialty,
-
-            createAccess,
-
-            ...(createAccess && {
-              password,
-            }),
-          }),
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
 
-      const data =
-        await response.json();
+        body: JSON.stringify({
+          name: cleanName,
+
+          email: cleanEmail,
+
+          phone: cleanPhone,
+
+          specialty: cleanSpecialty,
+
+          createAccess,
+
+          ...(createAccess && {
+            password,
+          }),
+        }),
+      });
+
+      const data = await response.json();
 
       // ======================================================
       // ERRO DA API
@@ -226,8 +265,7 @@ export default function TeamHeader({
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            "Não foi possível cadastrar o profissional.",
+          data?.error || "Não foi possível cadastrar o profissional.",
         );
       }
 
@@ -235,59 +273,36 @@ export default function TeamHeader({
       // PROFISSIONAL CRIADO
       // ======================================================
 
-      const professional =
-        data?.professional;
+      const professional = data?.professional;
 
       if (!professional) {
-        throw new Error(
-          "A API não retornou os dados do profissional.",
-        );
+        throw new Error("A API não retornou os dados do profissional.");
       }
 
       // ======================================================
-      // NORMALIZAR
+      // NORMALIZAR PROFISSIONAL
       // ======================================================
 
       const member: TeamMember = {
-        id: String(
-          professional.id ?? "",
-        ),
+        id: String(professional.id ?? ""),
 
-        name: String(
-          professional.name ?? "",
-        ),
+        name: String(professional.name ?? ""),
 
-        email: String(
-          professional.email ?? "",
-        ),
+        email: String(professional.email ?? ""),
 
-        phone: String(
-          professional.phone ?? "",
-        ),
+        phone: String(professional.phone ?? ""),
 
-        specialty: String(
-          professional.specialty ?? "",
-        ),
+        specialty: String(professional.specialty ?? ""),
 
-        active:
-          professional.active ===
-          true,
+        active: professional.active === true,
 
-        emailVerified:
-          professional.emailVerified ===
-          true,
+        emailVerified: professional.emailVerified === true,
 
-        businessId: String(
-          professional.businessId ?? "",
-        ),
+        businessId: String(professional.businessId ?? ""),
 
-        createdAt: String(
-          professional.createdAt ?? "",
-        ),
+        createdAt: String(professional.createdAt ?? ""),
 
-        updatedAt: String(
-          professional.updatedAt ?? "",
-        ),
+        updatedAt: String(professional.updatedAt ?? ""),
       };
 
       // ======================================================
@@ -297,17 +312,61 @@ export default function TeamHeader({
       onMemberCreated(member);
 
       // ======================================================
-      // MENSAGEM DE SUCESSO
+      // VERIFICAR SE O ACESSO FOI CRIADO
       // ======================================================
 
-      setSuccess(
-        data?.message ||
-          "Profissional cadastrado com sucesso.",
-      );
+      const temporaryPassword =
+        typeof data?.temporaryPassword === "string"
+          ? data.temporaryPassword
+          : "";
 
       // ======================================================
-      // LIMPAR CAMPOS
+      // ACESSO CRIADO
       // ======================================================
+
+      if (data?.accessCreated === true && temporaryPassword) {
+        // Guardar somente no estado do frontend.
+
+        setCreatedEmail(cleanEmail);
+
+        setCreatedPassword(temporaryPassword);
+
+        setShowCreatedPassword(true);
+
+        setPasswordCopied(false);
+
+        setSuccess("Funcionário cadastrado com sucesso.");
+
+        // ====================================================
+        // LIMPAR FORMULÁRIO
+        //
+        // Não limpamos as credenciais criadas.
+        // Elas precisam continuar visíveis.
+        // ====================================================
+
+        setName("");
+        setEmail("");
+        setPhone("");
+        setSpecialty("");
+
+        setCreateAccess(false);
+
+        setPassword("");
+        setConfirmPassword("");
+
+        setShowPassword(false);
+        setShowConfirmPassword(false);
+
+        // IMPORTANTE:
+        // Não fechar o modal.
+        return;
+      }
+
+      // ======================================================
+      // CADASTRO SEM ACESSO
+      // ======================================================
+
+      setSuccess(data?.message || "Profissional cadastrado com sucesso.");
 
       setName("");
       setEmail("");
@@ -315,22 +374,16 @@ export default function TeamHeader({
       setSpecialty("");
 
       setCreateAccess(false);
+
       setPassword("");
       setConfirmPassword("");
 
-      // ======================================================
-      // FECHAR MODAL
-      // ======================================================
-
       setTimeout(() => {
         setOpen(false);
-        setSuccess("");
-      }, 2500);
+        resetForm();
+      }, 1500);
     } catch (error) {
-      console.error(
-        "Erro ao cadastrar profissional:",
-        error,
-      );
+      console.error("Erro ao cadastrar profissional:", error);
 
       setError(
         error instanceof Error
@@ -354,9 +407,7 @@ export default function TeamHeader({
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="mt-1 text-2xl font-bold text-gray-950">
-            Equipe
-          </h1>
+          <h1 className="mt-1 text-2xl font-bold text-gray-950">Equipe</h1>
 
           <p className="mt-2 text-sm text-gray-500">
             Gerencie os profissionais do seu estabelecimento.
@@ -366,14 +417,12 @@ export default function TeamHeader({
         <button
           type="button"
           onClick={() => {
-            setError("");
-            setSuccess("");
+            resetForm();
             setOpen(true);
           }}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           <Plus size={18} />
-
           Novo profissional
         </button>
       </div>
@@ -386,25 +435,30 @@ export default function TeamHeader({
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
           <div className="my-8 w-full max-w-lg rounded-3xl bg-white shadow-2xl">
             {/* ==================================================
-                HEADER MODAL
+                HEADER DO MODAL
             ================================================== */}
 
             <div className="flex items-center justify-between border-b border-gray-100 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                  <UserPlus
-                    size={21}
-                    className="text-blue-600"
-                  />
+                  {createdPassword ? (
+                    <KeyRound size={21} className="text-blue-600" />
+                  ) : (
+                    <UserPlus size={21} className="text-blue-600" />
+                  )}
                 </div>
 
                 <div>
                   <h2 className="text-xl font-bold text-gray-950">
-                    Novo profissional
+                    {createdPassword
+                      ? "Funcionário cadastrado"
+                      : "Novo profissional"}
                   </h2>
 
                   <p className="mt-1 text-sm text-gray-500">
-                    Preencha todos os campos.
+                    {createdPassword
+                      ? "As credenciais de acesso estão prontas."
+                      : "Preencha todos os campos."}
                   </p>
                 </div>
               </div>
@@ -414,6 +468,7 @@ export default function TeamHeader({
                 disabled={loading}
                 onClick={closeModal}
                 className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
+                aria-label="Fechar"
               >
                 <X size={20} />
               </button>
@@ -423,322 +478,415 @@ export default function TeamHeader({
                 FORMULÁRIO
             ================================================== */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 p-6"
-            >
-              {/* ERRO */}
+            {!createdPassword && (
+              <form onSubmit={handleSubmit} className="space-y-5 p-6">
+                {/* ERRO */}
 
-              {error && (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
-                  {error}
-                </div>
-              )}
-
-              {/* SUCESSO */}
-
-              {success && (
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
-                  {success}
-                </div>
-              )}
-
-              {/* =================================================
-                  NOME
-              ================================================= */}
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Nome
-                </label>
-
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) =>
-                    setName(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Nome completo"
-                  disabled={loading}
-                  autoComplete="name"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* =================================================
-                  EMAIL
-              ================================================= */}
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) =>
-                    setEmail(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="profissional@email.com"
-                  disabled={loading}
-                  autoComplete="email"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* =================================================
-                  TELEFONE
-              ================================================= */}
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Telefone
-                </label>
-
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event) =>
-                    setPhone(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="+244 9XX XXX XXX"
-                  disabled={loading}
-                  autoComplete="tel"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* =================================================
-                  ESPECIALIDADE
-              ================================================= */}
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Especialidade
-                </label>
-
-                <input
-                  type="text"
-                  value={specialty}
-                  onChange={(event) =>
-                    setSpecialty(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Barbeiro, cabeleireiro..."
-                  disabled={loading}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* =================================================
-                  ACESSO AO SISTEMA
-              ================================================= */}
-
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white">
-                    <KeyRound
-                      size={18}
-                      className="text-gray-600"
-                    />
+                {error && (
+                  <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+                    {error}
                   </div>
+                )}
 
-                  <div className="flex-1">
-                    <label className="flex cursor-pointer items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={createAccess}
-                        disabled={loading}
-                        onChange={(event) => {
-                          setCreateAccess(
-                            event.target
-                              .checked,
-                          );
+                {/* SUCESSO */}
 
-                          if (
-                            !event.target
-                              .checked
-                          ) {
-                            setPassword("");
-                            setConfirmPassword("");
-                            setShowPassword(false);
-                            setShowConfirmPassword(
-                              false,
-                            );
-                          }
-                        }}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-
-                      <span>
-                        <span className="block text-sm font-semibold text-gray-800">
-                          Dar acesso ao sistema
-                        </span>
-
-                        <span className="mt-1 block text-xs leading-5 text-gray-500">
-                          Permitir que este profissional
-                          entre no sistema como funcionário.
-                        </span>
-                      </span>
-                    </label>
+                {success && (
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+                    {success}
                   </div>
+                )}
+
+                {/* =================================================
+                    NOME
+                ================================================= */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Nome
+                  </label>
+
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Nome completo"
+                    disabled={loading}
+                    autoComplete="name"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                  />
                 </div>
 
                 {/* =================================================
-                    SENHAS
+                    EMAIL
                 ================================================= */}
 
-                {createAccess && (
-                  <div className="mt-5 space-y-4 border-t border-gray-200 pt-5">
-                    {/* SENHA */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Email
+                  </label>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Palavra-passe
-                      </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="profissional@email.com"
+                    disabled={loading}
+                    autoComplete="email"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                  />
+                </div>
 
-                      <div className="relative">
-                        <input
-                          type={
-                            showPassword
-                              ? "text"
-                              : "password"
-                          }
-                          value={password}
-                          onChange={(event) =>
-                            setPassword(
-                              event.target.value,
-                            )
-                          }
-                          placeholder="Mínimo de 8 caracteres"
-                          disabled={loading}
-                          autoComplete="new-password"
-                          className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
-                        />
+                {/* =================================================
+                    TELEFONE
+                ================================================= */}
 
-                        <button
-                          type="button"
-                          tabIndex={-1}
-                          onClick={() =>
-                            setShowPassword(
-                              (current) =>
-                                !current,
-                            )
-                          }
-                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                        >
-                          {showPassword ? (
-                            <EyeOff
-                              size={18}
-                            />
-                          ) : (
-                            <Eye
-                              size={18}
-                            />
-                          )}
-                        </button>
-                      </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Telefone
+                  </label>
+
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    placeholder="+244 9XX XXX XXX"
+                    disabled={loading}
+                    autoComplete="tel"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                  />
+                </div>
+
+                {/* =================================================
+                    ESPECIALIDADE
+                ================================================= */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Especialidade
+                  </label>
+
+                  <input
+                    type="text"
+                    value={specialty}
+                    onChange={(event) => setSpecialty(event.target.value)}
+                    placeholder="Barbeiro, cabeleireiro..."
+                    disabled={loading}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                  />
+                </div>
+
+                {/* =================================================
+                    ACESSO AO SISTEMA
+                ================================================= */}
+
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white">
+                      <KeyRound size={18} className="text-gray-600" />
                     </div>
 
-                    {/* CONFIRMAR SENHA */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Confirmar palavra-passe
-                      </label>
-
-                      <div className="relative">
+                    <div className="flex-1">
+                      <label className="flex cursor-pointer items-start gap-3">
                         <input
-                          type={
-                            showConfirmPassword
-                              ? "text"
-                              : "password"
-                          }
-                          value={
-                            confirmPassword
-                          }
-                          onChange={(event) =>
-                            setConfirmPassword(
-                              event.target.value,
-                            )
-                          }
-                          placeholder="Digite novamente"
+                          type="checkbox"
+                          checked={createAccess}
                           disabled={loading}
-                          autoComplete="new-password"
-                          className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+
+                            setCreateAccess(checked);
+
+                            if (!checked) {
+                              setPassword("");
+                              setConfirmPassword("");
+                              setShowPassword(false);
+                              setShowConfirmPassword(false);
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
 
-                        <button
-                          type="button"
-                          tabIndex={-1}
-                          onClick={() =>
-                            setShowConfirmPassword(
-                              (current) =>
-                                !current,
-                            )
-                          }
-                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff
-                              size={18}
-                            />
-                          ) : (
-                            <Eye
-                              size={18}
-                            />
-                          )}
-                        </button>
+                        <span>
+                          <span className="block text-sm font-semibold text-gray-800">
+                            Dar acesso ao sistema
+                          </span>
+
+                          <span className="mt-1 block text-xs leading-5 text-gray-500">
+                            Permitir que este profissional entre no sistema como
+                            funcionário.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* =================================================
+                      SENHAS
+                  ================================================= */}
+
+                  {createAccess && (
+                    <div className="mt-5 space-y-4 border-t border-gray-200 pt-5">
+                      {/* SENHA */}
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-gray-700">
+                          Palavra-passe
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={password}
+                            onChange={(event) =>
+                              setPassword(event.target.value)
+                            }
+                            placeholder="Mínimo de 8 caracteres"
+                            disabled={loading}
+                            autoComplete="new-password"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                          />
+
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() =>
+                              setShowPassword((current) => !current)
+                            }
+                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                            aria-label={
+                              showPassword
+                                ? "Ocultar palavra-passe"
+                                : "Mostrar palavra-passe"
+                            }
+                          >
+                            {showPassword ? (
+                              <EyeOff size={18} />
+                            ) : (
+                              <Eye size={18} />
+                            )}
+                          </button>
+                        </div>
                       </div>
+
+                      {/* CONFIRMAR SENHA */}
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-gray-700">
+                          Confirmar palavra-passe
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(event) =>
+                              setConfirmPassword(event.target.value)
+                            }
+                            placeholder="Digite novamente"
+                            disabled={loading}
+                            autoComplete="new-password"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 disabled:bg-gray-100"
+                          />
+
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() =>
+                              setShowConfirmPassword((current) => !current)
+                            }
+                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                            aria-label={
+                              showConfirmPassword
+                                ? "Ocultar confirmação"
+                                : "Mostrar confirmação"
+                            }
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff size={18} />
+                            ) : (
+                              <Eye size={18} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-500">
+                        O funcionário será criado com o perfil{" "}
+                        <strong>EMPLOYEE</strong> e poderá utilizar essas
+                        credenciais para entrar no sistema.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* =================================================
+                    BOTÕES
+                ================================================= */}
+
+                <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={closeModal}
+                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "A cadastrar..." : "Cadastrar profissional"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* ==================================================
+                TELA DE CREDENCIAIS
+            ================================================== */}
+
+            {createdPassword && (
+              <div className="p-6">
+                {/* SUCESSO */}
+
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                      <Check size={20} className="text-emerald-600" />
                     </div>
 
-                    <p className="text-xs text-gray-500">
-                      O profissional será criado com
-                      o perfil <strong>EMPLOYEE</strong>{" "}
-                      e poderá utilizar essas credenciais
-                      para entrar no sistema.
+                    <div>
+                      <h3 className="font-bold text-emerald-900">
+                        Funcionário cadastrado com sucesso!
+                      </h3>
+
+                      <p className="mt-1 text-sm leading-5 text-emerald-700">
+                        A conta foi criada com o perfil de funcionário.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ==================================================
+                    CREDENCIAIS
+                ================================================== */}
+
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                  <div className="mb-5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Credenciais de acesso
+                    </p>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Entregue estas informações ao funcionário.
                     </p>
                   </div>
-                )}
+
+                  {/* EMAIL */}
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-gray-500">
+                      EMAIL
+                    </label>
+
+                    <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900">
+                      {createdEmail}
+                    </div>
+                  </div>
+
+                  {/* SENHA */}
+
+                  <div className="mt-4">
+                    <label className="mb-2 block text-xs font-semibold text-gray-500">
+                      PALAVRA-PASSE INICIAL
+                    </label>
+
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showCreatedPassword ? "text" : "password"}
+                          value={createdPassword}
+                          readOnly
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 font-mono text-sm font-semibold text-gray-900 outline-none"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowCreatedPassword((current) => !current)
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                          aria-label={
+                            showCreatedPassword
+                              ? "Ocultar senha"
+                              : "Mostrar senha"
+                          }
+                        >
+                          {showCreatedPassword ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* COPIAR */}
+
+                      <button
+                        type="button"
+                        onClick={copyCreatedPassword}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+                      >
+                        {passwordCopied ? (
+                          <>
+                            <Check size={17} className="text-emerald-600" />
+                            Copiado
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={17} />
+                            Copiar
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ==================================================
+                    AVISO
+                ================================================== */}
+
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs leading-5 text-amber-800">
+                    <strong>Importante:</strong> esta é a palavra-passe definida
+                    para este funcionário. Guarde-a ou entregue-a ao funcionário
+                    agora. Por segurança, ela não será mostrada novamente depois
+                    que fechar esta janela.
+                  </p>
+                </div>
+
+                {/* ==================================================
+                    CONCLUIR
+                ================================================== */}
+
+                <div className="mt-6 flex justify-end border-t border-gray-100 pt-5">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    Concluir
+                  </button>
+                </div>
               </div>
-
-              {/* =================================================
-                  BOTÕES
-              ================================================= */}
-
-              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={closeModal}
-                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading
-                    ? "A cadastrar..."
-                    : "Cadastrar profissional"}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}
     </>
   );
 }
-
