@@ -28,287 +28,578 @@ export interface Service {
 interface ServicesListProps {
   services: Service[];
 
-  onServicesChange: (
-    updater: Service[] | ((current: Service[]) => Service[]),
+  /*
+  |--------------------------------------------------------------------------
+  | OWNER
+  |--------------------------------------------------------------------------
+  |
+  | Necessário apenas quando o proprietário está
+  | a gerir os serviços.
+  |
+  */
+
+  onServicesChange?: (
+    updater:
+      | Service[]
+      | ((current: Service[]) => Service[]),
   ) => void;
+
+  /*
+  |--------------------------------------------------------------------------
+  | READ ONLY
+  |--------------------------------------------------------------------------
+  |
+  | EMPLOYEE:
+  |
+  | true → somente visualização
+  |
+  | false → gestão completa
+  |
+  */
+
+  readOnly?: boolean;
 }
 
 export default function ServicesList({
   services,
   onServicesChange,
+  readOnly = false,
 }: ServicesListProps) {
-  /*ESTADOS*/
+  /*
+  |--------------------------------------------------------------------------
+  | ESTADOS
+  |--------------------------------------------------------------------------
+  */
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] =
+    useState("");
 
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] =
+    useState<string | null>(null);
 
-  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [editingService, setEditingService] =
+    useState<Service | null>(null);
 
-  const [deletingService, setDeletingService] = useState<Service | null>(null);
+  const [deletingService, setDeletingService] =
+    useState<Service | null>(null);
 
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] =
+    useState<string | null>(null);
 
-  const [editName, setEditName] = useState("");
+  const [editName, setEditName] =
+    useState("");
 
-  const [editDescription, setEditDescription] = useState("");
+  const [editDescription, setEditDescription] =
+    useState("");
 
-  const [editPrice, setEditPrice] = useState("");
+  const [editPrice, setEditPrice] =
+    useState("");
 
-  const [editDuration, setEditDuration] = useState("");
+  const [editDuration, setEditDuration] =
+    useState("");
 
-  /* PESQUISA*/
+  /*
+  |--------------------------------------------------------------------------
+  | PESQUISA
+  |--------------------------------------------------------------------------
+  */
 
   const filteredServices = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery =
+      query.trim().toLowerCase();
 
     if (!normalizedQuery) {
       return services;
     }
 
-    return services.filter((service) => {
-      const name = service.name?.toLowerCase() ?? "";
+    return services.filter(
+      (service) => {
+        const name =
+          service.name?.toLowerCase() ??
+          "";
 
-      const description = service.description?.toLowerCase() ?? "";
+        const description =
+          service.description?.toLowerCase() ??
+          "";
 
-      return (
-        name.includes(normalizedQuery) || description.includes(normalizedQuery)
-      );
-    });
+        return (
+          name.includes(
+            normalizedQuery,
+          ) ||
+          description.includes(
+            normalizedQuery,
+          )
+        );
+      },
+    );
   }, [services, query]);
 
-  /* FORMATAR PREÇO*/
+  /*
+  |--------------------------------------------------------------------------
+  | FORMATAR PREÇO
+  |--------------------------------------------------------------------------
+  */
 
-  function formatPrice(price: number) {
-    return new Intl.NumberFormat("pt-AO", {
-      style: "currency",
-      currency: "AOA",
-      minimumFractionDigits: 2,
-    }).format(price);
+  function formatPrice(
+    price: number,
+  ) {
+    return new Intl.NumberFormat(
+      "pt-AO",
+      {
+        style: "currency",
+        currency: "AOA",
+        minimumFractionDigits: 2,
+      },
+    ).format(price);
   }
 
-  /*ABRIR MENu*/
+  /*
+  |--------------------------------------------------------------------------
+  | ABRIR MENU
+  |--------------------------------------------------------------------------
+  */
 
-  function handleOpenMenu(id: string) {
-    setOpenMenu((current) => (current === id ? null : id));
+  function handleOpenMenu(
+    id: string,
+  ) {
+    /*
+     * Segurança adicional:
+     * funcionário nunca deve abrir menu.
+     */
+
+    if (readOnly) {
+      return;
+    }
+
+    setOpenMenu((current) =>
+      current === id ? null : id,
+    );
   }
 
-  /* ABRIR EDIÇÃO*/
+  /*
+  |--------------------------------------------------------------------------
+  | ABRIR EDIÇÃO
+  |--------------------------------------------------------------------------
+  */
 
-  function openEdit(service: Service) {
+  function openEdit(
+    service: Service,
+  ) {
+    /*
+     * Funcionário não pode editar.
+     */
+
+    if (readOnly) {
+      return;
+    }
+
     setEditingService(service);
 
     setEditName(service.name);
 
-    setEditDescription(service.description ?? "");
+    setEditDescription(
+      service.description ?? "",
+    );
 
-    setEditPrice(String(service.price));
+    setEditPrice(
+      String(service.price),
+    );
 
-    setEditDuration(String(service.duration));
+    setEditDuration(
+      String(service.duration),
+    );
 
     setOpenMenu(null);
   }
 
-  /* EDITAR SERVIÇO PUT /api/services/:id*/
+  /*
+  |--------------------------------------------------------------------------
+  | EDITAR SERVIÇO
+  |--------------------------------------------------------------------------
+  */
 
   async function handleEdit() {
-    if (!editingService) {
-      return;
-    }
-
-    const name = editName.trim();
-
-    const description = editDescription.trim();
-
-    const price = Number(editPrice);
-
-    const duration = Number(editDuration);
-
     /*
-     * Validações
+     * Segurança adicional.
      */
 
+    if (
+      readOnly ||
+      !editingService ||
+      !onServicesChange
+    ) {
+      return;
+    }
+
+    const name =
+      editName.trim();
+
+    const description =
+      editDescription.trim();
+
+    const price =
+      Number(editPrice);
+
+    const duration =
+      Number(editDuration);
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAÇÕES
+    |--------------------------------------------------------------------------
+    */
+
     if (!name) {
-      toast.error("O nome do serviço é obrigatório.");
+      toast.error(
+        "O nome do serviço é obrigatório.",
+      );
 
       return;
     }
 
-    if (!editPrice.trim() || Number.isNaN(price) || price <= 0) {
-      toast.error("Informe o preço do serviço. Tem de ser maior que zero.");
+    if (
+      !editPrice.trim() ||
+      Number.isNaN(price) ||
+      price <= 0
+    ) {
+      toast.error(
+        "Informe o preço do serviço. Tem de ser maior que zero.",
+      );
 
       return;
     }
 
-    if (Number.isNaN(duration) || duration <= 0) {
-      toast.error("Informe uma duração válida.");
+    if (
+      Number.isNaN(duration) ||
+      duration <= 0
+    ) {
+      toast.error(
+        "Informe uma duração válida.",
+      );
 
       return;
     }
 
     try {
-      setLoadingId(editingService.id);
-
-      const response = await fetch(`/api/services/${editingService.id}`, {
-        method: "PUT",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          name,
-          description: description || null,
-          price,
-          duration,
-          active: editingService.active,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Não foi possível editar o serviço.");
-      }
-
-      /*Normaliza a resposta da API*/
-
-      const updatedService: Service = {
-        ...data,
-
-        price: Number(data.price),
-
-        duration: Number(data.duration),
-      };
-
-      /*Atualiza a lista*/
-
-      onServicesChange((current) =>
-        current.map((service) =>
-          service.id === updatedService.id ? updatedService : service,
-        ),
+      setLoadingId(
+        editingService.id,
       );
 
-      /*Fecha modal*/
+      const response =
+        await fetch(
+          `/api/services/${editingService.id}`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              name,
+
+              description:
+                description || null,
+
+              price,
+
+              duration,
+
+              active:
+                editingService.active,
+            }),
+          },
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Não foi possível editar o serviço.",
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | NORMALIZAR
+      |--------------------------------------------------------------------------
+      */
+
+      const updatedService: Service =
+        {
+          ...data,
+
+          price: Number(
+            data.price,
+          ),
+
+          duration: Number(
+            data.duration,
+          ),
+        };
+
+      /*
+      |--------------------------------------------------------------------------
+      | ATUALIZAR LISTA
+      |--------------------------------------------------------------------------
+      */
+
+      onServicesChange(
+        (current) =>
+          current.map(
+            (service) =>
+              service.id ===
+              updatedService.id
+                ? updatedService
+                : service,
+          ),
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | FECHAR MODAL
+      |--------------------------------------------------------------------------
+      */
 
       setEditingService(null);
+
+      toast.success(
+        "Serviço atualizado com sucesso.",
+      );
     } catch (error) {
-      console.error("Erro ao editar serviço:", error);
+      console.error(
+        "Erro ao editar serviço:",
+        error,
+      );
 
       toast.error(
-        error instanceof Error ? error.message : "Erro ao editar serviço.",
+        error instanceof Error
+          ? error.message
+          : "Erro ao editar serviço.",
       );
     } finally {
       setLoadingId(null);
     }
   }
 
-  /*ATIVAR / DESATIVAR PATCH /api/services/:id*/
+  /*
+  |--------------------------------------------------------------------------
+  | ATIVAR / DESATIVAR
+  |--------------------------------------------------------------------------
+  */
 
-  async function handleToggleActive(service: Service) {
+  async function handleToggleActive(
+    service: Service,
+  ) {
+    /*
+     * Funcionário não pode alterar.
+     */
+
+    if (
+      readOnly ||
+      !onServicesChange
+    ) {
+      return;
+    }
+
     try {
       setLoadingId(service.id);
 
       setOpenMenu(null);
 
-      const response = await fetch(`/api/services/${service.id}`, {
-        method: "PATCH",
+      const response =
+        await fetch(
+          `/api/services/${service.id}`,
+          {
+            method: "PATCH",
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-        body: JSON.stringify({
-          active: !service.active,
-        }),
-      });
+            body: JSON.stringify({
+              active:
+                !service.active,
+            }),
+          },
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Não foi possível alterar o estado do serviço.",
+          data?.error ||
+            "Não foi possível alterar o estado do serviço.",
         );
       }
 
-      /*Normaliza resposta*/
+      /*
+      |--------------------------------------------------------------------------
+      | NORMALIZAR
+      |--------------------------------------------------------------------------
+      */
 
-      const updatedService: Service = {
-        ...data,
+      const updatedService: Service =
+        {
+          ...data,
 
-        price: Number(data.price),
+          price: Number(
+            data.price,
+          ),
 
-        duration: Number(data.duration),
-      };
+          duration: Number(
+            data.duration,
+          ),
+        };
 
-      /*Atualiza somente o serviço*/
+      /*
+      |--------------------------------------------------------------------------
+      | ATUALIZAR LISTA
+      |--------------------------------------------------------------------------
+      */
 
-      onServicesChange((current) =>
-        current.map((item) =>
-          item.id === updatedService.id ? updatedService : item,
-        ),
+      onServicesChange(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              updatedService.id
+                ? updatedService
+                : item,
+          ),
+      );
+
+      toast.success(
+        updatedService.active
+          ? "Serviço ativado."
+          : "Serviço desativado.",
       );
     } catch (error) {
-      console.error("Erro ao alterar serviço:", error);
+      console.error(
+        "Erro ao alterar serviço:",
+        error,
+      );
 
       toast.error(
-        error instanceof Error ? error.message : "Erro ao alterar serviço.",
+        error instanceof Error
+          ? error.message
+          : "Erro ao alterar serviço.",
       );
     } finally {
       setLoadingId(null);
     }
   }
 
-  /*ABRIR CONFIRMAÇÃO DE EXCLUSÃO*/
+  /*
+  |--------------------------------------------------------------------------
+  | ABRIR CONFIRMAÇÃO DE EXCLUSÃO
+  |--------------------------------------------------------------------------
+  */
 
-  function openDelete(service: Service) {
+  function openDelete(
+    service: Service,
+  ) {
+    /*
+     * Funcionário não pode excluir.
+     */
+
+    if (readOnly) {
+      return;
+    }
+
     setDeletingService(service);
 
     setOpenMenu(null);
   }
 
-  /* EXCLUIR SERVIÇO  DELETE /api/services/:id*/
+  /*
+  |--------------------------------------------------------------------------
+  | EXCLUIR SERVIÇO
+  |--------------------------------------------------------------------------
+  */
 
   async function handleDelete() {
-    if (!deletingService) {
+    /*
+     * Segurança adicional.
+     */
+
+    if (
+      readOnly ||
+      !deletingService ||
+      !onServicesChange
+    ) {
       return;
     }
 
     try {
-      setLoadingId(deletingService.id);
+      setLoadingId(
+        deletingService.id,
+      );
 
-      const response = await fetch(`/api/services/${deletingService.id}`, {
-        method: "DELETE",
-      });
+      const response =
+        await fetch(
+          `/api/services/${deletingService.id}`,
+          {
+            method: "DELETE",
+          },
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Não foi possível excluir o serviço.");
+        throw new Error(
+          data?.error ||
+            "Não foi possível excluir o serviço.",
+        );
       }
 
       /*
-       * Remove da lista local
-       * O DELETE já aconteceu na API.
-       */
+      |--------------------------------------------------------------------------
+      | REMOVER DA LISTA
+      |--------------------------------------------------------------------------
+      */
 
-      onServicesChange((current) =>
-        current.filter((service) => service.id !== deletingService.id),
+      onServicesChange(
+        (current) =>
+          current.filter(
+            (service) =>
+              service.id !==
+              deletingService.id,
+          ),
       );
 
       setDeletingService(null);
+
+      toast.success(
+        "Serviço excluído com sucesso.",
+      );
     } catch (error) {
-      console.error("Erro ao excluir serviço:", error);
+      console.error(
+        "Erro ao excluir serviço:",
+        error,
+      );
 
       toast.error(
-        error instanceof Error ? error.message : "Erro ao excluir serviço.",
+        error instanceof Error
+          ? error.message
+          : "Erro ao excluir serviço.",
       );
     } finally {
       setLoadingId(null);
     }
   }
 
-  /* RENDER*/
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <>
@@ -324,7 +615,9 @@ export default function ServicesList({
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Gerencie os serviços do estabelecimento.
+              {readOnly
+                ? "Serviços disponíveis para atendimento."
+                : "Gerencie os serviços do estabelecimento."}
             </p>
           </div>
 
@@ -339,7 +632,11 @@ export default function ServicesList({
             <input
               type="text"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) =>
+                setQuery(
+                  event.target.value,
+                )
+              }
               placeholder="Pesquisar serviço..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
             />
@@ -349,296 +646,427 @@ export default function ServicesList({
         {/* SERVIÇOS */}
 
         <div className="divide-y divide-gray-100">
-          {filteredServices.length === 0 ? (
+          {filteredServices.length ===
+          0 ? (
             <div className="p-10 text-center">
               <p className="font-medium text-gray-700">
                 Nenhum serviço encontrado.
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Tente pesquisar por outro nome.
+                {readOnly
+                  ? "Não existem serviços ativos disponíveis."
+                  : "Tente pesquisar por outro nome."}
               </p>
             </div>
           ) : (
-            filteredServices.map((service) => {
-              const isLoading = loadingId === service.id;
+            filteredServices.map(
+              (service) => {
+                const isLoading =
+                  loadingId ===
+                  service.id;
 
-              return (
-                <div
-                  key={service.id}
-                  className="relative flex flex-col gap-4 p-5 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
-                >
-                  {/* INFORMAÇÕES */}
+                return (
+                  <div
+                    key={service.id}
+                    className="relative flex flex-col gap-4 p-5 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
+                  >
+                    {/* INFORMAÇÕES */}
 
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h3 className="truncate font-semibold text-gray-950">
-                        {service.name}
-                      </h3>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="truncate font-semibold text-gray-950">
+                          {
+                            service.name
+                          }
+                        </h3>
 
-                      {service.active ? (
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          Ativo
+                        {service.active ? (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            Ativo
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                            Inativo
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        {service.description ||
+                          "Sem descrição"}
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                        <span className="font-semibold text-gray-900">
+                          {formatPrice(
+                            service.price,
+                          )}
                         </span>
-                      ) : (
-                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
-                          Inativo
+
+                        <span className="text-gray-500">
+                          {
+                            service.duration
+                          }{" "}
+                          minutos
                         </span>
-                      )}
+                      </div>
                     </div>
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      {service.description || "Sem descrição"}
-                    </p>
+                    {/* AÇÕES DO OWNER */}
 
-                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                      <span className="font-semibold text-gray-900">
-                        {formatPrice(service.price)}
-                      </span>
-
-                      <span className="text-gray-500">
-                        {service.duration} minutos
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* TRÊS PONTOS */}
-
-                  <div className="relative flex items-center justify-end">
-                    <button
-                      type="button"
-                      disabled={isLoading}
-                      onClick={() => handleOpenMenu(service.id)}
-                      className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Abrir ações"
-                    >
-                      <MoreHorizontal size={20} />
-                    </button>
-
-                    {/* MENU */}
-
-                    {openMenu === service.id && (
-                      <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
-                        {/* EDITAR */}
-
+                    {!readOnly && (
+                      <div className="relative flex items-center justify-end">
                         <button
                           type="button"
-                          disabled={isLoading}
-                          onClick={() => openEdit(service)}
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                          disabled={
+                            isLoading
+                          }
+                          onClick={() =>
+                            handleOpenMenu(
+                              service.id,
+                            )
+                          }
+                          className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="Abrir ações"
                         >
-                          <Pencil size={16} />
-                          Editar
+                          <MoreHorizontal
+                            size={20}
+                          />
                         </button>
 
-                        {/* ATIVAR / DESATIVAR */}
+                        {/* MENU */}
 
-                        <button
-                          type="button"
-                          disabled={isLoading}
-                          onClick={() => handleToggleActive(service)}
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <Power size={16} />
+                        {openMenu ===
+                          service.id && (
+                          <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
+                            {/* EDITAR */}
 
-                          {service.active ? "Desativar" : "Ativar"}
-                        </button>
+                            <button
+                              type="button"
+                              disabled={
+                                isLoading
+                              }
+                              onClick={() =>
+                                openEdit(
+                                  service,
+                                )
+                              }
+                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              <Pencil
+                                size={16}
+                              />
 
-                        {/* EXCLUIR */}
+                              Editar
+                            </button>
 
-                        <button
-                          type="button"
-                          disabled={isLoading}
-                          onClick={() => openDelete(service)}
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                        >
-                          <Trash2 size={16} />
-                          Excluir
-                        </button>
+                            {/* ATIVAR / DESATIVAR */}
+
+                            <button
+                              type="button"
+                              disabled={
+                                isLoading
+                              }
+                              onClick={() =>
+                                handleToggleActive(
+                                  service,
+                                )
+                              }
+                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              <Power
+                                size={16}
+                              />
+
+                              {service.active
+                                ? "Desativar"
+                                : "Ativar"}
+                            </button>
+
+                            {/* EXCLUIR */}
+
+                            <button
+                              type="button"
+                              disabled={
+                                isLoading
+                              }
+                              onClick={() =>
+                                openDelete(
+                                  service,
+                                )
+                              }
+                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                            >
+                              <Trash2
+                                size={16}
+                              />
+
+                              Excluir
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-              );
-            })
+                );
+              },
+            )
           )}
         </div>
       </section>
 
-      {/* MODAL EDITAR */}
+      {/* MODAL EDITAR — SOMENTE OWNER */}
 
-      {editingService && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
-            {/* HEADER */}
+      {!readOnly &&
+        editingService && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+              {/* HEADER */}
 
-            <div className="flex items-center justify-between border-b border-gray-100 p-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-950">
-                  Editar serviço
-                </h2>
+              <div className="flex items-center justify-between border-b border-gray-100 p-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-950">
+                    Editar serviço
+                  </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Atualize os dados do serviço.
-                </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Atualize os dados do
+                    serviço.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingService(
+                      null,
+                    )
+                  }
+                  className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100"
+                >
+                  <X size={20} />
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setEditingService(null)}
-                className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100"
-              >
-                <X size={20} />
-              </button>
+              {/* FORMULÁRIO */}
+
+              <div className="space-y-5 p-6">
+                {/* NOME */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Nome
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      editName
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setEditName(
+                        event.target
+                          .value,
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+
+                {/* DESCRIÇÃO */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Descrição
+                  </label>
+
+                  <textarea
+                    value={
+                      editDescription
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setEditDescription(
+                        event
+                          .target
+                          .value,
+                      )
+                    }
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+
+                {/* PREÇO / DURAÇÃO */}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Preço
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={
+                        editPrice
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        setEditPrice(
+                          event
+                            .target
+                            .value,
+                        )
+                      }
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Duração
+                    </label>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={
+                        editDuration
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        setEditDuration(
+                          event
+                            .target
+                            .value,
+                        )
+                      }
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* FOOTER */}
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingService(
+                      null,
+                    )
+                  }
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    loadingId ===
+                    editingService.id
+                  }
+                  onClick={
+                    handleEdit
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Save
+                    size={16}
+                  />
+
+                  {loadingId ===
+                  editingService.id
+                    ? "A guardar..."
+                    : "Guardar alterações"}
+                </button>
+              </div>
             </div>
+          </div>
+        )}
 
-            {/* FORMULÁRIO */}
+      {/* MODAL EXCLUIR — SOMENTE OWNER */}
 
-            <div className="space-y-5 p-6">
-              {/* NOME */}
+      {!readOnly &&
+        deletingService && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+              {/* ÍCONE */}
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Nome
-                </label>
-
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(event) => setEditName(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+                <Trash2
+                  size={22}
+                  className="text-red-600"
                 />
               </div>
+
+              {/* TÍTULO */}
+
+              <h2 className="mt-5 text-xl font-bold text-gray-950">
+                Excluir serviço?
+              </h2>
 
               {/* DESCRIÇÃO */}
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Descrição
-                </label>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Tem certeza que deseja
+                excluir o serviço{" "}
+                <strong className="text-gray-800">
+                  {
+                    deletingService.name
+                  }
+                </strong>
+                ?
+                <br />
+                Esta ação não pode
+                ser desfeita.
+              </p>
 
-                <textarea
-                  value={editDescription}
-                  onChange={(event) => setEditDescription(event.target.value)}
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
-                />
+              {/* BOTÕES */}
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeletingService(
+                      null,
+                    )
+                  }
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    loadingId ===
+                    deletingService.id
+                  }
+                  onClick={
+                    handleDelete
+                  }
+                  className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingId ===
+                  deletingService.id
+                    ? "A excluir..."
+                    : "Sim, excluir"}
+                </button>
               </div>
-
-              {/* PREÇO / DURAÇÃO */}
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Preço
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={editPrice}
-                    onChange={(event) => setEditPrice(event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Duração
-                  </label>
-
-                  <input
-                    type="number"
-                    min="1"
-                    value={editDuration}
-                    onChange={(event) => setEditDuration(event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* FOOTER */}
-
-            <div className="flex justify-end gap-3 border-t border-gray-100 p-6">
-              <button
-                type="button"
-                onClick={() => setEditingService(null)}
-                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                disabled={loadingId === editingService.id}
-                onClick={handleEdit}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Save size={16} />
-
-                {loadingId === editingService.id
-                  ? "A guardar..."
-                  : "Guardar alterações"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* MODAL EXCLUIR */}
-
-      {deletingService && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            {/* ÍCONE */}
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-              <Trash2 size={22} className="text-red-600" />
-            </div>
-
-            {/* TÍTULO */}
-
-            <h2 className="mt-5 text-xl font-bold text-gray-950">
-              Excluir serviço?
-            </h2>
-
-            {/* DESCRIÇÃO */}
-
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Tem certeza que deseja excluir o serviço{" "}
-              <strong className="text-gray-800">{deletingService.name}</strong>
-              ?
-              <br />
-              Esta ação não pode ser desfeita.
-            </p>
-
-            {/* BOTÕES */}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDeletingService(null)}
-                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                disabled={loadingId === deletingService.id}
-                onClick={handleDelete}
-                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loadingId === deletingService.id
-                  ? "A excluir..."
-                  : "Sim, excluir"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
     </>
   );
 }

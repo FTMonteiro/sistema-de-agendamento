@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -12,31 +11,95 @@ import {
 | GET /api/services
 |--------------------------------------------------------------------------
 |
-| OWNER     → pode visualizar
-| EMPLOYEE  → pode visualizar
+| OWNER:
+|   → vê todos os serviços da empresa
 |
+| EMPLOYEE:
+|   → vê SOMENTE serviços ativos
+|
+| O funcionário não recebe serviços desativados.
+|
+|--------------------------------------------------------------------------
 */
 
 export async function GET() {
   try {
     const user = await requireAuth();
 
-    const services = await prisma.service.findMany({
-      where: {
-        businessId: user.businessId,
-      },
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR EMPRESA
+    |--------------------------------------------------------------------------
+    */
 
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a uma empresa.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
 
-    return NextResponse.json(services);
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR ROLE
+    |--------------------------------------------------------------------------
+    */
+
+    const isOwner =
+      user.role?.toUpperCase() === "OWNER";
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILTRO
+    |--------------------------------------------------------------------------
+    |
+    | OWNER:
+    |   Pode visualizar todos.
+    |
+    | EMPLOYEE:
+    |   Somente serviços ativos.
+    |
+    */
+
+    const services =
+      await prisma.service.findMany({
+        where: {
+          businessId: user.businessId,
+
+          ...(isOwner
+            ? {}
+            : {
+                active: true,
+              }),
+        },
+
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+    return NextResponse.json(
+      services,
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
-      "❌ Erro ao buscar serviços:",
+      "❌ GET /api/services:",
       error,
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
 
     if (
       error instanceof Error &&
@@ -46,15 +109,26 @@ export async function GET() {
         {
           error: "Não autenticado.",
         },
-        { status: 401 },
+        {
+          status: 401,
+        },
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GERAL
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       {
-        error: "Erro ao buscar serviços.",
+        error:
+          "Erro ao buscar serviços.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
@@ -64,9 +138,11 @@ export async function GET() {
 | POST /api/services
 |--------------------------------------------------------------------------
 |
-| OWNER     → pode criar
-| EMPLOYEE  → NÃO pode criar
+| SOMENTE OWNER
 |
+| EMPLOYEE NÃO PODE CRIAR SERVIÇOS.
+|
+|--------------------------------------------------------------------------
 */
 
 export async function POST(
@@ -74,11 +150,40 @@ export async function POST(
 ) {
   try {
     /*
-     * Somente OWNER pode criar serviços.
-     */
-    const user = await requireOwner();
+    |--------------------------------------------------------------------------
+    | SOMENTE OWNER
+    |--------------------------------------------------------------------------
+    */
 
-    const body = await request.json();
+    const user =
+      await requireOwner();
+
+    /*
+    |--------------------------------------------------------------------------
+    | VERIFICAR EMPRESA
+    |--------------------------------------------------------------------------
+    */
+
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O proprietário não está associado a uma empresa.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | BODY
+    |--------------------------------------------------------------------------
+    */
+
+    const body =
+      await request.json();
 
     /*
     |--------------------------------------------------------------------------
@@ -108,7 +213,8 @@ export async function POST(
     |--------------------------------------------------------------------------
     */
 
-    const price = Number(body.price);
+    const price =
+      Number(body.price);
 
     /*
     |--------------------------------------------------------------------------
@@ -116,7 +222,8 @@ export async function POST(
     |--------------------------------------------------------------------------
     */
 
-    const duration = Number(body.duration);
+    const duration =
+      Number(body.duration);
 
     /*
     |--------------------------------------------------------------------------
@@ -131,7 +238,7 @@ export async function POST(
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDAÇÕES
+    | VALIDAR NOME
     |--------------------------------------------------------------------------
     */
 
@@ -141,9 +248,17 @@ export async function POST(
           error:
             "O nome do serviço é obrigatório.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR PREÇO
+    |--------------------------------------------------------------------------
+    */
 
     if (
       !Number.isFinite(price) ||
@@ -154,9 +269,39 @@ export async function POST(
           error:
             "Informe o preço do serviço. Tem de ser maior que zero.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR CASAS DECIMAIS
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      Math.round(price * 100) /
+        100 !==
+      price
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "O preço pode ter no máximo duas casas decimais.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR DURAÇÃO
+    |--------------------------------------------------------------------------
+    */
 
     if (
       !Number.isInteger(duration) ||
@@ -167,7 +312,27 @@ export async function POST(
           error:
             "A duração do serviço é inválida.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | LIMITE DE DURAÇÃO
+    |--------------------------------------------------------------------------
+    */
+
+    if (duration > 1440) {
+      return NextResponse.json(
+        {
+          error:
+            "A duração não pode ultrapassar 24 horas.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -175,21 +340,24 @@ export async function POST(
     |--------------------------------------------------------------------------
     | CRIAR SERVIÇO
     |--------------------------------------------------------------------------
-    |
-    | Usamos o businessId do utilizador autenticado.
-    |
     */
 
     const service =
       await prisma.service.create({
         data: {
           name,
-          description: description || null,
+
+          description:
+            description || null,
+
           price,
+
           duration,
+
           active,
 
-          businessId: user.businessId,
+          businessId:
+            user.businessId,
         },
       });
 
@@ -210,7 +378,7 @@ export async function POST(
     );
   } catch (error) {
     console.error(
-      "❌ Erro ao criar serviço:",
+      "❌ POST /api/services:",
       error,
     );
 
@@ -226,15 +394,18 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
-          error: "Não autenticado.",
+          error:
+            "Não autenticado.",
         },
-        { status: 401 },
+        {
+          status: 401,
+        },
       );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | SEM PERMISSÃO
+    | NÃO É OWNER
     |--------------------------------------------------------------------------
     */
 
@@ -245,10 +416,12 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "Apenas o administrador da conta pode criar serviços.",
+            "Apenas o proprietário pode criar serviços.",
           code: "FORBIDDEN",
         },
-        { status: 403 },
+        {
+          status: 403,
+        },
       );
     }
 
@@ -263,8 +436,9 @@ export async function POST(
         error:
           "Não foi possível criar o serviço.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
-

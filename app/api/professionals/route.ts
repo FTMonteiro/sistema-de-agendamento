@@ -1,35 +1,76 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
-import { requireOwner } from "@/lib/auth";
+import { requireOwner, requireStaff } from "@/lib/auth";
 
 // ============================================================
 // GET - LISTAR PROFISSIONAIS
-// SOMENTE OWNER
+//
+// OWNER:
+//   → vê todos os profissionais
+//
+// EMPLOYEE:
+//   → vê somente profissionais ativos
+//
+// Isto é necessário porque o funcionário precisa conseguir
+// criar um agendamento utilizando um profissional existente.
 // ============================================================
 
 export async function GET() {
   try {
-    // ============================================================
-    // SOMENTE OWNER PODE ACESSAR A EQUIPE
-    // ============================================================
+    const user = await requireStaff();
 
-    const owner = await requireOwner();
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a um estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
 
-    // ============================================================
-    // BUSCAR PROFISSIONAIS DA EMPRESA DO OWNER
-    // ============================================================
+    const isOwner =
+      user.role?.toUpperCase() === "OWNER";
 
     const professionals =
       await prisma.professional.findMany({
         where: {
-          businessId: owner.businessId,
+          businessId: user.businessId,
+
+          /*
+           * OWNER:
+           *   pode visualizar todos.
+           *
+           * EMPLOYEE:
+           *   somente profissionais ativos.
+           */
+          ...(isOwner
+            ? {}
+            : {
+                active: true,
+              }),
         },
 
         orderBy: {
-          createdAt: "desc",
+          name: "asc",
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          specialty: true,
+          active: true,
+          emailVerified: true,
+          businessId: true,
+          userId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
@@ -41,13 +82,9 @@ export async function GET() {
     );
   } catch (error) {
     console.error(
-      "Erro ao listar profissionais:",
+      "GET /api/professionals:",
       error,
     );
-
-    // ============================================================
-    // NÃO AUTENTICADO
-    // ============================================================
 
     if (
       error instanceof Error &&
@@ -63,10 +100,6 @@ export async function GET() {
       );
     }
 
-    // ============================================================
-    // NÃO É OWNER
-    // ============================================================
-
     if (
       error instanceof Error &&
       error.message === "FORBIDDEN"
@@ -74,17 +107,13 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "Apenas o proprietário pode acessar a equipe.",
+            "Não tem permissão para acessar os profissionais.",
         },
         {
           status: 403,
         },
       );
     }
-
-    // ============================================================
-    // ERRO GERAL
-    // ============================================================
 
     return NextResponse.json(
       {
@@ -100,35 +129,35 @@ export async function GET() {
 
 // ============================================================
 // POST - CADASTRAR PROFISSIONAL
+//
 // SOMENTE OWNER
 //
 // createAccess = false
-// → cria apenas o profissional.
+// → cria somente profissional
 //
 // createAccess = true
-// → cria profissional + utilizador EMPLOYEE.
+// → cria profissional + utilizador EMPLOYEE
 // ============================================================
 
 export async function POST(
   request: NextRequest,
 ) {
   try {
-    // ============================================================
-    // SOMENTE OWNER
-    // ============================================================
-
     const owner = await requireOwner();
-
-    // ============================================================
-    // BUSINESS ID VEM DA SESSÃO
-    // Nunca confiamos no frontend.
-    // ============================================================
 
     const businessId = owner.businessId;
 
-    // ============================================================
-    // BODY
-    // ============================================================
+    if (!businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O proprietário não está associado a um estabelecimento.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
 
     const body = await request.json();
 
@@ -160,9 +189,9 @@ export async function POST(
         ? body.password
         : "";
 
-    // ============================================================
+    // ========================================================
     // VALIDAR CAMPOS
-    // ============================================================
+    // ========================================================
 
     if (
       !name ||
@@ -181,9 +210,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
+    // ========================================================
     // VALIDAR EMAIL
-    // ============================================================
+    // ========================================================
 
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -200,9 +229,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VALIDAR PASSWORD QUANDO CRIAR ACESSO
-    // ============================================================
+    // ========================================================
+    // VALIDAR PASSWORD
+    // ========================================================
 
     if (createAccess && !password) {
       return NextResponse.json(
@@ -233,9 +262,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VERIFICAR ESTABELECIMENTO
-    // ============================================================
+    // ========================================================
+    // VERIFICAR EMPRESA
+    // ========================================================
 
     const business =
       await prisma.business.findUnique({
@@ -260,10 +289,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VERIFICAR PROFISSIONAL DUPLICADO
-    // DENTRO DA MESMA EMPRESA
-    // ============================================================
+    // ========================================================
+    // PROFISSIONAL DUPLICADO
+    // ========================================================
 
     const existingProfessional =
       await prisma.professional.findFirst({
@@ -290,12 +318,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VERIFICAR USER
-    //
-    // User.email é UNIQUE globalmente.
-    // Só precisamos verificar quando vamos criar acesso.
-    // ============================================================
+    // ========================================================
+    // USER DUPLICADO
+    // ========================================================
 
     if (createAccess) {
       const existingUser =
@@ -324,9 +349,9 @@ export async function POST(
       }
     }
 
-    // ============================================================
-    // HASH PASSWORD
-    // ============================================================
+    // ========================================================
+    // HASH
+    // ========================================================
 
     let hashedPassword:
       | string
@@ -340,28 +365,14 @@ export async function POST(
         );
     }
 
-    // ============================================================
+    // ========================================================
     // TRANSAÇÃO
-    //
-    // createAccess = false
-    // → Professional
-    //
-    // createAccess = true
-    // → User EMPLOYEE
-    // → Professional ligado ao User
-    //
-    // Se alguma operação falhar,
-    // toda a transação é revertida.
-    // ============================================================
+    // ========================================================
 
     const result =
       await prisma.$transaction(
         async (transaction) => {
           let createdUser = null;
-
-          // ======================================================
-          // CRIAR USER EMPLOYEE
-          // ======================================================
 
           if (createAccess) {
             createdUser =
@@ -377,10 +388,6 @@ export async function POST(
               });
           }
 
-          // ======================================================
-          // CRIAR PROFISSIONAL
-          // ======================================================
-
           const professional =
             await transaction.professional.create({
               data: {
@@ -388,13 +395,9 @@ export async function POST(
                 email,
                 phone,
                 specialty,
-
                 active: true,
-
                 emailVerified: false,
-
                 businessId,
-
                 userId:
                   createdUser?.id ?? null,
               },
@@ -406,10 +409,6 @@ export async function POST(
           };
         },
       );
-
-    // ============================================================
-    // RESPOSTA
-    // ============================================================
 
     return NextResponse.json(
       {
@@ -482,13 +481,9 @@ export async function POST(
     );
   } catch (error) {
     console.error(
-      "Erro ao cadastrar profissional:",
+      "POST /api/professionals:",
       error,
     );
-
-    // ============================================================
-    // NÃO AUTENTICADO
-    // ============================================================
 
     if (
       error instanceof Error &&
@@ -504,10 +499,6 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // NÃO É OWNER
-    // ============================================================
-
     if (
       error instanceof Error &&
       error.message === "FORBIDDEN"
@@ -522,10 +513,6 @@ export async function POST(
         },
       );
     }
-
-    // ============================================================
-    // PRISMA - EMAIL DUPLICADO
-    // ============================================================
 
     if (
       typeof error === "object" &&
@@ -545,10 +532,6 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // ERRO GERAL
-    // ============================================================
-
     return NextResponse.json(
       {
         error:
@@ -560,4 +543,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth";
@@ -10,14 +9,6 @@ export async function GET() {
      * =====================================================
      * UTILIZADOR AUTENTICADO
      * =====================================================
-     *
-     * O getCurrentUser() já:
-     *
-     * - valida o cookie
-     * - valida o JWT
-     * - procura o utilizador no banco
-     * - retorna OWNER ou EMPLOYEE
-     *
      */
 
     const user = await getCurrentUser();
@@ -57,19 +48,24 @@ export async function GET() {
      * BUSCAR PROFISSIONAL
      * =====================================================
      *
-     * Somente EMPLOYEE precisa de Professional.
-     *
-     * A ligação é:
+     * EMPLOYEE:
      *
      * User.id
-     *      ↓
+     *    ↓
      * Professional.userId
+     *
+     * A FOTO DO FUNCIONÁRIO VEM DE:
+     *
+     * Professional.avatar
      *
      */
 
     let professional = null;
 
-    if (user.role === "EMPLOYEE") {
+    if (
+      user.role?.toUpperCase() ===
+      "EMPLOYEE"
+    ) {
       professional =
         await prisma.professional.findUnique({
           where: {
@@ -78,24 +74,39 @@ export async function GET() {
 
           select: {
             id: true,
+
             name: true,
+
             email: true,
+
             phone: true,
+
             specialty: true,
+
+            /*
+             * =================================================
+             * IMPORTANTE
+             * =================================================
+             *
+             * Buscar a foto personalizada do funcionário.
+             */
+
+            avatar: true,
+
             active: true,
+
             emailVerified: true,
+
             businessId: true,
+
             userId: true,
           },
         });
 
       /*
        * ===================================================
-       * VALIDAR VÍNCULO
+       * VALIDAR VÍNCULO COM A EMPRESA
        * ===================================================
-       *
-       * O profissional precisa pertencer à mesma empresa
-       * do funcionário.
        */
 
       if (
@@ -114,6 +125,27 @@ export async function GET() {
 
     /*
      * =====================================================
+     * AVATAR DO UTILIZADOR
+     * =====================================================
+     *
+     * OWNER:
+     *   → não possui Professional
+     *   → avatar = null
+     *
+     * EMPLOYEE:
+     *   → usa Professional.avatar
+     *
+     */
+
+    const userAvatar =
+      user.role?.toUpperCase() ===
+        "EMPLOYEE"
+        ? professional?.avatar ??
+          null
+        : null;
+
+    /*
+     * =====================================================
      * RESPOSTA
      * =====================================================
      */
@@ -129,7 +161,9 @@ export async function GET() {
         user: {
           id: user.id,
 
-          name: user.name,
+          name:
+            professional?.name ??
+            user.name,
 
           email: user.email,
 
@@ -139,13 +173,26 @@ export async function GET() {
             user.businessId,
 
           /*
-           * OWNER
+           * =================================================
+           * FOTO DO FUNCIONÁRIO
+           * =================================================
            *
-           * O Header continua utilizando a logo
-           * do estabelecimento.
+           * O Header usa:
            *
-           * EMPLOYEE também pode visualizar a logo
-           * do estabelecimento no Header.
+           * user.avatar
+           *
+           * Agora ele recebe o valor de:
+           *
+           * Professional.avatar
+           *
+           */
+
+          avatar: userAvatar,
+
+          /*
+           * =================================================
+           * LOGO DA EMPRESA
+           * =================================================
            */
 
           logo:
@@ -161,11 +208,6 @@ export async function GET() {
          * =================================================
          * ESTABELECIMENTO
          * =================================================
-         *
-         * Continua disponível para o frontend.
-         *
-         * Porém, futuramente podemos limitar os dados
-         * enviados para EMPLOYEE se necessário.
          */
 
         business: business
@@ -184,14 +226,6 @@ export async function GET() {
          * =================================================
          * PROFISSIONAL
          * =================================================
-         *
-         * OWNER:
-         *
-         * professional = null
-         *
-         * EMPLOYEE:
-         *
-         * professional = dados do profissional
          */
 
         professional,
@@ -218,4 +252,3 @@ export async function GET() {
     );
   }
 }
-

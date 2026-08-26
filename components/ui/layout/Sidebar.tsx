@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -58,12 +57,32 @@ const menuItems: MenuItem[] = [
     icon: CalendarDays,
   },
 
-    {
-  label: "Serviços",
-  href: "/services",
-  icon: ListChecks,
-  ownerOnly: true,
-},
+  /*
+  |--------------------------------------------------------------------------
+  | SERVIÇOS
+  |--------------------------------------------------------------------------
+  | OWNER + EMPLOYEE
+  |
+  | O Sidebar mostra para os dois.
+  |
+  | A diferença de permissão será controlada
+  | dentro da página e principalmente na API.
+  |--------------------------------------------------------------------------
+  */
+
+  {
+    label: "Serviços",
+    href: "/services",
+    icon: ListChecks,
+  },
+
+  /*
+  |--------------------------------------------------------------------------
+  | EQUIPE
+  |--------------------------------------------------------------------------
+  | SOMENTE OWNER
+  |--------------------------------------------------------------------------
+  */
 
   {
     label: "Equipe",
@@ -71,7 +90,6 @@ const menuItems: MenuItem[] = [
     icon: UsersRound,
     ownerOnly: true,
   },
-
 
   {
     label: "Configurações",
@@ -111,15 +129,6 @@ export function Sidebar({
             cache: "no-store",
           },
         );
-
-        /*
-        |--------------------------------------------------------------------------
-        | NÃO AUTENTICADO
-        |--------------------------------------------------------------------------
-        |
-        | Não lançamos erro no console.
-        |
-        */
 
         if (response.status === 401) {
           if (!cancelled) {
@@ -182,7 +191,7 @@ export function Sidebar({
 
   /*
   |--------------------------------------------------------------------------
-  | FECHAR MENU COM ESC
+  | FECHAR COM ESC
   |--------------------------------------------------------------------------
   */
 
@@ -222,7 +231,7 @@ export function Sidebar({
 
   /*
   |--------------------------------------------------------------------------
-  | VERIFICAR OWNER
+  | OWNER
   |--------------------------------------------------------------------------
   */
 
@@ -231,7 +240,7 @@ export function Sidebar({
 
   /*
   |--------------------------------------------------------------------------
-  | FILTRAR MENU
+  | MENU VISÍVEL
   |--------------------------------------------------------------------------
   */
 
@@ -240,11 +249,6 @@ export function Sidebar({
       if (!item.ownerOnly) {
         return true;
       }
-
-      /*
-      | Enquanto estiver a carregar:
-      | não mostramos Equipe.
-      */
 
       if (loadingUser) {
         return false;
@@ -358,4 +362,3 @@ export function Sidebar({
     </>
   );
 }
-

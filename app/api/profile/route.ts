@@ -1,19 +1,83 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import {
+  requireStaff,
+  requireOwner,
+} from "@/lib/auth";
 
-/*
-|--------------------------------------------------------------------------
-| GET /api/profile
-|--------------------------------------------------------------------------
-*/
+// ============================================================
+// GET - LISTAR PROFISSIONAIS
+//
+// OWNER:
+//   → vê todos os profissionais
+//
+// EMPLOYEE:
+//   → vê somente profissionais ativos
+//
+// IMPORTANTE:
+// O EMPLOYEE precisa consultar os profissionais para conseguir
+// criar agendamentos, mas isso NÃO significa que ele pode
+// administrar a equipe.
+// ============================================================
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    // ============================================================
+    // OWNER + EMPLOYEE
+    // ============================================================
 
-    if (!user) {
+    const user = await requireStaff();
+
+    // ============================================================
+    // BUSCAR PROFISSIONAIS DA EMPRESA
+    // ============================================================
+
+    const professionals =
+      await prisma.professional.findMany({
+        where: {
+          businessId: user.businessId,
+
+          /*
+           * OWNER:
+           *   pode visualizar todos.
+           *
+           * EMPLOYEE:
+           *   somente profissionais ativos.
+           */
+          ...(user.role === "OWNER"
+            ? {}
+            : {
+                active: true,
+              }),
+        },
+
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+    return NextResponse.json(
+      professionals,
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "GET /api/professionals:",
+      error,
+    );
+
+    // ============================================================
+    // NÃO AUTENTICADO
+    // ============================================================
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
       return NextResponse.json(
         {
           error: "Não autenticado.",
@@ -24,11 +88,18 @@ export async function GET() {
       );
     }
 
-    if (user.role !== "EMPLOYEE") {
+    // ============================================================
+    // SEM PERMISSÃO
+    // ============================================================
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
       return NextResponse.json(
         {
           error:
-            "Esta área é destinada aos funcionários.",
+            "Não tem permissão para acessar a equipe.",
         },
         {
           status: 403,
@@ -36,48 +107,14 @@ export async function GET() {
       );
     }
 
-    const professional =
-      await prisma.professional.findUnique({
-        where: {
-          userId: user.id,
-        },
-      });
-
-    if (!professional) {
-      return NextResponse.json(
-        {
-          error:
-            "Perfil profissional não encontrado.",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    return NextResponse.json({
-      profile: {
-        id: professional.id,
-        name: professional.name,
-        email: professional.email ?? "",
-        phone: professional.phone ?? "",
-        specialty:
-          professional.specialty ?? "",
-        avatar:
-          professional.avatar ?? null,
-        active: professional.active,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "GET /api/profile:",
-      error,
-    );
+    // ============================================================
+    // ERRO GERAL
+    // ============================================================
 
     return NextResponse.json(
       {
         error:
-          "Erro ao carregar o perfil profissional.",
+          "Erro ao carregar profissionais.",
       },
       {
         status: 500,
@@ -86,19 +123,390 @@ export async function GET() {
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| PUT /api/profile
-|--------------------------------------------------------------------------
-*/
+// ============================================================
+// POST - CADASTRAR PROFISSIONAL
+//
+// SOMENTE OWNER
+//
+// EMPLOYEE NÃO PODE CADASTRAR PROFISSIONAIS.
+// ============================================================
 
-export async function PUT(
-  request: Request,
+export async function POST(
+  request: NextRequest,
 ) {
   try {
-    const user = await getCurrentUser();
+    // ============================================================
+    // SOMENTE OWNER
+    // ============================================================
 
-    if (!user) {
+    const owner = await requireOwner();
+
+    // ============================================================
+    // BUSINESS ID VEM DA SESSÃO
+    // Nunca confiamos no frontend.
+    // ============================================================
+
+    const businessId = owner.businessId;
+
+    // ============================================================
+    // BODY
+    // ============================================================
+
+    const body = await request.json();
+
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
+
+    const email =
+      typeof body.email === "string"
+        ? body.email.trim().toLowerCase()
+        : "";
+
+    const phone =
+      typeof body.phone === "string"
+        ? body.phone.trim()
+        : "";
+
+    const specialty =
+      typeof body.specialty === "string"
+        ? body.specialty.trim()
+        : "";
+
+    const createAccess =
+      body.createAccess === true;
+
+    const password =
+      typeof body.password === "string"
+        ? body.password
+        : "";
+
+    // ============================================================
+    // VALIDAR CAMPOS
+    // ============================================================
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !specialty
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Todos os campos do profissional são obrigatórios.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // ============================================================
+    // VALIDAR EMAIL
+    // ============================================================
+
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        {
+          error:
+            "Informe um email válido.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // ============================================================
+    // VALIDAR PASSWORD
+    // ============================================================
+
+    if (
+      createAccess &&
+      !password
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Defina uma palavra-passe para criar o acesso ao sistema.",
+          code: "PASSWORD_REQUIRED",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (
+      createAccess &&
+      password.length < 8
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A palavra-passe deve ter pelo menos 8 caracteres.",
+          code: "PASSWORD_TOO_SHORT",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // ============================================================
+    // VERIFICAR ESTABELECIMENTO
+    // ============================================================
+
+    const business =
+      await prisma.business.findUnique({
+        where: {
+          id: businessId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!business) {
+      return NextResponse.json(
+        {
+          error:
+            "Estabelecimento não encontrado.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    // ============================================================
+    // VERIFICAR PROFISSIONAL DUPLICADO
+    // ============================================================
+
+    const existingProfessional =
+      await prisma.professional.findFirst({
+        where: {
+          email,
+          businessId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (existingProfessional) {
+      return NextResponse.json(
+        {
+          error:
+            "Já existe um profissional com este email nesta empresa.",
+          code: "PROFESSIONAL_EMAIL_EXISTS",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    // ============================================================
+    // VERIFICAR USER
+    //
+    // User.email é UNIQUE globalmente.
+    // ============================================================
+
+    if (createAccess) {
+      const existingUser =
+        await prisma.user.findUnique({
+          where: {
+            email,
+          },
+
+          select: {
+            id: true,
+            businessId: true,
+          },
+        });
+
+      if (existingUser) {
+        return NextResponse.json(
+          {
+            error:
+              "Este email já está associado a uma conta de utilizador.",
+            code: "USER_EMAIL_EXISTS",
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+    }
+
+    // ============================================================
+    // HASH PASSWORD
+    // ============================================================
+
+    let hashedPassword:
+      | string
+      | null = null;
+
+    if (createAccess) {
+      hashedPassword =
+        await bcrypt.hash(
+          password,
+          12,
+        );
+    }
+
+    // ============================================================
+    // TRANSAÇÃO
+    // ============================================================
+
+    const result =
+      await prisma.$transaction(
+        async (transaction) => {
+          let createdUser = null;
+
+          // ======================================================
+          // CRIAR USER EMPLOYEE
+          // ======================================================
+
+          if (createAccess) {
+            createdUser =
+              await transaction.user.create({
+                data: {
+                  name,
+                  email,
+                  password:
+                    hashedPassword,
+                  role: "EMPLOYEE",
+                  businessId,
+                },
+              });
+          }
+
+          // ======================================================
+          // CRIAR PROFISSIONAL
+          // ======================================================
+
+          const professional =
+            await transaction.professional.create({
+              data: {
+                name,
+                email,
+                phone,
+                specialty,
+
+                active: true,
+
+                emailVerified: false,
+
+                businessId,
+
+                userId:
+                  createdUser?.id ?? null,
+              },
+            });
+
+          return {
+            professional,
+            user: createdUser,
+          };
+        },
+      );
+
+    // ============================================================
+    // RESPOSTA
+    // ============================================================
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        message: createAccess
+          ? "Profissional cadastrado e acesso ao sistema criado com sucesso."
+          : "Profissional cadastrado com sucesso.",
+
+        accessCreated:
+          createAccess,
+
+        professional: {
+          id:
+            result.professional.id,
+
+          name:
+            result.professional.name,
+
+          email:
+            result.professional.email,
+
+          phone:
+            result.professional.phone,
+
+          specialty:
+            result.professional.specialty,
+
+          active:
+            result.professional.active,
+
+          emailVerified:
+            result.professional.emailVerified,
+
+          businessId:
+            result.professional.businessId,
+
+          userId:
+            result.professional.userId,
+
+          createdAt:
+            result.professional.createdAt,
+
+          updatedAt:
+            result.professional.updatedAt,
+        },
+
+        user: result.user
+          ? {
+              id:
+                result.user.id,
+
+              name:
+                result.user.name,
+
+              email:
+                result.user.email,
+
+              role:
+                result.user.role,
+
+              businessId:
+                result.user.businessId,
+            }
+          : null,
+      },
+      {
+        status: 201,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "POST /api/professionals:",
+      error,
+    );
+
+    // ============================================================
+    // NÃO AUTENTICADO
+    // ============================================================
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
       return NextResponse.json(
         {
           error: "Não autenticado.",
@@ -109,11 +517,18 @@ export async function PUT(
       );
     }
 
-    if (user.role !== "EMPLOYEE") {
+    // ============================================================
+    // NÃO É OWNER
+    // ============================================================
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
       return NextResponse.json(
         {
           error:
-            "Apenas funcionários podem alterar este perfil.",
+            "Apenas o proprietário pode cadastrar profissionais.",
         },
         {
           status: 403,
@@ -121,167 +536,36 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-
-    const professional =
-      await prisma.professional.findUnique({
-        where: {
-          userId: user.id,
-        },
-      });
-
-    if (!professional) {
-      return NextResponse.json(
-        {
-          error:
-            "Perfil profissional não encontrado.",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    const name =
-      typeof body.name === "string"
-        ? body.name.trim()
-        : professional.name;
-
-    const phone =
-      typeof body.phone === "string"
-        ? body.phone.trim()
-        : professional.phone;
-
-    const specialty =
-      typeof body.specialty === "string"
-        ? body.specialty.trim()
-        : professional.specialty;
-
-    if (!name) {
-      return NextResponse.json(
-        {
-          error:
-            "O nome é obrigatório.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    let avatar =
-      professional.avatar;
-
-    /*
-    |--------------------------------------------------------------------------
-    | AVATAR
-    |--------------------------------------------------------------------------
-    |
-    | undefined = mantém
-    | null      = remove
-    | string    = atualiza
-    |
-    */
-
-    if (body.avatar === null) {
-      avatar = null;
-    }
+    // ============================================================
+    // PRISMA - EMAIL DUPLICADO
+    // ============================================================
 
     if (
-      typeof body.avatar === "string"
-    ) {
-      avatar = body.avatar;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDAR IMAGEM
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      avatar &&
-      !avatar.startsWith("data:image/")
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
     ) {
       return NextResponse.json(
         {
           error:
-            "A imagem enviada não é válida.",
+            "Este email já está associado a uma conta ou profissional.",
+          code: "EMAIL_EXISTS",
         },
         {
-          status: 400,
+          status: 409,
         },
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | LIMITE
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      avatar &&
-      avatar.length >
-        7 * 1024 * 1024
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "A imagem é demasiado grande.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | ATUALIZAR
-    |--------------------------------------------------------------------------
-    */
-
-    const updated =
-      await prisma.professional.update({
-        where: {
-          id: professional.id,
-        },
-
-        data: {
-          name,
-          phone: phone || null,
-          specialty:
-            specialty || null,
-          avatar,
-        },
-      });
-
-    return NextResponse.json({
-      success: true,
-
-      profile: {
-        id: updated.id,
-        name: updated.name,
-        email: updated.email ?? "",
-        phone: updated.phone ?? "",
-        specialty:
-          updated.specialty ?? "",
-        avatar:
-          updated.avatar ?? null,
-        active: updated.active,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "PUT /api/profile:",
-      error,
-    );
+    // ============================================================
+    // ERRO GERAL
+    // ============================================================
 
     return NextResponse.json(
       {
         error:
-          "Erro ao atualizar o perfil profissional.",
+          "Erro interno ao cadastrar profissional.",
       },
       {
         status: 500,

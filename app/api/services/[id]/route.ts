@@ -1,4 +1,3 @@
-
 import {
   NextRequest,
   NextResponse,
@@ -22,10 +21,16 @@ interface RouteContext {
 | GET /api/services/:id
 |--------------------------------------------------------------------------
 |
-| OWNER + EMPLOYEE
+| OWNER
+|   → pode visualizar serviços ativos e inativos
 |
-| Pode visualizar somente serviços da própria empresa.
+| EMPLOYEE
+|   → pode visualizar SOMENTE serviços ativos
 |
+| Ambos:
+|   → somente serviços da própria empresa
+|
+|--------------------------------------------------------------------------
 */
 
 export async function GET(
@@ -33,17 +38,20 @@ export async function GET(
   context: RouteContext,
 ) {
   try {
-    const user =
-      await requireAuth();
+    const user = await requireAuth();
 
-    const { id } =
-      await context.params;
+    const { id } = await context.params;
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR ID
+    |--------------------------------------------------------------------------
+    */
 
     if (!id) {
       return NextResponse.json(
         {
-          error:
-            "ID do serviço não informado.",
+          error: "ID do serviço não informado.",
         },
         {
           status: 400,
@@ -51,21 +59,45 @@ export async function GET(
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | BUSCAR SERVIÇO
+    |--------------------------------------------------------------------------
+    |
+    | OWNER:
+    |   pode acessar qualquer serviço.
+    |
+    | EMPLOYEE:
+    |   só pode acessar serviços ativos.
+    |
+    */
+
     const service =
       await prisma.service.findFirst({
         where: {
           id,
 
-          businessId:
-            user.businessId,
+          businessId: user.businessId,
+
+          ...(user.role?.toUpperCase() ===
+          "EMPLOYEE"
+            ? {
+                active: true,
+              }
+            : {}),
         },
       });
+
+    /*
+    |--------------------------------------------------------------------------
+    | SERVIÇO NÃO ENCONTRADO
+    |--------------------------------------------------------------------------
+    */
 
     if (!service) {
       return NextResponse.json(
         {
-          error:
-            "Serviço não encontrado.",
+          error: "Serviço não encontrado.",
         },
         {
           status: 404,
@@ -73,8 +105,17 @@ export async function GET(
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       service,
+      {
+        status: 200,
+      },
     );
   } catch (error) {
     console.error(
@@ -82,15 +123,19 @@ export async function GET(
       error,
     );
 
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
+
     if (
       error instanceof Error &&
-      error.message ===
-        "UNAUTHORIZED"
+      error.message === "UNAUTHORIZED"
     ) {
       return NextResponse.json(
         {
-          error:
-            "Não autenticado.",
+          error: "Não autenticado.",
         },
         {
           status: 401,
@@ -98,10 +143,15 @@ export async function GET(
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GERAL
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       {
-        error:
-          "Erro ao buscar serviço.",
+        error: "Erro ao buscar serviço.",
       },
       {
         status: 500,
@@ -117,8 +167,9 @@ export async function GET(
 |
 | SOMENTE OWNER
 |
-| Editar serviço.
+| O EMPLOYEE NÃO PODE EDITAR SERVIÇOS.
 |
+|--------------------------------------------------------------------------
 */
 
 export async function PUT(
@@ -126,17 +177,33 @@ export async function PUT(
   context: RouteContext,
 ) {
   try {
-    const user =
-      await requireOwner();
+    /*
+    |--------------------------------------------------------------------------
+    | SOMENTE OWNER
+    |--------------------------------------------------------------------------
+    |
+    | Se for EMPLOYEE:
+    |
+    | requireOwner()
+    |      ↓
+    | FORBIDDEN
+    |
+    */
 
-    const { id } =
-      await context.params;
+    const user = await requireOwner();
+
+    const { id } = await context.params;
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR ID
+    |--------------------------------------------------------------------------
+    */
 
     if (!id) {
       return NextResponse.json(
         {
-          error:
-            "ID do serviço não informado.",
+          error: "ID do serviço não informado.",
         },
         {
           status: 400,
@@ -144,8 +211,13 @@ export async function PUT(
       );
     }
 
-    const body =
-      await request.json();
+    /*
+    |--------------------------------------------------------------------------
+    | BODY
+    |--------------------------------------------------------------------------
+    */
+
+    const body = await request.json();
 
     /*
     |--------------------------------------------------------------------------
@@ -165,8 +237,7 @@ export async function PUT(
     */
 
     const description =
-      typeof body.description ===
-      "string"
+      typeof body.description === "string"
         ? body.description.trim()
         : null;
 
@@ -176,8 +247,7 @@ export async function PUT(
     |--------------------------------------------------------------------------
     */
 
-    const price =
-      Number(body.price);
+    const price = Number(body.price);
 
     /*
     |--------------------------------------------------------------------------
@@ -185,8 +255,7 @@ export async function PUT(
     |--------------------------------------------------------------------------
     */
 
-    const duration =
-      Number(body.duration);
+    const duration = Number(body.duration);
 
     /*
     |--------------------------------------------------------------------------
@@ -195,8 +264,7 @@ export async function PUT(
     */
 
     const active =
-      typeof body.active ===
-      "boolean"
+      typeof body.active === "boolean"
         ? body.active
         : true;
 
@@ -246,8 +314,7 @@ export async function PUT(
     */
 
     if (
-      Math.round(price * 100) /
-        100 !==
+      Math.round(price * 100) / 100 !==
       price
     ) {
       return NextResponse.json(
@@ -268,9 +335,7 @@ export async function PUT(
     */
 
     if (
-      !Number.isInteger(
-        duration,
-      ) ||
+      !Number.isInteger(duration) ||
       duration <= 0
     ) {
       return NextResponse.json(
@@ -286,7 +351,7 @@ export async function PUT(
 
     /*
     |--------------------------------------------------------------------------
-    | LIMITE RAZOÁVEL
+    | LIMITE DE DURAÇÃO
     |--------------------------------------------------------------------------
     */
 
@@ -304,11 +369,16 @@ export async function PUT(
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR SERVIÇO
+    | BUSCAR SERVIÇO DA EMPRESA
     |--------------------------------------------------------------------------
     |
-    | O ID + businessId impedem acesso a serviços
-    | pertencentes a outra empresa.
+    | Nunca confiamos no businessId enviado pelo frontend.
+    |
+    | Usamos:
+    |
+    | id
+    | +
+    | businessId da sessão
     |
     */
 
@@ -317,16 +387,20 @@ export async function PUT(
         where: {
           id,
 
-          businessId:
-            user.businessId,
+          businessId: user.businessId,
         },
       });
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO ENCONTRADO
+    |--------------------------------------------------------------------------
+    */
 
     if (!existingService) {
       return NextResponse.json(
         {
-          error:
-            "Serviço não encontrado.",
+          error: "Serviço não encontrado.",
         },
         {
           status: 404,
@@ -336,15 +410,14 @@ export async function PUT(
 
     /*
     |--------------------------------------------------------------------------
-    | ATUALIZAR
+    | ATUALIZAR SERVIÇO
     |--------------------------------------------------------------------------
     */
 
     const service =
       await prisma.service.update({
         where: {
-          id:
-            existingService.id,
+          id: existingService.id,
         },
 
         data: {
@@ -361,8 +434,17 @@ export async function PUT(
         },
       });
 
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       service,
+      {
+        status: 200,
+      },
     );
   } catch (error) {
     console.error(
@@ -370,39 +452,54 @@ export async function PUT(
       error,
     );
 
-    if (
-      error instanceof Error
-    ) {
-      if (
-        error.message ===
-        "UNAUTHORIZED"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Não autenticado.",
-          },
-          {
-            status: 401,
-          },
-        );
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
 
-      if (
-        error.message ===
-        "FORBIDDEN"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Apenas o proprietário pode editar serviços.",
-          },
-          {
-            status: 403,
-          },
-        );
-      }
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO É OWNER
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Apenas o proprietário pode editar serviços.",
+
+          code: "FORBIDDEN",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GERAL
+    |--------------------------------------------------------------------------
+    */
 
     return NextResponse.json(
       {
@@ -425,6 +522,9 @@ export async function PUT(
 |
 | Ativar / desativar serviço.
 |
+| EMPLOYEE NÃO PODE ALTERAR.
+|
+|--------------------------------------------------------------------------
 */
 
 export async function PATCH(
@@ -432,17 +532,26 @@ export async function PATCH(
   context: RouteContext,
 ) {
   try {
-    const user =
-      await requireOwner();
+    /*
+    |--------------------------------------------------------------------------
+    | SOMENTE OWNER
+    |--------------------------------------------------------------------------
+    */
 
-    const { id } =
-      await context.params;
+    const user = await requireOwner();
+
+    const { id } = await context.params;
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR ID
+    |--------------------------------------------------------------------------
+    */
 
     if (!id) {
       return NextResponse.json(
         {
-          error:
-            "ID do serviço não informado.",
+          error: "ID do serviço não informado.",
         },
         {
           status: 400,
@@ -450,8 +559,13 @@ export async function PATCH(
       );
     }
 
-    const body =
-      await request.json();
+    /*
+    |--------------------------------------------------------------------------
+    | BODY
+    |--------------------------------------------------------------------------
+    */
+
+    const body = await request.json();
 
     /*
     |--------------------------------------------------------------------------
@@ -460,8 +574,7 @@ export async function PATCH(
     */
 
     if (
-      typeof body.active !==
-      "boolean"
+      typeof body.active !== "boolean"
     ) {
       return NextResponse.json(
         {
@@ -476,7 +589,7 @@ export async function PATCH(
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR SERVIÇO DA EMPRESA
+    | BUSCAR SERVIÇO
     |--------------------------------------------------------------------------
     */
 
@@ -485,16 +598,20 @@ export async function PATCH(
         where: {
           id,
 
-          businessId:
-            user.businessId,
+          businessId: user.businessId,
         },
       });
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO ENCONTRADO
+    |--------------------------------------------------------------------------
+    */
 
     if (!existingService) {
       return NextResponse.json(
         {
-          error:
-            "Serviço não encontrado.",
+          error: "Serviço não encontrado.",
         },
         {
           status: 404,
@@ -504,25 +621,32 @@ export async function PATCH(
 
     /*
     |--------------------------------------------------------------------------
-    | ATUALIZAR
+    | ATUALIZAR ESTADO
     |--------------------------------------------------------------------------
     */
 
     const service =
       await prisma.service.update({
         where: {
-          id:
-            existingService.id,
+          id: existingService.id,
         },
 
         data: {
-          active:
-            body.active,
+          active: body.active,
         },
       });
 
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
+
     return NextResponse.json(
       service,
+      {
+        status: 200,
+      },
     );
   } catch (error) {
     console.error(
@@ -530,39 +654,54 @@ export async function PATCH(
       error,
     );
 
-    if (
-      error instanceof Error
-    ) {
-      if (
-        error.message ===
-        "UNAUTHORIZED"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Não autenticado.",
-          },
-          {
-            status: 401,
-          },
-        );
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
 
-      if (
-        error.message ===
-        "FORBIDDEN"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Apenas o proprietário pode alterar serviços.",
-          },
-          {
-            status: 403,
-          },
-        );
-      }
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO É OWNER
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Apenas o proprietário pode alterar o estado dos serviços.",
+
+          code: "FORBIDDEN",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GERAL
+    |--------------------------------------------------------------------------
+    */
 
     return NextResponse.json(
       {
@@ -583,9 +722,12 @@ export async function PATCH(
 |
 | SOMENTE OWNER
 |
-| Não permite excluir serviços que possuem histórico
-| de agendamentos.
+| EMPLOYEE NÃO PODE EXCLUIR.
 |
+| Também não permitimos apagar serviços que já possuem
+| histórico de agendamentos.
+|
+|--------------------------------------------------------------------------
 */
 
 export async function DELETE(
@@ -593,17 +735,26 @@ export async function DELETE(
   context: RouteContext,
 ) {
   try {
-    const user =
-      await requireOwner();
+    /*
+    |--------------------------------------------------------------------------
+    | SOMENTE OWNER
+    |--------------------------------------------------------------------------
+    */
 
-    const { id } =
-      await context.params;
+    const user = await requireOwner();
+
+    const { id } = await context.params;
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDAR ID
+    |--------------------------------------------------------------------------
+    */
 
     if (!id) {
       return NextResponse.json(
         {
-          error:
-            "ID do serviço não informado.",
+          error: "ID do serviço não informado.",
         },
         {
           status: 400,
@@ -613,7 +764,7 @@ export async function DELETE(
 
     /*
     |--------------------------------------------------------------------------
-    | BUSCAR SERVIÇO DA EMPRESA
+    | BUSCAR SERVIÇO
     |--------------------------------------------------------------------------
     */
 
@@ -622,16 +773,20 @@ export async function DELETE(
         where: {
           id,
 
-          businessId:
-            user.businessId,
+          businessId: user.businessId,
         },
       });
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO ENCONTRADO
+    |--------------------------------------------------------------------------
+    */
 
     if (!existingService) {
       return NextResponse.json(
         {
-          error:
-            "Serviço não encontrado.",
+          error: "Serviço não encontrado.",
         },
         {
           status: 404,
@@ -648,7 +803,8 @@ export async function DELETE(
     const appointments =
       await prisma.appointment.count({
         where: {
-          serviceId: existingService.id,
+          serviceId:
+            existingService.id,
 
           businessId:
             user.businessId,
@@ -657,7 +813,7 @@ export async function DELETE(
 
     /*
     |--------------------------------------------------------------------------
-    | NÃO APAGAR HISTÓRICO
+    | NÃO APAGAR SE EXISTIR HISTÓRICO
     |--------------------------------------------------------------------------
     */
 
@@ -691,56 +847,81 @@ export async function DELETE(
 
     await prisma.service.delete({
       where: {
-        id:
-          existingService.id,
+        id: existingService.id,
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    /*
+    |--------------------------------------------------------------------------
+    | RESPOSTA
+    |--------------------------------------------------------------------------
+    */
 
-      message:
-        "Serviço excluído com sucesso.",
-    });
+    return NextResponse.json(
+      {
+        success: true,
+
+        message:
+          "Serviço excluído com sucesso.",
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
       "DELETE /api/services/[id]:",
       error,
     );
 
-    if (
-      error instanceof Error
-    ) {
-      if (
-        error.message ===
-        "UNAUTHORIZED"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Não autenticado.",
-          },
-          {
-            status: 401,
-          },
-        );
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
 
-      if (
-        error.message ===
-        "FORBIDDEN"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Apenas o proprietário pode excluir serviços.",
-          },
-          {
-            status: 403,
-          },
-        );
-      }
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Não autenticado.",
+        },
+        {
+          status: 401,
+        },
+      );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO É OWNER
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Apenas o proprietário pode excluir serviços.",
+
+          code: "FORBIDDEN",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ERRO GERAL
+    |--------------------------------------------------------------------------
+    */
 
     return NextResponse.json(
       {
@@ -753,4 +934,3 @@ export async function DELETE(
     );
   }
 }
-
