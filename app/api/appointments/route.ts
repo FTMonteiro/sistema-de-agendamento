@@ -3,22 +3,229 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/auth";
 
-// ============================================================
-// GET - LISTAR AGENDAMENTOS
-//
-// OWNER + EMPLOYEE
-//
-// Ambos podem consultar os agendamentos da própria empresa.
-// ============================================================
+/* ============================================================
+   TIPOS
+============================================================ */
+
+type AppointmentWithRelations = {
+  id: string;
+  date: Date;
+  status: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+
+  client: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string;
+  };
+
+  professional: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    specialty: string | null;
+  };
+
+  service: {
+    id: string;
+    name: string;
+    price: unknown;
+    duration: number;
+  };
+
+  payment:
+    | {
+        id: string;
+        amount: unknown;
+        method: string;
+        status: string;
+        paidAt: Date | null;
+      }
+    | null;
+};
+
+/* ============================================================
+   FORMATAR AGENDAMENTO
+============================================================ */
+
+function formatAppointment(
+  appointment: AppointmentWithRelations,
+) {
+  const servicePrice = Number(
+    appointment.service?.price ?? 0,
+  );
+
+  const payment = appointment.payment;
+
+  const paymentAmount = payment
+    ? Number(payment.amount ?? 0)
+    : null;
+
+  return {
+    id: appointment.id,
+
+    /* --------------------------------------------------------
+       CLIENTE
+    -------------------------------------------------------- */
+
+    client:
+      appointment.client?.name ?? "",
+
+    clientId:
+      appointment.client?.id ?? null,
+
+    clientEmail:
+      appointment.client?.email ?? null,
+
+    clientPhone:
+      appointment.client?.phone ?? null,
+
+    /* --------------------------------------------------------
+       SERVIÇO
+    -------------------------------------------------------- */
+
+    service:
+      appointment.service?.name ?? "",
+
+    serviceId:
+      appointment.service?.id ?? null,
+
+    price:
+      Number.isFinite(servicePrice)
+        ? servicePrice
+        : 0,
+
+    duration:
+      Number(
+        appointment.service?.duration ?? 0,
+      ),
+
+    /* --------------------------------------------------------
+       PROFISSIONAL
+    -------------------------------------------------------- */
+
+    professional:
+      appointment.professional?.name ?? "",
+
+    professionalId:
+      appointment.professional?.id ?? null,
+
+    professionalEmail:
+      appointment.professional?.email ?? null,
+
+    professionalPhone:
+      appointment.professional?.phone ?? null,
+
+    specialty:
+      appointment.professional?.specialty ?? null,
+
+    /* --------------------------------------------------------
+       DATA E HORA
+    -------------------------------------------------------- */
+
+    date:
+      appointment.date
+        .toISOString()
+        .slice(0, 10),
+
+    time:
+      appointment.date
+        .toISOString()
+        .slice(11, 16),
+
+    dateTime:
+      appointment.date.toISOString(),
+
+    /* --------------------------------------------------------
+       STATUS
+    -------------------------------------------------------- */
+
+    status:
+      String(
+        appointment.status ?? "PENDING",
+      ).toLowerCase(),
+
+    notes:
+      appointment.notes ?? "",
+
+    /* --------------------------------------------------------
+       PAGAMENTO
+    -------------------------------------------------------- */
+
+    payment:
+      payment &&
+      String(payment.status).toUpperCase() ===
+        "PAID"
+        ? "paid"
+        : "pending",
+
+    paymentId:
+      payment?.id ?? null,
+
+    paymentAmount,
+
+    paymentMethod:
+      payment?.method ?? null,
+
+    paymentStatus:
+      payment?.status ?? null,
+
+    paidAt:
+      payment?.paidAt
+        ? payment.paidAt.toISOString()
+        : null,
+
+    /* --------------------------------------------------------
+       AUDITORIA
+    -------------------------------------------------------- */
+
+    createdAt:
+      appointment.createdAt.toISOString(),
+
+    updatedAt:
+      appointment.updatedAt.toISOString(),
+  };
+}
+
+/* ============================================================
+   GET
+   LISTAR AGENDAMENTOS
+============================================================ */
 
 export async function GET() {
   try {
     const user = await requireStaff();
 
+    /* --------------------------------------------------------
+       VALIDAR EMPRESA
+    -------------------------------------------------------- */
+
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a uma empresa.",
+          code: "BUSINESS_NOT_FOUND",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /* --------------------------------------------------------
+       BUSCAR AGENDAMENTOS
+    -------------------------------------------------------- */
+
     const appointments =
       await prisma.appointment.findMany({
         where: {
-          businessId: user.businessId,
+          businessId:
+            user.businessId,
         },
 
         orderBy: {
@@ -54,120 +261,71 @@ export async function GET() {
             },
           },
 
-          payment: true,
+          payment: {
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+              status: true,
+              paidAt: true,
+            },
+          },
         },
       });
 
+    /* --------------------------------------------------------
+       FORMATAR
+    -------------------------------------------------------- */
+
     const formattedAppointments =
-      appointments.map((appointment) => {
-        const servicePrice =
-          Number(
-            appointment.service.price,
-          );
+      appointments.map(
+        (appointment) =>
+          formatAppointment(
+            appointment as AppointmentWithRelations,
+          ),
+      );
 
-        const paymentAmount =
-          appointment.payment
-            ? Number(
-                appointment.payment.amount,
-              )
-            : null;
-
-        return {
-          id: appointment.id,
-
-          client:
-            appointment.client.name,
-
-          clientId:
-            appointment.client.id,
-
-          service:
-            appointment.service.name,
-
-          serviceId:
-            appointment.service.id,
-
-          price:
-            servicePrice,
-
-          professional:
-            appointment.professional.name,
-
-          professionalId:
-            appointment.professional.id,
-
-          date:
-            appointment.date
-              .toISOString()
-              .slice(0, 10),
-
-          time:
-            appointment.date
-              .toISOString()
-              .slice(11, 16),
-
-          status:
-            appointment.status.toLowerCase(),
-
-          notes:
-            appointment.notes ?? "",
-
-          payment:
-            appointment.payment
-              ? "paid"
-              : "pending",
-
-          paymentId:
-            appointment.payment?.id ??
-            null,
-
-          paymentAmount,
-
-          paymentMethod:
-            appointment.payment?.method ??
-            null,
-
-          paymentStatus:
-            appointment.payment?.status ??
-            null,
-
-          paidAt:
-            appointment.payment?.paidAt
-              ?.toISOString() ?? null,
-
-          createdAt:
-            appointment.createdAt
-              .toISOString(),
-
-          updatedAt:
-            appointment.updatedAt
-              .toISOString(),
-        };
-      });
+    /* --------------------------------------------------------
+       RESPOSTA
+    -------------------------------------------------------- */
 
     return NextResponse.json(
       {
+        success: true,
+
         appointments:
           formattedAppointments,
       },
       {
         status: 200,
+
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate",
+        },
       },
     );
   } catch (error) {
     console.error(
-      "GET /api/appointments:",
+      "❌ GET /api/appointments:",
       error,
     );
 
+    /* --------------------------------------------------------
+       NÃO AUTENTICADO
+    -------------------------------------------------------- */
+
     if (
       error instanceof Error &&
-      error.message ===
-        "UNAUTHORIZED"
+      error.message === "UNAUTHORIZED"
     ) {
       return NextResponse.json(
         {
-          error: "Não autenticado.",
+          error:
+            "Não autenticado.",
+
+          code:
+            "UNAUTHORIZED",
         },
         {
           status: 401,
@@ -175,15 +333,21 @@ export async function GET() {
       );
     }
 
+    /* --------------------------------------------------------
+       SEM PERMISSÃO
+    -------------------------------------------------------- */
+
     if (
       error instanceof Error &&
-      error.message ===
-        "FORBIDDEN"
+      error.message === "FORBIDDEN"
     ) {
       return NextResponse.json(
         {
           error:
             "Não tem permissão para acessar a agenda.",
+
+          code:
+            "FORBIDDEN",
         },
         {
           status: 403,
@@ -191,12 +355,19 @@ export async function GET() {
       );
     }
 
+    /* --------------------------------------------------------
+       ERRO INTERNO
+    -------------------------------------------------------- */
+
     return NextResponse.json(
       {
         error:
+          "Não foi possível carregar os agendamentos.",
+
+        details:
           error instanceof Error
             ? error.message
-            : "Não foi possível carregar os agendamentos.",
+            : "Erro desconhecido.",
       },
       {
         status: 500,
@@ -205,16 +376,10 @@ export async function GET() {
   }
 }
 
-// ============================================================
-// POST - CRIAR AGENDAMENTO
-//
-// OWNER + EMPLOYEE
-//
-// O EMPLOYEE pode criar um agendamento para um cliente
-// que já esteja cadastrado na empresa.
-//
-// Não é criado nenhum novo cliente aqui.
-// ============================================================
+/* ============================================================
+   POST
+   CRIAR AGENDAMENTO
+============================================================ */
 
 export async function POST(
   request: NextRequest,
@@ -222,12 +387,52 @@ export async function POST(
   try {
     const user = await requireStaff();
 
-    const body =
-      await request.json();
+    /* --------------------------------------------------------
+       VALIDAR EMPRESA
+    -------------------------------------------------------- */
 
-    // ============================================================
-    // DADOS
-    // ============================================================
+    if (!user.businessId) {
+      return NextResponse.json(
+        {
+          error:
+            "O utilizador não está associado a uma empresa.",
+
+          code:
+            "NO_BUSINESS",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /* --------------------------------------------------------
+       LER JSON
+    -------------------------------------------------------- */
+
+    let body: Record<string, unknown>;
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "O corpo da requisição é inválido.",
+
+          code:
+            "INVALID_REQUEST_BODY",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /* --------------------------------------------------------
+       CAMPOS
+    -------------------------------------------------------- */
 
     const clientId =
       typeof body.clientId === "string"
@@ -257,11 +462,11 @@ export async function POST(
     const notes =
       typeof body.notes === "string"
         ? body.notes.trim()
-        : null;
+        : "";
 
-    // ============================================================
-    // VALIDAR CAMPOS
-    // ============================================================
+    /* ========================================================
+       CAMPOS OBRIGATÓRIOS
+    ======================================================== */
 
     if (
       !clientId ||
@@ -274,6 +479,9 @@ export async function POST(
         {
           error:
             "Todos os campos são obrigatórios.",
+
+          code:
+            "REQUIRED_FIELDS",
         },
         {
           status: 400,
@@ -281,21 +489,22 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VALIDAR DATA
-    // ============================================================
+    /* ========================================================
+       VALIDAR DATA
+    ======================================================== */
 
-    const dateRegex =
-      /^\d{4}-\d{2}-\d{2}$/;
-
-    const timeRegex =
-      /^\d{2}:\d{2}$/;
-
-    if (!dateRegex.test(date)) {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        date,
+      )
+    ) {
       return NextResponse.json(
         {
           error:
             "A data deve estar no formato YYYY-MM-DD.",
+
+          code:
+            "INVALID_DATE",
         },
         {
           status: 400,
@@ -303,11 +512,22 @@ export async function POST(
       );
     }
 
-    if (!timeRegex.test(time)) {
+    /* ========================================================
+       VALIDAR HORA
+    ======================================================== */
+
+    if (
+      !/^\d{2}:\d{2}$/.test(
+        time,
+      )
+    ) {
       return NextResponse.json(
         {
           error:
             "O horário deve estar no formato HH:mm.",
+
+          code:
+            "INVALID_TIME",
         },
         {
           status: 400,
@@ -315,14 +535,17 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // VALIDAR HORA
-    // ============================================================
-
-    const [hours, minutes] =
-      time.split(":").map(Number);
+    const [
+      hours,
+      minutes,
+    ] =
+      time
+        .split(":")
+        .map(Number);
 
     if (
+      !Number.isInteger(hours) ||
+      !Number.isInteger(minutes) ||
       hours < 0 ||
       hours > 23 ||
       minutes < 0 ||
@@ -332,6 +555,9 @@ export async function POST(
         {
           error:
             "Horário inválido.",
+
+          code:
+            "INVALID_TIME",
         },
         {
           status: 400,
@@ -339,9 +565,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // DATA DO AGENDAMENTO
-    // ============================================================
+    /* ========================================================
+       DATA + HORA
+    ======================================================== */
 
     const appointmentDate =
       new Date(
@@ -357,6 +583,9 @@ export async function POST(
         {
           error:
             "Data ou horário inválido.",
+
+          code:
+            "INVALID_DATETIME",
         },
         {
           status: 400,
@@ -364,9 +593,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // NÃO PERMITIR PASSADO
-    // ============================================================
+    /* ========================================================
+       NÃO PERMITIR AGENDAMENTO NO PASSADO
+    ======================================================== */
 
     if (
       appointmentDate.getTime() <
@@ -376,6 +605,7 @@ export async function POST(
         {
           error:
             "Não é possível criar um agendamento no passado.",
+
           code:
             "APPOINTMENT_IN_PAST",
         },
@@ -385,22 +615,28 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // CLIENTE
-    //
-    // O cliente já existe.
-    //
-    // Apenas reutilizamos o registro pelo ID.
-    // ============================================================
+    /* ========================================================
+       CLIENTE
+    ======================================================== */
 
     const client =
       await prisma.client.findFirst({
         where: {
-          id: clientId,
+          id:
+            clientId,
 
           businessId:
             user.businessId,
 
+          active:
+            true,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
           active: true,
         },
       });
@@ -410,6 +646,9 @@ export async function POST(
         {
           error:
             "Cliente não encontrado ou está desativado.",
+
+          code:
+            "CLIENT_NOT_FOUND",
         },
         {
           status: 404,
@@ -417,21 +656,29 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // PROFISSIONAL
-    //
-    // Somente profissionais ativos podem receber
-    // novos agendamentos.
-    // ============================================================
+    /* ========================================================
+       PROFISSIONAL
+    ======================================================== */
 
     const professional =
       await prisma.professional.findFirst({
         where: {
-          id: professionalId,
+          id:
+            professionalId,
 
           businessId:
             user.businessId,
 
+          active:
+            true,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          specialty: true,
           active: true,
         },
       });
@@ -441,6 +688,9 @@ export async function POST(
         {
           error:
             "Profissional não encontrado ou está desativado.",
+
+          code:
+            "PROFESSIONAL_NOT_FOUND",
         },
         {
           status: 404,
@@ -448,20 +698,28 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // SERVIÇO
-    //
-    // Somente serviços ativos podem ser agendados.
-    // ============================================================
+    /* ========================================================
+       SERVIÇO
+    ======================================================== */
 
     const service =
       await prisma.service.findFirst({
         where: {
-          id: serviceId,
+          id:
+            serviceId,
 
           businessId:
             user.businessId,
 
+          active:
+            true,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          duration: true,
           active: true,
         },
       });
@@ -471,6 +729,9 @@ export async function POST(
         {
           error:
             "Serviço não encontrado ou está desativado.",
+
+          code:
+            "SERVICE_NOT_FOUND",
         },
         {
           status: 404,
@@ -478,9 +739,38 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // CALCULAR FIM
-    // ============================================================
+    /* ========================================================
+       VALIDAR DURAÇÃO
+    ======================================================== */
+
+    const duration =
+      Number(
+        service.duration,
+      );
+
+    if (
+      !Number.isInteger(
+        duration,
+      ) ||
+      duration <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A duração do serviço é inválida.",
+
+          code:
+            "INVALID_SERVICE_DURATION",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /* ========================================================
+       INTERVALO DO NOVO AGENDAMENTO
+    ======================================================== */
 
     const newStart =
       appointmentDate;
@@ -488,14 +778,14 @@ export async function POST(
     const newEnd =
       new Date(
         newStart.getTime() +
-          service.duration *
+          duration *
             60 *
             1000,
       );
 
-    // ============================================================
-    // BUSCAR AGENDAMENTOS DO PROFISSIONAL
-    // ============================================================
+    /* ========================================================
+       BUSCAR AGENDAMENTOS DO PROFISSIONAL
+    ======================================================== */
 
     const existingAppointments =
       await prisma.appointment.findMany({
@@ -504,7 +794,7 @@ export async function POST(
             user.businessId,
 
           professionalId:
-            professional.id,
+            professionalId,
 
           status: {
             notIn: [
@@ -514,7 +804,11 @@ export async function POST(
           },
         },
 
-        include: {
+        select: {
+          id: true,
+
+          date: true,
+
           service: {
             select: {
               duration: true,
@@ -523,9 +817,9 @@ export async function POST(
         },
       });
 
-    // ============================================================
-    // VERIFICAR CONFLITO
-    // ============================================================
+    /* ========================================================
+       VERIFICAR CONFLITO DE HORÁRIO
+    ======================================================== */
 
     const conflictingAppointment =
       existingAppointments.find(
@@ -533,11 +827,15 @@ export async function POST(
           const existingStart =
             existing.date;
 
+          const existingDuration =
+            Number(
+              existing.service.duration,
+            );
+
           const existingEnd =
             new Date(
               existingStart.getTime() +
-                existing.service
-                  .duration *
+                existingDuration *
                   60 *
                   1000,
             );
@@ -551,11 +849,9 @@ export async function POST(
         },
       );
 
-    // ============================================================
-    // CONFLITO
-    // ============================================================
-
-    if (conflictingAppointment) {
+    if (
+      conflictingAppointment
+    ) {
       return NextResponse.json(
         {
           error:
@@ -570,12 +866,6 @@ export async function POST(
           professionalId:
             professional.id,
 
-          requestedStart:
-            newStart.toISOString(),
-
-          requestedEnd:
-            newEnd.toISOString(),
-
           conflictingAppointmentId:
             conflictingAppointment.id,
         },
@@ -585,9 +875,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // CRIAR AGENDAMENTO
-    // ============================================================
+    /* ========================================================
+       CRIAR AGENDAMENTO
+    ======================================================== */
 
     const appointment =
       await prisma.appointment.create({
@@ -604,124 +894,88 @@ export async function POST(
           businessId:
             user.businessId,
 
-          clientId,
+          clientId:
+            client.id,
 
-          professionalId,
+          professionalId:
+            professional.id,
 
-          serviceId,
+          serviceId:
+            service.id,
         },
 
         include: {
-          client: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
 
-          professional: true,
+          professional: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              specialty: true,
+            },
+          },
 
-          service: true,
+          service: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              duration: true,
+            },
+          },
 
-          payment: true,
+          payment: {
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+              status: true,
+              paidAt: true,
+            },
+          },
         },
       });
 
-    // ============================================================
-    // PREÇO
-    // ============================================================
-
-    const servicePrice =
-      Number(
-        appointment.service.price,
-      );
-
-    // ============================================================
-    // RESPOSTA
-    // ============================================================
+    /* ========================================================
+       RESPOSTA
+    ======================================================== */
 
     return NextResponse.json(
       {
+        success:
+          true,
+
         message:
           "Agendamento criado com sucesso.",
 
-        appointment: {
-          id:
-            appointment.id,
-
-          client:
-            appointment.client.name,
-
-          clientId:
-            appointment.client.id,
-
-          service:
-            appointment.service.name,
-
-          serviceId:
-            appointment.service.id,
-
-          price:
-            servicePrice,
-
-          professional:
-            appointment.professional.name,
-
-          professionalId:
-            appointment.professional.id,
-
-          date:
-            appointment.date
-              .toISOString()
-              .slice(0, 10),
-
-          time:
-            appointment.date
-              .toISOString()
-              .slice(11, 16),
-
-          status:
-            appointment.status
-              .toLowerCase(),
-
-          notes:
-            appointment.notes ?? "",
-
-          payment:
-            "pending",
-
-          paymentId:
-            null,
-
-          paymentAmount:
-            null,
-
-          paymentMethod:
-            null,
-
-          paymentStatus:
-            null,
-
-          paidAt:
-            null,
-
-          createdAt:
-            appointment.createdAt
-              .toISOString(),
-
-          updatedAt:
-            appointment.updatedAt
-              .toISOString(),
-        },
+        appointment:
+          formatAppointment(
+            appointment as AppointmentWithRelations,
+          ),
       },
       {
-        status: 201,
+        status:
+          201,
       },
     );
   } catch (error) {
     console.error(
-      "POST /api/appointments:",
+      "❌ POST /api/appointments:",
       error,
     );
 
-    // ============================================================
-    // NÃO AUTENTICADO
-    // ============================================================
+    /* ========================================================
+       NÃO AUTENTICADO
+    ======================================================== */
 
     if (
       error instanceof Error &&
@@ -732,6 +986,9 @@ export async function POST(
         {
           error:
             "Não autenticado.",
+
+          code:
+            "UNAUTHORIZED",
         },
         {
           status: 401,
@@ -739,9 +996,9 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // SEM PERMISSÃO
-    // ============================================================
+    /* ========================================================
+       SEM PERMISSÃO
+    ======================================================== */
 
     if (
       error instanceof Error &&
@@ -752,6 +1009,9 @@ export async function POST(
         {
           error:
             "Não tem permissão para criar agendamentos.",
+
+          code:
+            "FORBIDDEN",
         },
         {
           status: 403,
@@ -759,16 +1019,19 @@ export async function POST(
       );
     }
 
-    // ============================================================
-    // ERRO GERAL
-    // ============================================================
+    /* ========================================================
+       ERRO INTERNO
+    ======================================================== */
 
     return NextResponse.json(
       {
         error:
+          "Não foi possível criar o agendamento.",
+
+        details:
           error instanceof Error
             ? error.message
-            : "Não foi possível criar o agendamento.",
+            : "Erro desconhecido.",
       },
       {
         status: 500,

@@ -1,8 +1,15 @@
-
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { toast } from "sonner";
+
 import {
   Banknote,
   CalendarDays,
@@ -38,22 +45,10 @@ interface PaymentAppointment {
     duration: number;
   };
 
-  payment: {
-    id: string;
-    amount: number | string;
-    method: string;
-    status: string;
-  } | null;
+  payment: null;
 
   paymentAmount?: number | string | null;
   paymentMethod?: string | null;
-}
-
-interface ServiceRecord {
-  id: string;
-  name: string;
-  price: number | string | null;
-  active?: boolean;
 }
 
 type PaymentMethod =
@@ -86,7 +81,7 @@ function getNumericPrice(
 
 function formatPrice(
   value: number | string | null | undefined,
-) {
+): string {
   return new Intl.NumberFormat("pt-AO", {
     style: "currency",
     currency: "AOA",
@@ -95,7 +90,7 @@ function formatPrice(
   }).format(getNumericPrice(value));
 }
 
-function formatDate(value: string) {
+function formatDate(value: string): string {
   if (!value) {
     return "-";
   }
@@ -113,9 +108,26 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function formatTime(value: string): string {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-AO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function getPaymentMethodLabel(
   method?: string | null,
-) {
+): string {
   switch (method) {
     case "CASH":
       return "Dinheiro";
@@ -136,7 +148,7 @@ function getPaymentMethodLabel(
 
 function getPaymentMethodIcon(
   method: PaymentMethod,
-) {
+): ReactNode {
   switch (method) {
     case "CASH":
       return <Banknote className="h-5 w-5" />;
@@ -149,6 +161,9 @@ function getPaymentMethodIcon(
 
     case "MOBILE_MONEY":
       return <Smartphone className="h-5 w-5" />;
+
+    default:
+      return <CreditCard className="h-5 w-5" />;
   }
 }
 
@@ -160,11 +175,10 @@ export function ReceivePayment({
   const [appointments, setAppointments] =
     useState<PaymentAppointment[]>([]);
 
-  const [services, setServices] =
-    useState<ServiceRecord[]>([]);
-
-  const [selectedAppointmentId, setSelectedAppointmentId] =
-    useState("");
+  const [
+    selectedAppointmentId,
+    setSelectedAppointmentId,
+  ] = useState("");
 
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>("CASH");
@@ -176,135 +190,45 @@ export function ReceivePayment({
     useState(false);
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  /*
+   * ============================================================
+   * CARREGAR AGENDAMENTOS
+   * ============================================================
+   */
 
   async function loadAppointments() {
     try {
       setIsLoading(true);
       setError("");
 
-      const [
-        appointmentsResponse,
-        servicesResponse,
-      ] = await Promise.all([
-        fetch("/api/appointments/payments", {
+      const response = await fetch(
+        "/api/appointments/payments",
+        {
           method: "GET",
           cache: "no-store",
-        }),
+        },
+      );
 
-        fetch("/api/services", {
-          method: "GET",
-          cache: "no-store",
-        }),
-      ]);
+      const data = await response.json();
 
-      const appointmentsData =
-        await appointmentsResponse.json();
-
-      const servicesData =
-        await servicesResponse.json();
-
-      if (!appointmentsResponse.ok) {
+      if (!response.ok) {
         throw new Error(
-          appointmentsData?.error ||
+          data?.error ||
             "Não foi possível carregar os agendamentos.",
         );
       }
 
-      if (!servicesResponse.ok) {
-        throw new Error(
-          servicesData?.error ||
-            "Não foi possível carregar os serviços.",
-        );
-      }
+      const list = Array.isArray(
+        data?.appointments,
+      )
+        ? data.appointments
+        : [];
 
-      const apiAppointments =
-        Array.isArray(
-          appointmentsData?.appointments,
-        )
-          ? appointmentsData.appointments
-          : [];
-
-      const apiServices: ServiceRecord[] =
-        Array.isArray(servicesData)
-          ? servicesData
-          : Array.isArray(
-                servicesData?.services,
-              )
-            ? servicesData.services
-            : [];
-
-      setServices(apiServices);
-
-      const normalizedAppointments =
-        apiAppointments.map(
-          (appointment: any) => {
-            const serviceId =
-              appointment?.service?.id ??
-              appointment?.serviceId ??
-              "";
-
-            const serviceFromApi =
-              apiServices.find(
-                (service) =>
-                  service.id === serviceId,
-              );
-
-            const nestedPrice =
-              getNumericPrice(
-                appointment?.service?.price,
-              );
-
-            const directPrice =
-              getNumericPrice(
-                appointment?.price,
-              );
-
-            const servicePrice =
-              getNumericPrice(
-                serviceFromApi?.price,
-              );
-
-            let finalPrice = nestedPrice;
-
-            if (finalPrice <= 0) {
-              if (directPrice > 0) {
-                finalPrice = directPrice;
-              } else if (servicePrice > 0) {
-                finalPrice = servicePrice;
-              }
-            }
-
-            return {
-              ...appointment,
-
-              service: {
-                ...appointment.service,
-
-                id:
-                  appointment?.service?.id ??
-                  serviceId,
-
-                name:
-                  appointment?.service?.name ??
-                  serviceFromApi?.name ??
-                  "Serviço",
-
-                price: finalPrice,
-
-                duration:
-                  Number(
-                    appointment?.service
-                      ?.duration,
-                  ) || 0,
-              },
-            };
-          },
-        );
-
-      setAppointments(
-        normalizedAppointments,
-      );
+      setAppointments(list);
     } catch (err) {
       console.error(
         "Erro ao carregar pagamentos:",
@@ -321,15 +245,29 @@ export function ReceivePayment({
     }
   }
 
+  /*
+   * ============================================================
+   * ABRIR MODAL
+   * ============================================================
+   */
+
   function handleOpen() {
-    setIsOpen(true);
     setError("");
     setSuccess("");
+
     setSelectedAppointmentId("");
     setPaymentMethod("CASH");
 
+    setIsOpen(true);
+
     loadAppointments();
   }
+
+  /*
+   * ============================================================
+   * FECHAR MODAL
+   * ============================================================
+   */
 
   function handleClose() {
     if (isSubmitting) {
@@ -337,25 +275,38 @@ export function ReceivePayment({
     }
 
     setIsOpen(false);
+
     setError("");
     setSuccess("");
+
     setSelectedAppointmentId("");
     setPaymentMethod("CASH");
   }
 
-  const selectedAppointment =
-    useMemo(() => {
-      return (
-        appointments.find(
-          (appointment) =>
-            appointment.id ===
-            selectedAppointmentId,
-        ) ?? null
-      );
-    }, [
-      appointments,
-      selectedAppointmentId,
-    ]);
+  /*
+   * ============================================================
+   * AGENDAMENTO SELECIONADO
+   * ============================================================
+   */
+
+  const selectedAppointment = useMemo(() => {
+    return (
+      appointments.find(
+        (appointment) =>
+          appointment.id ===
+          selectedAppointmentId,
+      ) ?? null
+    );
+  }, [
+    appointments,
+    selectedAppointmentId,
+  ]);
+
+  /*
+   * ============================================================
+   * PREÇO
+   * ============================================================
+   */
 
   const selectedPrice = useMemo(() => {
     if (!selectedAppointment) {
@@ -367,6 +318,12 @@ export function ReceivePayment({
     );
   }, [selectedAppointment]);
 
+  /*
+   * ============================================================
+   * ALTERAR AGENDAMENTO
+   * ============================================================
+   */
+
   function handleAppointmentChange(
     appointmentId: string,
   ) {
@@ -377,6 +334,38 @@ export function ReceivePayment({
     setError("");
     setSuccess("");
   }
+
+  /*
+   * ============================================================
+   * ALTERAR MÉTODO DE PAGAMENTO
+   * ============================================================
+   */
+
+  function handlePaymentMethodChange(
+    method: PaymentMethod,
+  ) {
+    setPaymentMethod(method);
+
+    setError("");
+    setSuccess("");
+  }
+
+  /*
+   * ============================================================
+   * REGISTRAR PAGAMENTO
+   *
+   * IMPORTANTE:
+   *
+   * NÃO abre:
+   * - nova aba
+   * - nova janela
+   * - outro navegador
+   * - recibo automaticamente
+   * - outra página
+   *
+   * Apenas faz POST para a API.
+   * ============================================================
+   */
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -394,7 +383,10 @@ export function ReceivePayment({
       return;
     }
 
-    if (!selectedPrice || selectedPrice <= 0) {
+    if (
+      !selectedPrice ||
+      selectedPrice <= 0
+    ) {
       setError(
         `O serviço "${selectedAppointment.service.name}" está sem preço. Defina o preço em Serviços antes de receber o pagamento.`,
       );
@@ -405,27 +397,27 @@ export function ReceivePayment({
     try {
       setIsSubmitting(true);
 
+      const formData = new FormData();
+
+      formData.append(
+        "appointmentId",
+        selectedAppointment.id,
+      );
+
+      formData.append(
+        "method",
+        paymentMethod,
+      );
+
       const response = await fetch(
         "/api/appointments/payments",
         {
           method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            appointmentId:
-              selectedAppointment.id,
-
-            method: paymentMethod,
-          }),
+          body: formData,
         },
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -434,41 +426,75 @@ export function ReceivePayment({
         );
       }
 
+      /*
+       * ========================================================
+       * PAGAMENTO REGISTRADO
+       * ========================================================
+       *
+       * Aqui NÃO existe:
+       *
+       * window.open()
+       * window.location.href
+       * window.location.assign()
+       * window.location.replace()
+       * target="_blank"
+       * iframe
+       *
+       * Portanto o pagamento é processado
+       * somente dentro desta aplicação.
+       */
+
       setSuccess(
-        data?.message ||
-          "Pagamento registrado com sucesso!",
+        "Pagamento registrado com sucesso.",
       );
 
-      setAppointments(
-        (current) =>
-          current.filter(
-            (appointment) =>
-              appointment.id !==
-              selectedAppointment.id,
-          ),
+      /*
+       * Remover o agendamento da lista
+       */
+
+      setAppointments((current) =>
+        current.filter(
+          (appointment) =>
+            appointment.id !==
+            selectedAppointment.id,
+        ),
       );
+
+      /*
+       * Notificação
+       */
 
       toast.success(
         `Pagamento de ${formatPrice(
           selectedPrice,
-        )} recebido.`,
+        )} recebido com sucesso.`,
       );
+
+      /*
+       * Atualizar outras partes do sistema
+       */
 
       onPaymentCreated?.();
 
       window.dispatchEvent(
-        new Event(
-          "appointments:changed",
-        ),
+        new Event("appointments:changed"),
       );
+
+      /*
+       * Limpar formulário
+       */
 
       setSelectedAppointmentId("");
       setPaymentMethod("CASH");
 
+      /*
+       * Fechar modal depois da confirmação
+       */
+
       window.setTimeout(() => {
         setIsOpen(false);
         setSuccess("");
-      }, 1000);
+      }, 900);
     } catch (err) {
       console.error(
         "Erro ao registrar pagamento:",
@@ -485,6 +511,12 @@ export function ReceivePayment({
     }
   }
 
+  /*
+   * ============================================================
+   * CARREGAR QUANDO O MODAL ABRIR
+   * ============================================================
+   */
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -493,12 +525,14 @@ export function ReceivePayment({
     loadAppointments();
   }, [isOpen]);
 
+  /*
+   * ============================================================
+   * INTERFACE
+   * ============================================================
+   */
+
   return (
     <>
-      {/* =========================================================
-          BOTÃO PRINCIPAL
-      ========================================================= */}
-
       <button
         type="button"
         onClick={handleOpen}
@@ -553,10 +587,6 @@ export function ReceivePayment({
         Receber Pagamento
       </button>
 
-      {/* =========================================================
-          MODAL
-      ========================================================= */}
-
       {isOpen && (
         <div
           className="
@@ -597,9 +627,7 @@ export function ReceivePayment({
               dark:bg-gray-950
             "
           >
-            {/* =====================================================
-                MODAL HEADER
-            ===================================================== */}
+            {/* HEADER */}
 
             <div
               className="
@@ -659,7 +687,7 @@ export function ReceivePayment({
                   </div>
 
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Registe e confirme o pagamento do atendimento.
+                    Registe o pagamento do atendimento.
                   </p>
                 </div>
               </div>
@@ -692,9 +720,7 @@ export function ReceivePayment({
               </button>
             </div>
 
-            {/* =====================================================
-                BODY
-            ===================================================== */}
+            {/* CONTEÚDO */}
 
             <div
               className="
@@ -707,9 +733,7 @@ export function ReceivePayment({
                 onSubmit={handleSubmit}
                 className="space-y-6 p-6"
               >
-                {/* =================================================
-                    STATUS
-                ================================================= */}
+                {/* ERRO */}
 
                 {error && (
                   <div
@@ -735,6 +759,8 @@ export function ReceivePayment({
                     <span>{error}</span>
                   </div>
                 )}
+
+                {/* SUCESSO */}
 
                 {success && (
                   <div
@@ -762,9 +788,7 @@ export function ReceivePayment({
                   </div>
                 )}
 
-                {/* =================================================
-                    01 — AGENDAMENTO
-                ================================================= */}
+                {/* ATENDIMENTO */}
 
                 <section>
                   <div className="mb-3 flex items-end justify-between">
@@ -795,15 +819,17 @@ export function ReceivePayment({
                       </div>
 
                       <p className="mt-1 pl-7 text-xs text-gray-500 dark:text-gray-400">
-                        Selecione o agendamento que será liquidado.
+                        Selecione o atendimento que será liquidado.
                       </p>
                     </div>
 
                     {!isLoading &&
                       appointments.length > 0 && (
                         <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-                          {appointments.length} disponível
-                          {appointments.length !== 1
+                          {appointments.length}{" "}
+                          disponível
+                          {appointments.length !==
+                          1
                             ? "s"
                             : ""}
                         </span>
@@ -812,7 +838,6 @@ export function ReceivePayment({
 
                   <div className="relative">
                     <select
-                      id="payment-appointment"
                       value={
                         selectedAppointmentId
                       }
@@ -841,7 +866,6 @@ export function ReceivePayment({
                         text-gray-900
                         outline-none
                         transition
-                        placeholder:text-gray-400
                         hover:border-gray-300
                         focus:border-gray-400
                         focus:ring-4
@@ -851,9 +875,6 @@ export function ReceivePayment({
                         dark:border-gray-800
                         dark:bg-gray-900
                         dark:text-white
-                        dark:hover:border-gray-700
-                        dark:focus:border-gray-600
-                        dark:disabled:bg-gray-900
                       "
                     >
                       <option value="">
@@ -915,15 +936,12 @@ export function ReceivePayment({
                     appointments.length ===
                       0 && (
                       <p className="mt-2.5 text-xs text-gray-500 dark:text-gray-400">
-                        Apenas atendimentos confirmados e
-                        ainda não pagos aparecem nesta lista.
+                        Apenas atendimentos confirmados e ainda não pagos aparecem nesta lista.
                       </p>
                     )}
                 </section>
 
-                {/* =================================================
-                    DETALHES
-                ================================================= */}
+                {/* RESUMO */}
 
                 {selectedAppointment && (
                   <section
@@ -959,7 +977,8 @@ export function ReceivePayment({
                         label="Cliente"
                         value={
                           selectedAppointment
-                            .client.name
+                            .client
+                            .name
                         }
                       />
 
@@ -970,7 +989,8 @@ export function ReceivePayment({
                         label="Serviço"
                         value={
                           selectedAppointment
-                            .service.name
+                            .service
+                            .name
                         }
                       />
 
@@ -986,6 +1006,16 @@ export function ReceivePayment({
 
                       <InfoItem
                         icon={
+                          <CalendarDays className="h-4 w-4" />
+                        }
+                        label="Hora"
+                        value={formatTime(
+                          selectedAppointment.date,
+                        )}
+                      />
+
+                      <InfoItem
+                        icon={
                           <UserRound className="h-4 w-4" />
                         }
                         label="Profissional"
@@ -995,13 +1025,19 @@ export function ReceivePayment({
                             .name
                         }
                       />
+
+                      <InfoItem
+                        icon={
+                          <Scissors className="h-4 w-4" />
+                        }
+                        label="Duração"
+                        value={`${selectedAppointment.service.duration || 0} min`}
+                      />
                     </div>
                   </section>
                 )}
 
-                {/* =================================================
-                    02 — VALOR
-                ================================================= */}
+                {/* VALOR */}
 
                 <section>
                   <div className="mb-3 flex items-center gap-2">
@@ -1061,7 +1097,8 @@ export function ReceivePayment({
                           <p className="mt-1 text-xs text-white/45">
                             {
                               selectedAppointment
-                                .service.name
+                                .service
+                                .name
                             }
                           </p>
                         )}
@@ -1086,9 +1123,7 @@ export function ReceivePayment({
                   </div>
                 </section>
 
-                {/* =================================================
-                    03 — MÉTODO
-                ================================================= */}
+                {/* MÉTODO */}
 
                 <section>
                   <div className="mb-3">
@@ -1130,7 +1165,7 @@ export function ReceivePayment({
                       }
                       disabled={isSubmitting}
                       onClick={() =>
-                        setPaymentMethod(
+                        handlePaymentMethodChange(
                           "CASH",
                         )
                       }
@@ -1148,7 +1183,7 @@ export function ReceivePayment({
                       }
                       disabled={isSubmitting}
                       onClick={() =>
-                        setPaymentMethod(
+                        handlePaymentMethodChange(
                           "CARD",
                         )
                       }
@@ -1166,7 +1201,7 @@ export function ReceivePayment({
                       }
                       disabled={isSubmitting}
                       onClick={() =>
-                        setPaymentMethod(
+                        handlePaymentMethodChange(
                           "TRANSFER",
                         )
                       }
@@ -1184,7 +1219,7 @@ export function ReceivePayment({
                       }
                       disabled={isSubmitting}
                       onClick={() =>
-                        setPaymentMethod(
+                        handlePaymentMethodChange(
                           "MOBILE_MONEY",
                         )
                       }
@@ -1192,14 +1227,12 @@ export function ReceivePayment({
                         <Smartphone className="h-5 w-5" />
                       }
                       title="Multicaixa Express"
-                      description="Pagamento móvel"
+                      description="Pagamento móvel em Angola"
                     />
                   </div>
                 </section>
 
-                {/* =================================================
-                    CONFIRMAÇÃO
-                ================================================= */}
+                {/* TOTAL */}
 
                 {selectedAppointment &&
                   selectedPrice > 0 && (
@@ -1266,9 +1299,7 @@ export function ReceivePayment({
                     </div>
                   )}
 
-                {/* =================================================
-                    ACTIONS
-                ================================================= */}
+                {/* BOTÕES */}
 
                 <div
                   className="
@@ -1303,7 +1334,6 @@ export function ReceivePayment({
                       dark:border-gray-800
                       dark:bg-gray-950
                       dark:text-gray-300
-                      dark:hover:bg-gray-900
                       sm:w-auto
                     "
                   >
@@ -1380,12 +1410,14 @@ export function ReceivePayment({
   );
 }
 
-/* ===============================================================
-   INFO ITEM
-=============================================================== */
+/*
+|--------------------------------------------------------------------------
+| INFO ITEM
+|--------------------------------------------------------------------------
+*/
 
 interface InfoItemProps {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }
@@ -1405,8 +1437,6 @@ function InfoItem({
         border-b
         border-gray-100
         p-4
-        last:border-b-0
-        sm:nth-[2]:border-b
         dark:border-gray-800
       "
     >
@@ -1441,15 +1471,17 @@ function InfoItem({
   );
 }
 
-/* ===============================================================
-   PAYMENT METHOD CARD
-=============================================================== */
+/*
+|--------------------------------------------------------------------------
+| PAYMENT METHOD CARD
+|--------------------------------------------------------------------------
+*/
 
 interface PaymentMethodCardProps {
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 }
@@ -1478,6 +1510,7 @@ function PaymentMethodCard({
         text-left
         transition-all
         duration-200
+
         ${
           selected
             ? `
@@ -1503,12 +1536,11 @@ function PaymentMethodCard({
               dark:hover:border-gray-700
             `
         }
+
         disabled:cursor-not-allowed
         disabled:opacity-50
       `}
     >
-      {/* CHECK */}
-
       <div
         className={`
           absolute
@@ -1520,7 +1552,7 @@ function PaymentMethodCard({
           items-center
           justify-center
           rounded-full
-          transition-all
+
           ${
             selected
               ? "bg-white text-gray-950 dark:bg-gray-950 dark:text-white"
@@ -1531,8 +1563,6 @@ function PaymentMethodCard({
         <Check className="h-3 w-3" />
       </div>
 
-      {/* ICON */}
-
       <div
         className={`
           mb-4
@@ -1542,7 +1572,7 @@ function PaymentMethodCard({
           items-center
           justify-center
           rounded-xl
-          transition
+
           ${
             selected
               ? "bg-white/10 dark:bg-gray-950/10"
@@ -1562,6 +1592,7 @@ function PaymentMethodCard({
           mt-1
           text-[11px]
           leading-4
+
           ${
             selected
               ? "text-white/55 dark:text-gray-500"
@@ -1574,4 +1605,3 @@ function PaymentMethodCard({
     </button>
   );
 }
-

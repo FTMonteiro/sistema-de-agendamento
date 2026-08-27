@@ -60,7 +60,8 @@ model User {
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  professional Professional?
+  professional    Professional?
+  paymentReceived Payment[]     @relation("PaymentReceivedBy")
 
   emailVerificationTokens EmailVerificationToken[]
   notifications           Notification[]
@@ -160,6 +161,12 @@ model Payment {
   paidAt    DateTime?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+
+  reference    String 
+  receiptUrl   String?
+  receivedById String?
+
+  receivedBy User? @relation("PaymentReceivedBy", fields: [receivedById], references: [id], onDelete: SetNull)
 
   appointmentId String @unique
 
