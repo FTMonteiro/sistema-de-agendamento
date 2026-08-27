@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NEVRIX Flow",
+  title: "SLOTIX",
   description: "Sistema de agendamento para profissionais de beleza",
 };
 

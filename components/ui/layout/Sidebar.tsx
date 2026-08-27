@@ -286,11 +286,11 @@ export function Sidebar({
         <div className="mb-10 flex items-start justify-between px-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-              NEVRIX Flow
+              SLOTIX
             </h1>
 
             <p className="mt-1 text-xs font-medium text-[var(--muted)]">
-              Smart Business Management
+              Agendamento Inteligente
             </p>
           </div>
 

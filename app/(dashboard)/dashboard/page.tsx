@@ -196,7 +196,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         console.error(
-          "❌ /api/appointments:",
+          "/api/appointments:",
           {
             status: response.status,
             data,
@@ -219,7 +219,7 @@ export default function DashboardPage() {
       setAppointments(list);
     } catch (caught) {
       console.error(
-        "❌ Erro ao carregar agendamentos:",
+        " Erro ao carregar agendamentos:",
         caught,
       );
 
@@ -278,7 +278,7 @@ export default function DashboardPage() {
       }
     } catch (caught) {
       console.error(
-        "❌ Erro ao carregar clientes:",
+        "Erro ao carregar clientes:",
         caught,
       );
 
@@ -333,7 +333,7 @@ export default function DashboardPage() {
       }
     } catch (caught) {
       console.error(
-        "❌ Erro ao carregar serviços:",
+        "Erro ao carregar serviços:",
         caught,
       );
 
