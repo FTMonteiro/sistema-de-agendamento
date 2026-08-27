@@ -1,16 +1,20 @@
+
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  CreditCard,
-  X,
-  UserRound,
   Banknote,
   CalendarDays,
-  Scissors,
+  Check,
   CheckCircle2,
-  Clock,
+  ChevronDown,
+  CreditCard,
+  Landmark,
+  Scissors,
+  Smartphone,
+  UserRound,
+  X,
 } from "lucide-react";
 
 interface PaymentAppointment {
@@ -41,7 +45,6 @@ interface PaymentAppointment {
     status: string;
   } | null;
 
-  // Compatibilidade caso a API devolva estes campos
   paymentAmount?: number | string | null;
   paymentMethod?: string | null;
 }
@@ -76,24 +79,20 @@ function getNumericPrice(
 
   const numberValue = Number(value);
 
-  if (!Number.isFinite(numberValue)) {
-    return 0;
-  }
-
-  return numberValue;
+  return Number.isFinite(numberValue)
+    ? numberValue
+    : 0;
 }
 
 function formatPrice(
   value: number | string | null | undefined,
 ) {
-  const numericValue = getNumericPrice(value);
-
   return new Intl.NumberFormat("pt-AO", {
     style: "currency",
     currency: "AOA",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(numericValue);
+  }).format(getNumericPrice(value));
 }
 
 function formatDate(value: string) {
@@ -109,7 +108,7 @@ function formatDate(value: string) {
 
   return new Intl.DateTimeFormat("pt-AO", {
     day: "2-digit",
-    month: "2-digit",
+    month: "long",
     year: "numeric",
   }).format(date);
 }
@@ -132,6 +131,24 @@ function getPaymentMethodLabel(
 
     default:
       return method || "—";
+  }
+}
+
+function getPaymentMethodIcon(
+  method: PaymentMethod,
+) {
+  switch (method) {
+    case "CASH":
+      return <Banknote className="h-5 w-5" />;
+
+    case "CARD":
+      return <CreditCard className="h-5 w-5" />;
+
+    case "TRANSFER":
+      return <Landmark className="h-5 w-5" />;
+
+    case "MOBILE_MONEY":
+      return <Smartphone className="h-5 w-5" />;
   }
 }
 
@@ -159,14 +176,7 @@ export function ReceivePayment({
     useState(false);
 
   const [error, setError] = useState("");
-
   const [success, setSuccess] = useState("");
-
-  /*
-  |--------------------------------------------------------------------------
-  | CARREGAR AGENDAMENTOS + SERVIÇOS
-  |--------------------------------------------------------------------------
-  */
 
   async function loadAppointments() {
     try {
@@ -177,13 +187,10 @@ export function ReceivePayment({
         appointmentsResponse,
         servicesResponse,
       ] = await Promise.all([
-        fetch(
-          "/api/appointments/payments",
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        ),
+        fetch("/api/appointments/payments", {
+          method: "GET",
+          cache: "no-store",
+        }),
 
         fetch("/api/services", {
           method: "GET",
@@ -229,22 +236,7 @@ export function ReceivePayment({
 
       setServices(apiServices);
 
-      /*
-       * ============================================================
-       * CORREÇÃO DO PREÇO
-       * ============================================================
-       *
-       * A prioridade será:
-       *
-       * 1. service.price vindo da API de pagamentos
-       * 2. price vindo diretamente do agendamento
-       * 3. preço encontrado em /api/services pelo service.id
-       *
-       * Assim evitamos que a modal mostre 0 Kz quando o serviço
-       * realmente possui preço cadastrado.
-       */
-
-      const normalizedAppointments: PaymentAppointment[] =
+      const normalizedAppointments =
         apiAppointments.map(
           (appointment: any) => {
             const serviceId =
@@ -275,10 +267,6 @@ export function ReceivePayment({
 
             let finalPrice = nestedPrice;
 
-            /*
-             * Se o preço que veio da API de pagamento for 0,
-             * tenta encontrar o preço real no endpoint de serviços.
-             */
             if (finalPrice <= 0) {
               if (directPrice > 0) {
                 finalPrice = directPrice;
@@ -333,30 +321,15 @@ export function ReceivePayment({
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | ABRIR
-  |--------------------------------------------------------------------------
-  */
-
   function handleOpen() {
     setIsOpen(true);
-
     setError("");
     setSuccess("");
-
     setSelectedAppointmentId("");
-
     setPaymentMethod("CASH");
 
     loadAppointments();
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | FECHAR
-  |--------------------------------------------------------------------------
-  */
 
   function handleClose() {
     if (isSubmitting) {
@@ -364,20 +337,11 @@ export function ReceivePayment({
     }
 
     setIsOpen(false);
-
     setError("");
     setSuccess("");
-
     setSelectedAppointmentId("");
-
     setPaymentMethod("CASH");
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | AGENDAMENTO SELECIONADO
-  |--------------------------------------------------------------------------
-  */
 
   const selectedAppointment =
     useMemo(() => {
@@ -393,12 +357,6 @@ export function ReceivePayment({
       selectedAppointmentId,
     ]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | PREÇO SELECIONADO
-  |--------------------------------------------------------------------------
-  */
-
   const selectedPrice = useMemo(() => {
     if (!selectedAppointment) {
       return 0;
@@ -408,12 +366,6 @@ export function ReceivePayment({
       selectedAppointment.service?.price,
     );
   }, [selectedAppointment]);
-
-  /*
-  |--------------------------------------------------------------------------
-  | ALTERAR AGENDAMENTO
-  |--------------------------------------------------------------------------
-  */
 
   function handleAppointmentChange(
     appointmentId: string,
@@ -425,12 +377,6 @@ export function ReceivePayment({
     setError("");
     setSuccess("");
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | REGISTRAR PAGAMENTO
-  |--------------------------------------------------------------------------
-  */
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -493,13 +439,6 @@ export function ReceivePayment({
           "Pagamento registrado com sucesso!",
       );
 
-      /*
-       * Remove imediatamente da lista.
-       *
-       * Como o pagamento foi criado, ele não deve aparecer
-       * novamente na lista de pagamentos pendentes.
-       */
-
       setAppointments(
         (current) =>
           current.filter(
@@ -515,10 +454,6 @@ export function ReceivePayment({
         )} recebido.`,
       );
 
-      /*
-       * Atualizar dashboard e agenda.
-       */
-
       onPaymentCreated?.();
 
       window.dispatchEvent(
@@ -527,17 +462,8 @@ export function ReceivePayment({
         ),
       );
 
-      /*
-       * Limpar seleção.
-       */
-
       setSelectedAppointmentId("");
-
       setPaymentMethod("CASH");
-
-      /*
-       * Fechar depois de um pequeno intervalo.
-       */
 
       window.setTimeout(() => {
         setIsOpen(false);
@@ -559,12 +485,6 @@ export function ReceivePayment({
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | RECARREGAR QUANDO MODAL ABRIR
-  |--------------------------------------------------------------------------
-  */
-
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -573,27 +493,22 @@ export function ReceivePayment({
     loadAppointments();
   }, [isOpen]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | RENDER
-  |--------------------------------------------------------------------------
-  */
-
   return (
     <>
-      {/* ==========================================================
-          BOTÃO
-      ========================================================== */}
+      {/* =========================================================
+          BOTÃO PRINCIPAL
+      ========================================================= */}
 
       <button
         type="button"
         onClick={handleOpen}
         className="
+          group
           inline-flex
           w-full
           items-center
           justify-center
-          gap-2
+          gap-3
           rounded-xl
           border
           border-gray-200
@@ -602,30 +517,45 @@ export function ReceivePayment({
           py-3
           text-sm
           font-semibold
-          text-gray-900
+          text-gray-950
           shadow-sm
           transition-all
           duration-200
-          hover:bg-gray-50
+          hover:-translate-y-0.5
+          hover:border-gray-300
           hover:shadow-md
-          active:scale-[0.98]
-
+          active:translate-y-0
           dark:border-gray-800
           dark:bg-gray-900
           dark:text-white
-          dark:hover:bg-gray-800
-
           sm:w-auto
         "
       >
-        <CreditCard className="h-4 w-4" />
+        <span
+          className="
+            flex
+            h-8
+            w-8
+            items-center
+            justify-center
+            rounded-lg
+            bg-gray-950
+            text-white
+            transition
+            group-hover:scale-105
+            dark:bg-white
+            dark:text-gray-950
+          "
+        >
+          <CreditCard className="h-4 w-4" />
+        </span>
 
         Receber Pagamento
       </button>
 
-      {/* ==========================================================
+      {/* =========================================================
           MODAL
-      ========================================================== */}
+      ========================================================= */}
 
       {isOpen && (
         <div
@@ -636,12 +566,9 @@ export function ReceivePayment({
             flex
             items-center
             justify-center
-            bg-black/50
-            px-4
-            py-6
-            backdrop-blur-sm
-
-            dark:bg-black/75
+            bg-black/60
+            p-4
+            backdrop-blur-md
           "
           onMouseDown={(event) => {
             if (
@@ -656,26 +583,23 @@ export function ReceivePayment({
           <div
             className="
               flex
-              max-h-[90vh]
+              max-h-[94vh]
               w-full
-              max-w-lg
+              max-w-2xl
               flex-col
               overflow-hidden
-              rounded-2xl
+              rounded-[28px]
               border
               border-gray-200
               bg-white
-              text-gray-900
-              shadow-2xl
-
+              shadow-[0_30px_100px_rgba(0,0,0,0.22)]
               dark:border-gray-800
               dark:bg-gray-950
-              dark:text-white
             "
           >
-            {/* ==================================================
-                HEADER
-            ================================================== */}
+            {/* =====================================================
+                MODAL HEADER
+            ===================================================== */}
 
             <div
               className="
@@ -687,34 +611,57 @@ export function ReceivePayment({
                 border-gray-100
                 px-6
                 py-5
-
                 dark:border-gray-800
               "
             >
-              <div>
-                <h2
+              <div className="flex items-center gap-3.5">
+                <div
                   className="
-                    text-xl
-                    font-semibold
-                    text-gray-900
-
-                    dark:text-white
+                    flex
+                    h-11
+                    w-11
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-gray-950
+                    text-white
+                    shadow-sm
+                    dark:bg-white
+                    dark:text-gray-950
                   "
                 >
-                  Receber pagamento
-                </h2>
+                  <CreditCard className="h-5 w-5" />
+                </div>
 
-                <p
-                  className="
-                    mt-1
-                    text-sm
-                    text-gray-500
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold tracking-tight text-gray-950 dark:text-white">
+                      Receber pagamento
+                    </h2>
 
-                    dark:text-gray-400
-                  "
-                >
-                  Registe um pagamento.
-                </p>
+                    <span
+                      className="
+                        rounded-full
+                        bg-gray-100
+                        px-2
+                        py-0.5
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-wider
+                        text-gray-500
+                        dark:bg-gray-900
+                        dark:text-gray-400
+                      "
+                    >
+                      Caixa
+                    </span>
+                  </div>
+
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Registe e confirme o pagamento do atendimento.
+                  </p>
+                </div>
               </div>
 
               <button
@@ -726,183 +673,200 @@ export function ReceivePayment({
                   flex
                   h-9
                   w-9
-                  shrink-0
                   items-center
                   justify-center
-                  rounded-lg
+                  rounded-xl
+                  border
+                  border-transparent
                   text-gray-400
                   transition
-
-                  hover:bg-gray-100
+                  hover:border-gray-200
+                  hover:bg-gray-50
                   hover:text-gray-900
-
-                  dark:hover:bg-gray-800
+                  dark:hover:border-gray-800
+                  dark:hover:bg-gray-900
                   dark:hover:text-white
-
-                  disabled:opacity-50
                 "
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* ==================================================
-                CONTEÚDO COM SCROLL
-            ================================================== */}
+            {/* =====================================================
+                BODY
+            ===================================================== */}
 
             <div
               className="
                 min-h-0
                 flex-1
                 overflow-y-auto
-                overscroll-contain
-                px-6
-                py-6
-
-                [scrollbar-width:thin]
-                [scrollbar-color:#d1d5db_transparent]
-
-                dark:[scrollbar-color:#4b5563_transparent]
               "
             >
               <form
                 onSubmit={handleSubmit}
-                className="space-y-5"
+                className="space-y-6 p-6"
               >
-                {/* ==================================================
-                    ERRO
-                ================================================== */}
+                {/* =================================================
+                    STATUS
+                ================================================= */}
 
                 {error && (
                   <div
                     className="
-                      rounded-xl
+                      flex
+                      items-start
+                      gap-3
+                      rounded-2xl
                       border
                       border-red-200
                       bg-red-50
                       px-4
-                      py-3
+                      py-3.5
                       text-sm
                       text-red-700
-
                       dark:border-red-900/50
-                      dark:bg-red-950/40
+                      dark:bg-red-950/30
                       dark:text-red-300
                     "
                   >
-                    {error}
+                    <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+
+                    <span>{error}</span>
                   </div>
                 )}
-
-                {/* ==================================================
-                    SUCESSO
-                ================================================== */}
 
                 {success && (
                   <div
                     className="
                       flex
                       items-center
-                      gap-2
-                      rounded-xl
+                      gap-3
+                      rounded-2xl
                       border
-                      border-emerald-200
-                      bg-emerald-50
+                      border-gray-200
+                      bg-gray-50
                       px-4
-                      py-3
+                      py-3.5
                       text-sm
-                      text-emerald-700
-
-                      dark:border-emerald-900/50
-                      dark:bg-emerald-950/40
-                      dark:text-emerald-300
+                      font-medium
+                      text-gray-900
+                      dark:border-gray-800
+                      dark:bg-gray-900
+                      dark:text-white
                     "
                   >
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
 
                     {success}
                   </div>
                 )}
 
-                {/* ==================================================
-                    AGENDAMENTO
-                ================================================== */}
+                {/* =================================================
+                    01 — AGENDAMENTO
+                ================================================= */}
 
-                <div>
-                  <label
-                    htmlFor="payment-appointment"
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-medium
-                      text-gray-700
+                <section>
+                  <div className="mb-3 flex items-end justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="
+                            flex
+                            h-5
+                            w-5
+                            items-center
+                            justify-center
+                            rounded-md
+                            bg-gray-950
+                            text-[10px]
+                            font-bold
+                            text-white
+                            dark:bg-white
+                            dark:text-gray-950
+                          "
+                        >
+                          1
+                        </span>
 
-                      dark:text-gray-300
-                    "
-                  >
-                    Agendamento
-                  </label>
+                        <h3 className="text-sm font-semibold text-gray-950 dark:text-white">
+                          Atendimento
+                        </h3>
+                      </div>
 
-                  <select
-                    id="payment-appointment"
-                    value={
-                      selectedAppointmentId
-                    }
-                    onChange={(event) =>
-                      handleAppointmentChange(
-                        event.target.value,
-                      )
-                    }
-                    disabled={
-                      isLoading ||
-                      isSubmitting
-                    }
-                    required
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition
+                      <p className="mt-1 pl-7 text-xs text-gray-500 dark:text-gray-400">
+                        Selecione o agendamento que será liquidado.
+                      </p>
+                    </div>
 
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
+                    {!isLoading &&
+                      appointments.length > 0 && (
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                          {appointments.length} disponível
+                          {appointments.length !== 1
+                            ? "s"
+                            : ""}
+                        </span>
+                      )}
+                  </div>
 
-                      disabled:bg-gray-50
+                  <div className="relative">
+                    <select
+                      id="payment-appointment"
+                      value={
+                        selectedAppointmentId
+                      }
+                      onChange={(event) =>
+                        handleAppointmentChange(
+                          event.target.value,
+                        )
+                      }
+                      disabled={
+                        isLoading ||
+                        isSubmitting
+                      }
+                      required
+                      className="
+                        w-full
+                        appearance-none
+                        rounded-2xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        py-3.5
+                        pr-11
+                        text-sm
+                        font-medium
+                        text-gray-900
+                        outline-none
+                        transition
+                        placeholder:text-gray-400
+                        hover:border-gray-300
+                        focus:border-gray-400
+                        focus:ring-4
+                        focus:ring-gray-950/5
+                        disabled:cursor-not-allowed
+                        disabled:bg-gray-50
+                        dark:border-gray-800
+                        dark:bg-gray-900
+                        dark:text-white
+                        dark:hover:border-gray-700
+                        dark:focus:border-gray-600
+                        dark:disabled:bg-gray-900
+                      "
+                    >
+                      <option value="">
+                        {isLoading
+                          ? "A carregar agendamentos..."
+                          : appointments.length ===
+                              0
+                            ? "Nenhum agendamento disponível"
+                            : "Selecione um agendamento"}
+                      </option>
 
-                      dark:border-gray-800
-                      dark:bg-gray-900
-                      dark:text-white
-                      dark:disabled:bg-gray-900
-                    "
-                  >
-                    <option value="">
-                      {isLoading
-                        ? "Carregando agendamentos..."
-                        : appointments.length ===
-                            0
-                          ? "Nenhum agendamento confirmado"
-                          : "Selecione o agendamento"}
-                    </option>
-
-                    {appointments.map(
-                      (appointment) => {
-                        const price =
-                          getNumericPrice(
-                            appointment
-                              .service
-                              ?.price,
-                          );
-
-                        return (
+                      {appointments.map(
+                        (appointment) => (
                           <option
                             key={
                               appointment.id
@@ -915,436 +879,327 @@ export function ReceivePayment({
                               appointment
                                 .client
                                 .name
-                            }
-                            {" — "}
+                            }{" "}
+                            —{" "}
                             {
                               appointment
                                 .service
                                 .name
-                            }
-                            {" — "}
+                            }{" "}
+                            —{" "}
                             {formatPrice(
-                              price,
+                              appointment
+                                .service
+                                .price,
                             )}
                           </option>
-                        );
-                      },
-                    )}
-                  </select>
+                        ),
+                      )}
+                    </select>
 
-                  {!isLoading &&
-                    appointments.length ===
-                      0 && (
-                      <p
-                        className="
-                          mt-2
-                          text-xs
-                          text-gray-500
-
-                          dark:text-gray-400
-                        "
-                      >
-                        Só agendamentos
-                        confirmados e sem
-                        pagamento aparecem
-                        aqui.
-                      </p>
-                    )}
-                </div>
-
-                {/* ==================================================
-                    DADOS DO AGENDAMENTO
-                ================================================== */}
-
-                {selectedAppointment && (
-                  <div
-                    className="
-                      space-y-4
-                      rounded-2xl
-                      border
-                      border-gray-200
-                      bg-gray-50
-                      p-5
-
-                      dark:border-gray-800
-                      dark:bg-gray-900
-                    "
-                  >
-                    {/* CLIENTE */}
-
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-white
-                          text-gray-600
-                          shadow-sm
-
-                          dark:bg-gray-800
-                          dark:text-gray-300
-                        "
-                      >
-                        <UserRound className="h-4 w-4" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p
-                          className="
-                            text-xs
-                            text-gray-400
-                          "
-                        >
-                          Cliente
-                        </p>
-
-                        <p
-                          className="
-                            truncate
-                            text-sm
-                            font-semibold
-                            text-gray-900
-
-                            dark:text-white
-                          "
-                        >
-                          {
-                            selectedAppointment
-                              .client
-                              .name
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* SERVIÇO */}
-
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-white
-                          text-gray-600
-                          shadow-sm
-
-                          dark:bg-gray-800
-                          dark:text-gray-300
-                        "
-                      >
-                        <Scissors className="h-4 w-4" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p
-                          className="
-                            text-xs
-                            text-gray-400
-                          "
-                        >
-                          Serviço
-                        </p>
-
-                        <p
-                          className="
-                            truncate
-                            text-sm
-                            font-semibold
-                            text-gray-900
-
-                            dark:text-white
-                          "
-                        >
-                          {
-                            selectedAppointment
-                              .service
-                              .name
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* DATA */}
-
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-white
-                          text-gray-600
-                          shadow-sm
-
-                          dark:bg-gray-800
-                          dark:text-gray-300
-                        "
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                      </div>
-
-                      <div>
-                        <p
-                          className="
-                            text-xs
-                            text-gray-400
-                          "
-                        >
-                          Data
-                        </p>
-
-                        <p
-                          className="
-                            text-sm
-                            font-semibold
-                            text-gray-900
-
-                            dark:text-white
-                          "
-                        >
-                          {formatDate(
-                            selectedAppointment.date,
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* PROFISSIONAL */}
-
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-white
-                          text-gray-600
-                          shadow-sm
-
-                          dark:bg-gray-800
-                          dark:text-gray-300
-                        "
-                      >
-                        <Clock className="h-4 w-4" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p
-                          className="
-                            text-xs
-                            text-gray-400
-                          "
-                        >
-                          Profissional
-                        </p>
-
-                        <p
-                          className="
-                            truncate
-                            text-sm
-                            font-semibold
-                            text-gray-900
-
-                            dark:text-white
-                          "
-                        >
-                          {
-                            selectedAppointment
-                              .professional
-                              .name
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ==================================================
-                    VALOR A RECEBER
-                ================================================== */}
-
-                <div
-                  className="
-                    rounded-2xl
-                    border
-                    border-blue-100
-                    bg-blue-50
-                    p-5
-
-                    dark:border-blue-900/40
-                    dark:bg-blue-950/30
-                  "
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p
-                        className="
-                          text-sm
-                          font-medium
-                          text-blue-700
-
-                          dark:text-blue-300
-                        "
-                      >
-                        Valor a receber
-                      </p>
-
-                      <p
-                        className="
-                          mt-1
-                          text-xs
-                          text-blue-600/70
-
-                          dark:text-blue-400/70
-                        "
-                      >
-                        Preço definido no
-                        serviço
-                      </p>
-                    </div>
-
-                    <Banknote
+                    <ChevronDown
                       className="
-                        h-5
-                        w-5
-                        text-blue-600
-
-                        dark:text-blue-400
+                        pointer-events-none
+                        absolute
+                        right-4
+                        top-1/2
+                        h-4
+                        w-4
+                        -translate-y-1/2
+                        text-gray-400
                       "
                     />
                   </div>
 
-                  <div
+                  {!isLoading &&
+                    appointments.length ===
+                      0 && (
+                      <p className="mt-2.5 text-xs text-gray-500 dark:text-gray-400">
+                        Apenas atendimentos confirmados e
+                        ainda não pagos aparecem nesta lista.
+                      </p>
+                    )}
+                </section>
+
+                {/* =================================================
+                    DETALHES
+                ================================================= */}
+
+                {selectedAppointment && (
+                  <section
                     className="
-                      mt-4
-                      text-3xl
-                      font-bold
-                      tracking-tight
-                      text-gray-950
-
-                      dark:text-white
-                    "
-                  >
-                    {selectedAppointment
-                      ? formatPrice(
-                          selectedPrice,
-                        )
-                      : "—"}
-                  </div>
-
-                  {selectedAppointment && (
-                    <p
-                      className="
-                        mt-2
-                        text-xs
-                        text-blue-700/70
-
-                        dark:text-blue-300/70
-                      "
-                    >
-                      Serviço:{" "}
-                      <strong>
-                        {
-                          selectedAppointment
-                            .service
-                            .name
-                        }
-                      </strong>
-                    </p>
-                  )}
-                </div>
-
-                {/* ==================================================
-                    MÉTODO DE PAGAMENTO
-                ================================================== */}
-
-                <div>
-                  <label
-                    htmlFor="payment-method"
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-medium
-                      text-gray-700
-
-                      dark:text-gray-300
-                    "
-                  >
-                    Método de pagamento
-                  </label>
-
-                  <select
-                    id="payment-method"
-                    value={paymentMethod}
-                    onChange={(event) =>
-                      setPaymentMethod(
-                        event.target
-                          .value as PaymentMethod,
-                      )
-                    }
-                    disabled={isSubmitting}
-                    className="
-                      w-full
-                      rounded-xl
+                      overflow-hidden
+                      rounded-2xl
                       border
                       border-gray-200
-                      bg-white
-                      px-4
-                      py-3
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition
-
-                      focus:border-blue-500
-                      focus:ring-4
-                      focus:ring-blue-500/10
-
                       dark:border-gray-800
-                      dark:bg-gray-900
-                      dark:text-white
                     "
                   >
-                    <option value="CASH">
-                      Dinheiro
-                    </option>
+                    <div
+                      className="
+                        border-b
+                        border-gray-100
+                        bg-gray-50/70
+                        px-5
+                        py-3
+                        dark:border-gray-800
+                        dark:bg-gray-900/60
+                      "
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
+                        Resumo do atendimento
+                      </p>
+                    </div>
 
-                    <option value="TRANSFER">
-                      Transferência
-                    </option>
+                    <div className="grid grid-cols-1 sm:grid-cols-2">
+                      <InfoItem
+                        icon={
+                          <UserRound className="h-4 w-4" />
+                        }
+                        label="Cliente"
+                        value={
+                          selectedAppointment
+                            .client.name
+                        }
+                      />
 
-                    <option value="CARD">
-                      Cartão
-                    </option>
+                      <InfoItem
+                        icon={
+                          <Scissors className="h-4 w-4" />
+                        }
+                        label="Serviço"
+                        value={
+                          selectedAppointment
+                            .service.name
+                        }
+                      />
 
-                    <option value="MOBILE_MONEY">
-                      Multicaixa Express
-                    </option>
-                  </select>
-                </div>
+                      <InfoItem
+                        icon={
+                          <CalendarDays className="h-4 w-4" />
+                        }
+                        label="Data"
+                        value={formatDate(
+                          selectedAppointment.date,
+                        )}
+                      />
 
-                {/* ==================================================
-                    RESUMO
-                ================================================== */}
+                      <InfoItem
+                        icon={
+                          <UserRound className="h-4 w-4" />
+                        }
+                        label="Profissional"
+                        value={
+                          selectedAppointment
+                            .professional
+                            .name
+                        }
+                      />
+                    </div>
+                  </section>
+                )}
+
+                {/* =================================================
+                    02 — VALOR
+                ================================================= */}
+
+                <section>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span
+                      className="
+                        flex
+                        h-5
+                        w-5
+                        items-center
+                        justify-center
+                        rounded-md
+                        bg-gray-950
+                        text-[10px]
+                        font-bold
+                        text-white
+                        dark:bg-white
+                        dark:text-gray-950
+                      "
+                    >
+                      2
+                    </span>
+
+                    <h3 className="text-sm font-semibold text-gray-950 dark:text-white">
+                      Valor do pagamento
+                    </h3>
+                  </div>
+
+                  <div
+                    className="
+                      relative
+                      overflow-hidden
+                      rounded-2xl
+                      border
+                      border-gray-200
+                      bg-gray-950
+                      px-5
+                      py-5
+                      text-white
+                      dark:border-gray-800
+                    "
+                  >
+                    <div className="relative flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/45">
+                          Total a receber
+                        </p>
+
+                        <p className="mt-2 text-3xl font-bold tracking-tight">
+                          {selectedAppointment
+                            ? formatPrice(
+                                selectedPrice,
+                              )
+                            : "—"}
+                        </p>
+
+                        {selectedAppointment && (
+                          <p className="mt-1 text-xs text-white/45">
+                            {
+                              selectedAppointment
+                                .service.name
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div
+                        className="
+                          flex
+                          h-12
+                          w-12
+                          items-center
+                          justify-center
+                          rounded-2xl
+                          border
+                          border-white/10
+                          bg-white/10
+                        "
+                      >
+                        <Banknote className="h-5 w-5" />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* =================================================
+                    03 — MÉTODO
+                ================================================= */}
+
+                <section>
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="
+                          flex
+                          h-5
+                          w-5
+                          items-center
+                          justify-center
+                          rounded-md
+                          bg-gray-950
+                          text-[10px]
+                          font-bold
+                          text-white
+                          dark:bg-white
+                          dark:text-gray-950
+                        "
+                      >
+                        3
+                      </span>
+
+                      <h3 className="text-sm font-semibold text-gray-950 dark:text-white">
+                        Método de pagamento
+                      </h3>
+                    </div>
+
+                    <p className="mt-1 pl-7 text-xs text-gray-500 dark:text-gray-400">
+                      Como o cliente efetuou o pagamento?
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <PaymentMethodCard
+                      selected={
+                        paymentMethod ===
+                        "CASH"
+                      }
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        setPaymentMethod(
+                          "CASH",
+                        )
+                      }
+                      icon={
+                        <Banknote className="h-5 w-5" />
+                      }
+                      title="Dinheiro"
+                      description="Pagamento em espécie"
+                    />
+
+                    <PaymentMethodCard
+                      selected={
+                        paymentMethod ===
+                        "CARD"
+                      }
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        setPaymentMethod(
+                          "CARD",
+                        )
+                      }
+                      icon={
+                        <CreditCard className="h-5 w-5" />
+                      }
+                      title="Cartão"
+                      description="Cartão bancário"
+                    />
+
+                    <PaymentMethodCard
+                      selected={
+                        paymentMethod ===
+                        "TRANSFER"
+                      }
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        setPaymentMethod(
+                          "TRANSFER",
+                        )
+                      }
+                      icon={
+                        <Landmark className="h-5 w-5" />
+                      }
+                      title="Transferência"
+                      description="Transferência bancária"
+                    />
+
+                    <PaymentMethodCard
+                      selected={
+                        paymentMethod ===
+                        "MOBILE_MONEY"
+                      }
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        setPaymentMethod(
+                          "MOBILE_MONEY",
+                        )
+                      }
+                      icon={
+                        <Smartphone className="h-5 w-5" />
+                      }
+                      title="Multicaixa Express"
+                      description="Pagamento móvel"
+                    />
+                  </div>
+                </section>
+
+                {/* =================================================
+                    CONFIRMAÇÃO
+                ================================================= */}
 
                 {selectedAppointment &&
                   selectedPrice > 0 && (
@@ -1353,63 +1208,67 @@ export function ReceivePayment({
                         flex
                         items-center
                         justify-between
-                        rounded-xl
+                        rounded-2xl
                         border
                         border-gray-200
-                        px-4
-                        py-3
-
+                        bg-gray-50
+                        px-5
+                        py-4
                         dark:border-gray-800
+                        dark:bg-gray-900
                       "
                     >
-                      <div>
-                        <p
+                      <div className="flex items-center gap-3">
+                        <div
                           className="
-                            text-xs
-                            text-gray-500
-
-                            dark:text-gray-400
+                            flex
+                            h-9
+                            w-9
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-white
+                            text-gray-700
+                            shadow-sm
+                            dark:bg-gray-800
+                            dark:text-gray-300
                           "
                         >
-                          Total a pagar
-                        </p>
+                          {getPaymentMethodIcon(
+                            paymentMethod,
+                          )}
+                        </div>
 
-                        <p
-                          className="
-                            text-sm
-                            font-medium
-                            text-gray-900
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                            Método selecionado
+                          </p>
 
-                            dark:text-white
-                          "
-                        >
-                          {
-                            selectedAppointment
-                              .service
-                              .name
-                          }
-                        </p>
+                          <p className="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white">
+                            {getPaymentMethodLabel(
+                              paymentMethod,
+                            )}
+                          </p>
+                        </div>
                       </div>
 
-                      <p
-                        className="
-                          text-lg
-                          font-bold
-                          text-gray-900
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                          Total
+                        </p>
 
-                          dark:text-white
-                        "
-                      >
-                        {formatPrice(
-                          selectedPrice,
-                        )}
-                      </p>
+                        <p className="mt-0.5 text-base font-bold text-gray-950 dark:text-white">
+                          {formatPrice(
+                            selectedPrice,
+                          )}
+                        </p>
+                      </div>
                     </div>
                   )}
 
-                {/* ==================================================
-                    BOTÕES
-                ================================================== */}
+                {/* =================================================
+                    ACTIONS
+                ================================================= */}
 
                 <div
                   className="
@@ -1419,9 +1278,7 @@ export function ReceivePayment({
                     border-t
                     border-gray-100
                     pt-5
-
                     dark:border-gray-800
-
                     sm:flex-row
                     sm:justify-end
                   "
@@ -1439,20 +1296,14 @@ export function ReceivePayment({
                       px-5
                       py-3
                       text-sm
-                      font-medium
+                      font-semibold
                       text-gray-700
                       transition
-
                       hover:bg-gray-50
-
                       dark:border-gray-800
-                      dark:bg-gray-900
+                      dark:bg-gray-950
                       dark:text-gray-300
-                      dark:hover:bg-gray-800
-
-                      disabled:cursor-not-allowed
-                      disabled:opacity-50
-
+                      dark:hover:bg-gray-900
                       sm:w-auto
                     "
                   >
@@ -1473,24 +1324,23 @@ export function ReceivePayment({
                       justify-center
                       gap-2
                       rounded-xl
-                      bg-gray-900
-                      px-5
+                      bg-gray-950
+                      px-6
                       py-3
                       text-sm
                       font-semibold
                       text-white
-                      transition
-
+                      shadow-sm
+                      transition-all
+                      hover:-translate-y-0.5
                       hover:bg-gray-800
-                      active:scale-[0.98]
-
+                      hover:shadow-lg
+                      active:translate-y-0
                       dark:bg-white
-                      dark:text-gray-900
+                      dark:text-gray-950
                       dark:hover:bg-gray-100
-
                       disabled:cursor-not-allowed
-                      disabled:opacity-50
-
+                      disabled:opacity-40
                       sm:w-auto
                     "
                   >
@@ -1505,17 +1355,16 @@ export function ReceivePayment({
                             border-2
                             border-white/30
                             border-t-white
-
                             dark:border-gray-400/30
                             dark:border-t-gray-900
                           "
                         />
 
-                        Registrando...
+                        A registar...
                       </>
                     ) : (
                       <>
-                        <CreditCard className="h-4 w-4" />
+                        <Check className="h-4 w-4" />
 
                         Confirmar pagamento
                       </>
@@ -1530,3 +1379,199 @@ export function ReceivePayment({
     </>
   );
 }
+
+/* ===============================================================
+   INFO ITEM
+=============================================================== */
+
+interface InfoItemProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+function InfoItem({
+  icon,
+  label,
+  value,
+}: InfoItemProps) {
+  return (
+    <div
+      className="
+        flex
+        min-w-0
+        items-center
+        gap-3
+        border-b
+        border-gray-100
+        p-4
+        last:border-b-0
+        sm:nth-[2]:border-b
+        dark:border-gray-800
+      "
+    >
+      <div
+        className="
+          flex
+          h-9
+          w-9
+          shrink-0
+          items-center
+          justify-center
+          rounded-xl
+          bg-gray-50
+          text-gray-600
+          dark:bg-gray-900
+          dark:text-gray-300
+        "
+      >
+        {icon}
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+          {label}
+        </p>
+
+        <p className="mt-0.5 truncate text-sm font-semibold text-gray-900 dark:text-white">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ===============================================================
+   PAYMENT METHOD CARD
+=============================================================== */
+
+interface PaymentMethodCardProps {
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function PaymentMethodCard({
+  selected,
+  disabled,
+  onClick,
+  icon,
+  title,
+  description,
+}: PaymentMethodCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`
+        group
+        relative
+        min-h-[118px]
+        rounded-2xl
+        border
+        p-4
+        text-left
+        transition-all
+        duration-200
+        ${
+          selected
+            ? `
+              border-gray-950
+              bg-gray-950
+              text-white
+              shadow-lg
+              shadow-gray-950/10
+              dark:border-white
+              dark:bg-white
+              dark:text-gray-950
+            `
+            : `
+              border-gray-200
+              bg-white
+              text-gray-900
+              hover:-translate-y-0.5
+              hover:border-gray-300
+              hover:shadow-md
+              dark:border-gray-800
+              dark:bg-gray-900
+              dark:text-white
+              dark:hover:border-gray-700
+            `
+        }
+        disabled:cursor-not-allowed
+        disabled:opacity-50
+      `}
+    >
+      {/* CHECK */}
+
+      <div
+        className={`
+          absolute
+          right-3
+          top-3
+          flex
+          h-5
+          w-5
+          items-center
+          justify-center
+          rounded-full
+          transition-all
+          ${
+            selected
+              ? "bg-white text-gray-950 dark:bg-gray-950 dark:text-white"
+              : "scale-75 bg-transparent opacity-0"
+          }
+        `}
+      >
+        <Check className="h-3 w-3" />
+      </div>
+
+      {/* ICON */}
+
+      <div
+        className={`
+          mb-4
+          flex
+          h-10
+          w-10
+          items-center
+          justify-center
+          rounded-xl
+          transition
+          ${
+            selected
+              ? "bg-white/10 dark:bg-gray-950/10"
+              : "bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          }
+        `}
+      >
+        {icon}
+      </div>
+
+      <p className="pr-6 text-sm font-semibold">
+        {title}
+      </p>
+
+      <p
+        className={`
+          mt-1
+          text-[11px]
+          leading-4
+          ${
+            selected
+              ? "text-white/55 dark:text-gray-500"
+              : "text-gray-500 dark:text-gray-400"
+          }
+        `}
+      >
+        {description}
+      </p>
+    </button>
+  );
+}
+

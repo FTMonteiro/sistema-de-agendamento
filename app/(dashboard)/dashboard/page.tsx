@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -10,8 +9,27 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import {
+  ArrowUpRight,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  ListChecks,
+  Sparkles,
+  UsersRound,
+  WalletCards,
+  XCircle,
+} from "lucide-react";
+
 import { ReceivePayment } from "@/components/appointments/ReceivePayment";
 import { Appointment } from "@/types/appointment";
+
+/*
+|--------------------------------------------------------------------------
+| TIPOS
+|--------------------------------------------------------------------------
+*/
 
 interface ServiceRecord {
   id: string;
@@ -20,8 +38,15 @@ interface ServiceRecord {
   active?: boolean;
 }
 
+/*
+|--------------------------------------------------------------------------
+| FORMATADORES
+|--------------------------------------------------------------------------
+*/
+
 function formatPrice(value: number) {
-  const safeValue = Number.isFinite(value) ? value : 0;
+  const safeValue =
+    Number.isFinite(value) ? value : 0;
 
   return new Intl.NumberFormat("pt-AO", {
     style: "currency",
@@ -41,44 +66,75 @@ function todayKey() {
   ].join("-");
 }
 
+function formatToday() {
+  return new Intl.DateTimeFormat("pt-AO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+}
+
+/*
+|--------------------------------------------------------------------------
+| STATUS DOS AGENDAMENTOS
+|--------------------------------------------------------------------------
+*/
+
 const STATUS_STYLES: Record<
   string,
   {
     label: string;
     badge: string;
     dot: string;
+    icon: typeof CheckCircle2;
   }
 > = {
   confirmed: {
     label: "Confirmado",
-    badge: "bg-green-50 text-green-700",
-    dot: "bg-green-500",
+    badge:
+      "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+    dot: "bg-emerald-500",
+    icon: CheckCircle2,
   },
 
   pending: {
     label: "Aguardando",
-    badge: "bg-yellow-50 text-yellow-700",
-    dot: "bg-yellow-500",
+    badge:
+      "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+    dot: "bg-amber-500",
+    icon: Clock3,
   },
 
   completed: {
     label: "Concluído",
-    badge: "bg-blue-50 text-blue-700",
+    badge:
+      "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
     dot: "bg-blue-500",
+    icon: CheckCircle2,
   },
 
   cancelled: {
     label: "Cancelado",
-    badge: "bg-red-50 text-red-700",
+    badge:
+      "bg-red-50 text-red-700 ring-1 ring-red-100",
     dot: "bg-red-500",
+    icon: XCircle,
   },
 
   no_show: {
     label: "Não compareceu",
-    badge: "bg-gray-100 text-gray-700",
-    dot: "bg-gray-500",
+    badge:
+      "bg-gray-100 text-gray-600 ring-1 ring-gray-200",
+    dot: "bg-gray-400",
+    icon: XCircle,
   },
 };
+
+/*
+|--------------------------------------------------------------------------
+| DASHBOARD
+|--------------------------------------------------------------------------
+*/
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -226,18 +282,8 @@ export default function DashboardPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | ATUALIZAÇÃO AUTOMÁTICA
+  | ATUALIZAÇÃO APÓS PAGAMENTO
   |--------------------------------------------------------------------------
-  |
-  | O ReceivePayment dispara:
-  |
-  | window.dispatchEvent(
-  |   new Event("appointments:changed")
-  | )
-  |
-  | Quando isso acontece, o dashboard carrega novamente
-  | os agendamentos e os valores dos pagamentos.
-  |
   */
 
   useEffect(() => {
@@ -265,28 +311,11 @@ export default function DashboardPage() {
   */
 
   const metrics = useMemo(() => {
-    /*
-    |--------------------------------------------------------------------------
-    | SERVIÇOS REALIZADOS
-    |--------------------------------------------------------------------------
-    */
-
     const completed =
       appointments.filter(
         (item) =>
           item.status === "completed",
       ).length;
-
-    /*
-    |--------------------------------------------------------------------------
-    | RECEITA RECEBIDA
-    |--------------------------------------------------------------------------
-    |
-    | A API deve devolver:
-    |
-    | paymentAmount
-    |
-    */
 
     const revenue =
       appointments.reduce(
@@ -304,23 +333,11 @@ export default function DashboardPage() {
         0,
       );
 
-    /*
-    |--------------------------------------------------------------------------
-    | PAGAMENTOS RECEBIDOS
-    |--------------------------------------------------------------------------
-    */
-
     const paidCount =
       appointments.filter(
         (item) =>
           item.payment === "paid",
       ).length;
-
-    /*
-    |--------------------------------------------------------------------------
-    | SERVIÇOS ATIVOS
-    |--------------------------------------------------------------------------
-    */
 
     const activeServices =
       services.filter(
@@ -371,9 +388,9 @@ export default function DashboardPage() {
     }, [appointments, today]);
 
   /*
-  |--------------------------------------------------------------------------
-  | RESUMO DO DIA
-  |--------------------------------------------------------------------------
+  
+   RESUMO DO DIA
+  
   */
 
   const todaySummary =
@@ -398,468 +415,1006 @@ export default function DashboardPage() {
 
         completed:
           count("completed"),
+
+        cancelled:
+          count("cancelled"),
       };
     }, [todayAppointments]);
 
   /*
-  |--------------------------------------------------------------------------
-  | RENDER
-  |--------------------------------------------------------------------------
+  RENDER
   */
 
   return (
-    <div className="min-h-full space-y-8">
+    <main className="min-h-full bg-[#f7f8fa]">
+      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
 
-      {/* =====================================================
-          CABEÇALHO
-      ===================================================== */}
+        <div className="space-y-7">
 
-      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          {/* HERO */}
 
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Resumo do negócio em primeira mão
-          </h1>
-
-          <p className="mt-2 max-w-xl text-sm text-gray-500 sm:text-base">
-            Acompanhe o desempenho do seu negócio e os próximos atendimentos.
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-
-          {/* NOVO AGENDAMENTO */}
-
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/appointments")
-            }
+          <section
             className="
-              inline-flex
-              w-full
-              items-center
-              justify-center
-              rounded-xl
-              bg-gray-900
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              shadow-sm
-              transition-all
-              duration-200
-              hover:bg-gray-800
-              hover:shadow-md
-              active:scale-[0.98]
-              sm:w-auto
+              relative
+              overflow-hidden
+              rounded-[28px]
+              border
+              border-gray-200/80
+              bg-white
+              shadow-[0_10px_40px_rgba(15,23,42,0.045)]
             "
           >
-            + Novo Agendamento
-          </button>
 
-          {/* RECEBER PAGAMENTO */}
+            {/* DECORAÇÃO */}
 
-          <ReceivePayment
-            onPaymentCreated={() => {
-              /*
-              |--------------------------------------------------------------------------
-              | ATUALIZAR DASHBOARD
-              |--------------------------------------------------------------------------
-              */
-
-              void load();
-            }}
-          />
-
-        </div>
-      </section>
-
-      {/* =====================================================
-          ERRO
-      ===================================================== */}
-
-      {error && (
-        <div
-          className="
-            rounded-xl
-            border
-            border-red-200
-            bg-red-50
-            p-4
-          "
-        >
-          <p className="text-sm text-red-800">
-            {error}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => {
-              void load();
-            }}
-            className="
-              mt-2
-              text-sm
-              font-semibold
-              text-red-900
-              underline
-            "
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-      {/* =====================================================
-          ESTATÍSTICAS
-      ===================================================== */}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-        <StatCard
-          label="Clientes"
-          value={String(metrics.clients)}
-          description="cadastrados"
-          loading={loading}
-        />
-
-        <StatCard
-          label="Agendamentos"
-          value={String(metrics.appointments)}
-          description="no total"
-          loading={loading}
-        />
-
-        <StatCard
-          label="Serviços realizados"
-          value={String(metrics.completed)}
-          description={`${metrics.activeServices} serviços activos`}
-          loading={loading}
-        />
-
-        <StatCard
-          label="Receita recebida"
-          value={formatPrice(metrics.revenue)}
-          description={
-            metrics.paidCount === 1
-              ? "1 pagamento recebido"
-              : `${metrics.paidCount} pagamentos recebidos`
-          }
-          loading={loading}
-        />
-
-      </section>
-
-      {/* =====================================================
-          CONTEÚDO PRINCIPAL
-      ===================================================== */}
-
-      <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-
-        {/* ===================================================
-            AGENDA DE HOJE
-        =================================================== */}
-
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-
-          <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Agenda de hoje
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                {loading
-                  ? "Carregando..."
-                  : `${todaySummary.total} atendimento${
-                      todaySummary.total === 1
-                        ? ""
-                        : "s"
-                    } para hoje`}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push("/appointments")
-              }
+            <div
               className="
-                w-full
-                rounded-lg
-                bg-gray-900
-                px-4
-                py-2.5
-                text-sm
-                font-medium
-                text-white
-                transition-colors
-                hover:bg-gray-800
-                sm:w-auto
+                pointer-events-none
+                absolute
+                -right-24
+                -top-28
+                h-80
+                w-80
+                rounded-full
+                bg-gray-100
+                blur-3xl
+              "
+            />
+
+            <div
+              className="
+                pointer-events-none
+                absolute
+                right-32
+                bottom-[-140px]
+                h-64
+                w-64
+                rounded-full
+                bg-gray-50
+                blur-3xl
+              "
+            />
+
+            <div
+              className="
+                relative
+                flex
+                flex-col
+                gap-7
+                px-5
+                py-6
+                sm:px-7
+                sm:py-8
+                lg:flex-row
+                lg:items-center
+                lg:justify-between
+                lg:px-9
               "
             >
-              Ver agenda
-            </button>
 
-          </div>
+              {/* TEXTO */}
 
-          {loading ? (
-            <div className="p-10 text-center text-sm text-gray-500">
-              Carregando agendamentos...
+              <div className="min-w-0">
+
+                <div className="mb-4 flex items-center gap-2.5">
+
+                  <div
+                    className="
+                      flex
+                      h-8
+                      w-8
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-gray-950
+                      text-white
+                      shadow-sm
+                    "
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </div>
+
+                  <span
+                    className="
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.2em]
+                      text-gray-400
+                    "
+                  >
+                    Visão geral
+                  </span>
+
+                </div>
+
+                <h1
+                  className="
+                    text-2xl
+                    font-bold
+                    tracking-[-0.03em]
+                    text-gray-950
+                    sm:text-3xl
+                    lg:text-[36px]
+                  "
+                >
+                  Resumo do negócio
+                </h1>
+
+                <p
+                  className="
+                    mt-2
+                    max-w-2xl
+                    text-sm
+                    leading-6
+                    text-gray-500
+                    sm:text-[15px]
+                  "
+                >
+                  Tudo o que precisa para acompanhar
+                  a operação do seu negócio em um só lugar.
+                </p>
+
+                <div className="mt-4 flex items-center gap-2">
+
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                  <p
+                    className="
+                      text-xs
+                      font-medium
+                      capitalize
+                      text-gray-400
+                    "
+                  >
+                    {formatToday()}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* AÇÕES */}
+
+              <div
+                className="
+                  flex
+                  w-full
+                  flex-col
+                  gap-3
+                  sm:flex-row
+                  lg:w-auto
+                  lg:shrink-0
+                "
+              >
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/appointments",
+                    )
+                  }
+                  className="
+                    group
+                    inline-flex
+                    h-12
+                    w-full
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-gray-950
+                    px-5
+                    text-sm
+                    font-semibold
+                    text-white
+                    shadow-[0_6px_18px_rgba(15,23,42,0.14)]
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:bg-gray-800
+                    hover:shadow-[0_10px_25px_rgba(15,23,42,0.18)]
+                    active:translate-y-0
+                    sm:w-auto
+                  "
+                >
+                  <CalendarDays className="h-4 w-4" />
+
+                  <span>
+                    Novo Agendamento
+                  </span>
+
+                  <ArrowUpRight
+                    className="
+                      h-4
+                      w-4
+                      opacity-50
+                      transition
+                      group-hover:translate-x-0.5
+                      group-hover:-translate-y-0.5
+                    "
+                  />
+                </button>
+
+                <ReceivePayment
+                  onPaymentCreated={() => {
+                    void load();
+                  }}
+                />
+
+              </div>
+
             </div>
-          ) : todayAppointments.length === 0 ? (
+          </section>
 
-            <div className="p-10 text-center">
+          {/*ERRO */}
 
-              <p className="font-medium text-gray-700">
-                Nenhum atendimento hoje
-              </p>
+          {error && (
+            <div
+              className="
+                flex
+                flex-col
+                gap-3
+                rounded-2xl
+                border
+                border-red-200
+                bg-red-50
+                px-5
+                py-4
+                sm:flex-row
+                sm:items-center
+                sm:justify-between
+              "
+            >
 
-              <p className="mt-1 text-sm text-gray-500">
-                Os agendamentos de hoje aparecem aqui.
-              </p>
+              <div className="flex items-center gap-3">
 
-            </div>
+                <div
+                  className="
+                    flex
+                    h-8
+                    w-8
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-white
+                    text-red-600
+                  "
+                >
+                  <XCircle className="h-4 w-4" />
+                </div>
 
-          ) : (
+                <p className="text-sm font-medium text-red-800">
+                  {error}
+                </p>
 
-            <div className="divide-y divide-gray-100">
+              </div>
 
-              {todayAppointments.map(
-                (appointment) => {
-                  const style =
-                    STATUS_STYLES[
-                      appointment.status
-                    ] ??
-                    STATUS_STYLES.pending;
-
-                  return (
-                    <div
-                      key={appointment.id}
-                      className="
-                        flex
-                        flex-col
-                        gap-4
-                        p-5
-                        transition-colors
-                        hover:bg-gray-50/70
-                        sm:flex-row
-                        sm:items-center
-                        sm:justify-between
-                        sm:p-6
-                      "
-                    >
-
-                      <div className="flex min-w-0 items-center gap-4">
-
-                        <div
-                          className={`
-                            h-2.5
-                            w-2.5
-                            shrink-0
-                            rounded-full
-                            ${style.dot}
-                          `}
-                        />
-
-                        <div className="min-w-0">
-
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {appointment.client}
-                          </p>
-
-                          <p className="mt-1 truncate text-sm text-gray-500">
-
-                            {appointment.service}
-
-                            <span className="mx-1.5 text-gray-300">
-                              •
-                            </span>
-
-                            {appointment.professional}
-
-                          </p>
-
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4 sm:justify-end">
-
-                        <p className="text-sm font-semibold text-gray-900">
-                          {appointment.time}
-                        </p>
-
-                        <span
-                          className={`
-                            rounded-full
-                            px-3
-                            py-1
-                            text-xs
-                            font-medium
-                            ${style.badge}
-                          `}
-                        >
-                          {style.label}
-                        </span>
-
-                      </div>
-
-                    </div>
-                  );
-                },
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  void load();
+                }}
+                className="
+                  w-fit
+                  rounded-lg
+                  bg-white
+                  px-3
+                  py-2
+                  text-xs
+                  font-semibold
+                  text-red-800
+                  shadow-sm
+                  ring-1
+                  ring-red-200
+                  transition
+                  hover:bg-red-50
+                "
+              >
+                Tentar novamente
+              </button>
 
             </div>
           )}
 
-        </div>
+          {/*INDICADORES */}
 
-        {/* ===================================================
-            RESUMO DO DIA
-        =================================================== */}
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        <div className="rounded-2xl bg-gray-900 p-6 text-white shadow-sm">
-
-          <p className="text-sm font-medium text-gray-400">
-            Resumo do dia
-          </p>
-
-          <h3 className="mt-3 text-3xl font-bold">
-            {loading
-              ? "—"
-              : todaySummary.total}
-          </h3>
-
-          <p className="mt-1 text-sm text-gray-400">
-            agendamentos hoje
-          </p>
-
-          <div className="my-6 h-px bg-white/10" />
-
-          <div className="space-y-5">
-
-            <SummaryRow
-              label="Confirmados"
-              value={todaySummary.confirmed}
+            <MetricCard
+              label="Clientes"
+              value={String(metrics.clients)}
+              description="clientes cadastrados"
+              icon={
+                <UsersRound className="h-5 w-5" />
+              }
               loading={loading}
+              href="/clientes"
             />
 
-            <SummaryRow
-              label="Aguardando"
-              value={todaySummary.pending}
+            <MetricCard
+              label="Agendamentos"
+              value={String(
+                metrics.appointments,
+              )}
+              description="atendimentos registados"
+              icon={
+                <CalendarDays className="h-5 w-5" />
+              }
               loading={loading}
+              href="/appointments"
             />
 
-            <SummaryRow
-              label="Concluídos"
-              value={todaySummary.completed}
+            <MetricCard
+              label="Serviços realizados"
+              value={String(
+                metrics.completed,
+              )}
+              description={`${metrics.activeServices} serviços selecionados`}
+              icon={
+                <ListChecks className="h-5 w-5" />
+              }
               loading={loading}
+              href="/services"
             />
 
-          </div>
+            <MetricCard
+              label="Receita recebida"
+              value={formatPrice(
+                metrics.revenue,
+              )}
+              description={
+                metrics.paidCount === 1
+                  ? "1 pagamento recebido"
+                  : `${metrics.paidCount} pagamentos recebidos`
+              }
+              icon={
+                <WalletCards className="h-5 w-5" />
+              }
+              loading={loading}
+              href="/payments"
+              money
+            />
 
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/appointments")
-            }
+          </section>
+
+          {/* ÁREA PRINCIPAL */}
+
+          <section
             className="
-              mt-7
-              w-full
-              rounded-lg
-              bg-white
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-gray-900
-              transition-colors
-              hover:bg-gray-100
+              grid
+              gap-6
+              xl:grid-cols-[minmax(0,1fr)_360px]
             "
           >
-            Ver detalhes
-          </button>
 
+            {/*AGENDA */}
+
+            <div
+              className="
+                overflow-hidden
+                rounded-[26px]
+                border
+                border-gray-200/80
+                bg-white
+                shadow-[0_8px_35px_rgba(15,23,42,0.04)]
+              "
+            >
+
+              {/* CABEÇALHO DA AGENDA */}
+
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-4
+                  border-b
+                  border-gray-100
+                  px-5
+                  py-5
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  sm:px-7
+                  sm:py-6
+                "
+              >
+
+                <div className="flex items-center gap-3">
+
+                  <div
+                    className="
+                      flex
+                      h-10
+                      w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-gray-100
+                      text-gray-700
+                    "
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                  </div>
+
+                  <div>
+
+                    <h2
+                      className="
+                        text-base
+                        font-semibold
+                        tracking-tight
+                        text-gray-950
+                      "
+                    >
+                      Agenda de hoje
+                    </h2>
+
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Próximos atendimentos
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/appointments",
+                    )
+                  }
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-1.5
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-white
+                    px-4
+                    py-2.5
+                    text-xs
+                    font-semibold
+                    text-gray-700
+                    transition-all
+                    hover:border-gray-300
+                    hover:bg-gray-50
+                    hover:text-gray-950
+                  "
+                >
+                  Ver agenda
+
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+
+              </div>
+
+              {/* AGENDA */}
+
+              {loading ? (
+                <AgendaSkeleton />
+              ) : todayAppointments.length === 0 ? (
+                <EmptyAgenda
+                  onCreate={() =>
+                    router.push(
+                      "/appointments",
+                    )
+                  }
+                />
+              ) : (
+                <div className="divide-y divide-gray-100">
+
+                  {todayAppointments.map(
+                    (appointment) => (
+                      <AppointmentRow
+                        key={
+                          appointment.id
+                        }
+                        appointment={
+                          appointment
+                        }
+                      />
+                    ),
+                  )}
+
+                </div>
+              )}
+
+            </div>
+
+            {/* RESUMO DO DIA */}
+
+            <div
+              className="
+                relative
+                overflow-hidden
+                rounded-[26px]
+                bg-gray-950
+                text-white
+                shadow-[0_15px_45px_rgba(15,23,42,0.16)]
+              "
+            >
+
+              {/* DECORAÇÕES */}
+
+              <div
+                className="
+                  pointer-events-none
+                  absolute
+                  -right-20
+                  -top-20
+                  h-56
+                  w-56
+                  rounded-full
+                  bg-white/[0.045]
+                  blur-3xl
+                "
+              />
+
+              <div
+                className="
+                  pointer-events-none
+                  absolute
+                  -bottom-24
+                  -left-20
+                  h-60
+                  w-60
+                  rounded-full
+                  bg-white/[0.025]
+                  blur-3xl
+                "
+              />
+
+              <div className="relative p-6 sm:p-7">
+
+                {/* HEADER */}
+
+                <div className="flex items-start justify-between">
+
+                  <div>
+
+                    <span
+                      className="
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-[0.2em]
+                        text-white/35
+                      "
+                    >
+                      Hoje
+                    </span>
+
+                    <h2 className="mt-2 text-lg font-semibold tracking-tight">
+                      Resumo do dia
+                    </h2>
+
+                  </div>
+
+                  <div
+                    className="
+                      flex
+                      h-10
+                      w-10
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-white/[0.08]
+                      text-white/80
+                      ring-1
+                      ring-white/[0.06]
+                    "
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                  </div>
+
+                </div>
+
+                {/* TOTAL */}
+
+                <div className="mt-9">
+
+                  <p
+                    className="
+                      text-5xl
+                      font-bold
+                      tracking-[-0.04em]
+                    "
+                  >
+                    {loading
+                      ? "—"
+                      : todaySummary.total}
+                  </p>
+
+                  <p className="mt-2 text-sm text-white/35">
+                    atendimentos programados
+                  </p>
+
+                </div>
+
+                <div className="my-7 h-px bg-white/10" />
+
+                {/* STATUS */}
+
+                <div className="space-y-4">
+
+                  <DarkSummaryRow
+                    label="Confirmados"
+                    value={
+                      todaySummary.confirmed
+                    }
+                    icon={
+                      <CheckCircle2 className="h-4 w-4" />
+                    }
+                    loading={loading}
+                  />
+
+                  <DarkSummaryRow
+                    label="Aguardando"
+                    value={
+                      todaySummary.pending
+                    }
+                    icon={
+                      <Clock3 className="h-4 w-4" />
+                    }
+                    loading={loading}
+                  />
+
+                  <DarkSummaryRow
+                    label="Concluídos"
+                    value={
+                      todaySummary.completed
+                    }
+                    icon={
+                      <CheckCircle2 className="h-4 w-4" />
+                    }
+                    loading={loading}
+                  />
+
+                  <DarkSummaryRow
+                    label="Cancelados"
+                    value={
+                      todaySummary.cancelled
+                    }
+                    icon={
+                      <XCircle className="h-4 w-4" />
+                    }
+                    loading={loading}
+                  />
+
+                </div>
+
+                {/* BOTÃO */}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/appointments",
+                    )
+                  }
+                  className="
+                    mt-8
+                    inline-flex
+                    h-11
+                    w-full
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-white
+                    px-4
+                    text-sm
+                    font-semibold
+                    text-gray-950
+                    transition-all
+                    hover:bg-gray-100
+                    active:scale-[0.99]
+                  "
+                >
+                  Abrir agenda
+
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
+
+              </div>
+            </div>
+
+          </section>
         </div>
-
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }
 
 /*
-|--------------------------------------------------------------------------
-| STAT CARD
-|--------------------------------------------------------------------------
+ METRIC CARD
+
 */
 
-function StatCard({
+function MetricCard({
   label,
   value,
   description,
+  icon,
   loading,
+  href,
+  money = false,
 }: {
   label: string;
   value: string;
   description: string;
+  icon: React.ReactNode;
   loading: boolean;
+  href: string;
+  money?: boolean;
 }) {
+  const router = useRouter();
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={() =>
+        router.push(href)
+      }
       className="
-        rounded-2xl
+        group
+        relative
+        overflow-hidden
+        rounded-[22px]
+        border
+        border-gray-200/80
         bg-white
         p-5
-        shadow-sm
-        ring-1
-        ring-gray-100
+        text-left
+        shadow-[0_6px_25px_rgba(15,23,42,0.035)]
         transition-all
         duration-200
         hover:-translate-y-0.5
-        hover:shadow-md
+        hover:border-gray-300
+        hover:shadow-[0_14px_35px_rgba(15,23,42,0.07)]
+        active:translate-y-0
       "
     >
+
+      {/* TOPO */}
+
       <div className="flex items-start justify-between gap-4">
 
-        <div className="min-w-0">
-
-          <p className="text-sm font-medium text-gray-500">
-            {label}
-          </p>
-
-          <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            {loading ? "—" : value}
-          </h2>
-
+        <div
+          className="
+            flex
+            h-11
+            w-11
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            bg-gray-100
+            text-gray-700
+            transition-all
+            duration-200
+            group-hover:bg-gray-950
+            group-hover:text-white
+          "
+        >
+          {icon}
         </div>
 
         <div
           className="
             flex
-            h-9
-            w-9
-            shrink-0
+            h-8
+            w-8
             items-center
             justify-center
             rounded-lg
-            bg-blue-50
-            text-blue-600
+            text-gray-300
+            transition
+            group-hover:bg-gray-50
+            group-hover:text-gray-700
           "
         >
-          <span className="text-sm font-bold">
-            ↗
-          </span>
+          <ArrowUpRight className="h-4 w-4" />
         </div>
 
       </div>
 
-      <div className="mt-4">
+      {/* CONTEÚDO */}
 
-        <span className="text-xs text-gray-400">
+      <div className="mt-6">
+
+        <p
+          className="
+            text-[10px]
+            font-bold
+            uppercase
+            tracking-[0.14em]
+            text-gray-400
+          "
+        >
+          {label}
+        </p>
+
+        <p
+          className={`
+            mt-2
+            truncate
+            font-bold
+            tracking-[-0.03em]
+            text-gray-950
+            ${
+              money
+                ? "text-xl sm:text-2xl"
+                : "text-3xl"
+            }
+          `}
+        >
+          {loading
+            ? "—"
+            : value}
+        </p>
+
+        <p className="mt-2 text-xs text-gray-400">
           {description}
+        </p>
+
+      </div>
+
+    </button>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| APPOINTMENT ROW
+|--------------------------------------------------------------------------
+*/
+
+function AppointmentRow({
+  appointment,
+}: {
+  appointment: Appointment;
+}) {
+  const style =
+    STATUS_STYLES[
+      appointment.status
+    ] ?? STATUS_STYLES.pending;
+
+  const StatusIcon = style.icon;
+
+  return (
+    <div
+      className="
+        group
+        flex
+        flex-col
+        gap-4
+        px-5
+        py-5
+        transition-colors
+        hover:bg-gray-50/70
+        sm:flex-row
+        sm:items-center
+        sm:justify-between
+        sm:px-7
+      "
+    >
+
+      <div className="flex min-w-0 items-center gap-4">
+
+        {/* HORA */}
+
+        <div
+          className="
+            flex
+            h-12
+            w-[68px]
+            shrink-0
+            flex-col
+            items-center
+            justify-center
+            rounded-xl
+            bg-gray-50
+            ring-1
+            ring-gray-100
+            transition
+            group-hover:bg-white
+            group-hover:shadow-sm
+          "
+        >
+
+          <Clock3 className="mb-1 h-3.5 w-3.5 text-gray-400" />
+
+          <span
+            className="
+              text-xs
+              font-bold
+              tracking-tight
+              text-gray-800
+            "
+          >
+            {appointment.time}
+          </span>
+
+        </div>
+
+        {/* CLIENTE */}
+
+        <div className="min-w-0">
+
+          <p
+            className="
+              truncate
+              text-sm
+              font-semibold
+              tracking-tight
+              text-gray-950
+            "
+          >
+            {appointment.client}
+          </p>
+
+          <div
+            className="
+              mt-1.5
+              flex
+              min-w-0
+              items-center
+              gap-1.5
+              text-xs
+              text-gray-400
+            "
+          >
+
+            <ListChecks className="h-3.5 w-3.5 shrink-0" />
+
+            <span className="truncate">
+              {appointment.service}
+            </span>
+
+            <span className="text-gray-300">
+              •
+            </span>
+
+            <span className="truncate">
+              {appointment.professional}
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* STATUS */}
+
+      <div className="flex items-center justify-between sm:justify-end">
+
+        <span
+          className={`
+            inline-flex
+            items-center
+            gap-1.5
+            rounded-full
+            px-3
+            py-1.5
+            text-[11px]
+            font-semibold
+            ${style.badge}
+          `}
+        >
+
+          <StatusIcon className="h-3.5 w-3.5" />
+
+          {style.label}
+
         </span>
 
       </div>
@@ -870,31 +1425,225 @@ function StatCard({
 
 /*
 |--------------------------------------------------------------------------
-| SUMMARY ROW
+| DARK SUMMARY ROW
 |--------------------------------------------------------------------------
 */
 
-function SummaryRow({
+function DarkSummaryRow({
   label,
   value,
+  icon,
   loading,
 }: {
   label: string;
   value: number;
+  icon: React.ReactNode;
   loading: boolean;
 }) {
   return (
     <div className="flex items-center justify-between">
 
-      <span className="text-sm text-gray-400">
-        {label}
-      </span>
+      <div className="flex items-center gap-3">
 
-      <span className="text-sm font-semibold text-white">
-        {loading ? "—" : value}
+        <div
+          className="
+            flex
+            h-8
+            w-8
+            items-center
+            justify-center
+            rounded-lg
+            bg-white/[0.07]
+            text-white/55
+          "
+        >
+          {icon}
+        </div>
+
+        <span className="text-sm text-white/50">
+          {label}
+        </span>
+
+      </div>
+
+      <span className="text-sm font-bold text-white">
+        {loading
+          ? "—"
+          : value}
       </span>
 
     </div>
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| AGENDA VAZIA
+|--------------------------------------------------------------------------
+*/
+
+function EmptyAgenda({
+  onCreate,
+}: {
+  onCreate: () => void;
+}) {
+  return (
+    <div
+      className="
+        flex
+        min-h-[340px]
+        flex-col
+        items-center
+        justify-center
+        px-6
+        py-12
+        text-center
+      "
+    >
+
+      <div
+        className="
+          flex
+          h-16
+          w-16
+          items-center
+          justify-center
+          rounded-2xl
+          bg-gray-100
+          text-gray-400
+        "
+      >
+        <CalendarDays className="h-6 w-6" />
+      </div>
+
+      <h3
+        className="
+          mt-5
+          text-sm
+          font-semibold
+          tracking-tight
+          text-gray-900
+        "
+      >
+        Agenda livre
+      </h3>
+
+      <p
+        className="
+          mt-1.5
+          max-w-xs
+          text-xs
+          leading-5
+          text-gray-400
+        "
+      >
+        Ainda não existem atendimentos
+        programados para hoje.
+      </p>
+
+      <button
+        type="button"
+        onClick={onCreate}
+        className="
+          mt-6
+          inline-flex
+          items-center
+          gap-2
+          rounded-xl
+          bg-gray-950
+          px-4
+          py-2.5
+          text-xs
+          font-semibold
+          text-white
+          shadow-sm
+          transition
+          hover:bg-gray-800
+        "
+      >
+        <CalendarDays className="h-3.5 w-3.5" />
+
+        Criar agendamento
+
+        <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
+      </button>
+
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| SKELETON
+|--------------------------------------------------------------------------
+*/
+
+function AgendaSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+
+      {Array.from({
+        length: 4,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className="
+            flex
+            items-center
+            gap-4
+            px-5
+            py-5
+            sm:px-7
+          "
+        >
+
+          <div
+            className="
+              h-12
+              w-[68px]
+              animate-pulse
+              rounded-xl
+              bg-gray-100
+            "
+          />
+
+          <div className="flex-1 space-y-2">
+
+            <div
+              className="
+                h-4
+                w-32
+                animate-pulse
+                rounded
+                bg-gray-100
+              "
+            />
+
+            <div
+              className="
+                h-3
+                w-52
+                animate-pulse
+                rounded
+                bg-gray-100
+              "
+            />
+
+          </div>
+
+          <div
+            className="
+              h-7
+              w-24
+              animate-pulse
+              rounded-full
+              bg-gray-100
+            "
+          />
+
+        </div>
+      ))}
+
+    </div>
+  );
+}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
@@ -42,19 +41,17 @@ export default function LoginPage() {
 
     if (googleError === "google_not_registered") {
       setError(
-        "Esta conta Google ainda não está cadastrada na NEVRIX. Crie uma conta primeiro."
+        "Esta conta Google ainda não está cadastrada na NEVRIX. Crie uma conta primeiro.",
       );
     }
 
     if (googleError === "google") {
-      setError(
-        "Não foi possível entrar com o Google. Tente novamente."
-      );
+      setError("Não foi possível entrar com o Google. Tente novamente.");
     }
 
     if (googleError === "google_config") {
       setError(
-        "O login com Google ainda não está configurado corretamente no servidor."
+        "O login com Google ainda não está configurado corretamente no servidor.",
       );
     }
 
@@ -102,10 +99,7 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Email ou palavra-passe incorretos."
-        );
+        throw new Error(data?.error || "Email ou palavra-passe incorretos.");
       }
 
       window.location.href = "/dashboard";
@@ -115,7 +109,7 @@ export default function LoginPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "Não foi possível realizar o login."
+          : "Não foi possível realizar o login.",
       );
     } finally {
       setLoading(false);
@@ -141,8 +135,7 @@ export default function LoginPage() {
      * já estiver cadastrada na NEVRIX."
      */
 
-    window.location.href =
-      "/api/auth/google?mode=login";
+    window.location.href = "/api/auth/google?mode=login";
   }
 
   /*
@@ -152,40 +145,22 @@ export default function LoginPage() {
   */
 
   function handleAppleLogin() {
-    setError(
-      "O login com Apple ainda não está disponível."
-    );
+    setError("O login com Apple ainda não está disponível.");
   }
 
   return (
     <main className="min-h-screen overflow-hidden bg-white text-neutral-950">
       <div className="grid min-h-screen lg:grid-cols-[1.06fr_0.94fr]">
-
-        {/* =====================================================
-            PAINEL ESQUERDO
-        ===================================================== */}
+        {/* PAINEL ESQUERDO */}
 
         <section className="login-panel relative hidden min-h-screen overflow-hidden bg-[#05070b] lg:flex">
+          <div aria-hidden="true" className="login-orb login-orb-one" />
 
-          <div
-            aria-hidden="true"
-            className="login-orb login-orb-one"
-          />
+          <div aria-hidden="true" className="login-orb login-orb-two" />
 
-          <div
-            aria-hidden="true"
-            className="login-orb login-orb-two"
-          />
+          <div aria-hidden="true" className="login-orb login-orb-three" />
 
-          <div
-            aria-hidden="true"
-            className="login-orb login-orb-three"
-          />
-
-          <div
-            aria-hidden="true"
-            className="login-grid absolute inset-0"
-          />
+          <div aria-hidden="true" className="login-grid absolute inset-0" />
 
           <div
             aria-hidden="true"
@@ -193,98 +168,71 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 flex min-h-screen w-full flex-col px-10 py-9 xl:px-16">
-
             {/* BRAND */}
 
             <div className="login-enter login-delay-1">
-
               <Link
                 href="/"
                 className="group inline-flex items-center gap-3"
                 aria-label="NEVRIX"
               >
-
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[13px] bg-white shadow-[0_10px_35px_rgba(0,0,0,0.25)] transition-all duration-500 group-hover:-translate-y-0.5 group-hover:shadow-[0_14px_40px_rgba(37,99,235,0.2)]">
-
                   <span className="relative z-10 text-[15px] font-black tracking-[-0.08em] text-blue-600">
-                    N
+                    s
                   </span>
 
                   <span
                     aria-hidden="true"
                     className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-blue-100/80 to-transparent transition-transform duration-700 group-hover:translate-x-full"
                   />
-
                 </div>
 
                 <span className="text-[15px] font-bold tracking-[0.24em] text-white">
-                  NEVRIX
+                  SLOTIX
                 </span>
-
               </Link>
-
             </div>
 
             {/* HERO */}
 
             <div className="flex flex-1 items-center">
-
               <div className="w-full max-w-[680px]">
-
                 <div className="login-enter login-delay-2 mb-7 flex items-center gap-3">
-
                   <span className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md">
-
                     <span className="relative flex h-1.5 w-1.5">
-
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
 
                       <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-400" />
-
                     </span>
-
                     Plataforma inteligente
-
                   </span>
-
                 </div>
 
                 <h1 className="login-enter login-delay-3 max-w-[650px] text-[48px] font-semibold leading-[0.98] tracking-[-0.055em] text-white xl:text-[68px]">
-
                   Tudo o que o seu
                   <br />
                   negócio precisa.
                   <br />
-
-                  <span className="login-gradient-text">
-                    Num só lugar.
-                  </span>
-
+                  <span className="login-gradient-text">Num só lugar.</span>
                 </h1>
 
                 <p className="login-enter login-delay-4 mt-7 max-w-[570px] text-[15px] leading-7 text-slate-400 xl:text-[16px]">
-
                   Centralize operações, clientes, equipas, serviços,
                   agendamentos e pagamentos numa experiência simples,
                   inteligente e preparada para crescer.
-
                 </p>
 
                 {/* MOCKUP */}
 
                 <div className="login-dashboard relative mt-12 h-[205px] max-w-[590px]">
-
                   <div
                     aria-hidden="true"
                     className="absolute left-[20%] top-[30%] h-32 w-64 rounded-full bg-blue-600/10 blur-[70px]"
                   />
 
                   <div className="login-card-main absolute left-0 top-0 w-[325px] rounded-[18px] border border-white/[0.09] bg-white/[0.045] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-
                     <div className="flex items-center justify-between">
-
                       <div>
-
                         <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
                           Visão geral
                         </p>
@@ -292,19 +240,14 @@ export default function LoginPage() {
                         <p className="mt-1 text-[13px] font-semibold text-white">
                           Desempenho
                         </p>
-
                       </div>
 
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400/10 bg-blue-500/[0.08] text-blue-400">
-
                         <BarChart3 size={14} />
-
                       </div>
-
                     </div>
 
                     <div className="mt-5 grid grid-cols-3 gap-2">
-
                       <MiniMetric
                         icon={<Users size={12} />}
                         label="Clientes"
@@ -322,13 +265,10 @@ export default function LoginPage() {
                         label="Hoje"
                         value="18"
                       />
-
                     </div>
 
                     <div className="mt-4">
-
                       <div className="flex items-center justify-between">
-
                         <span className="text-[9px] text-slate-600">
                           Atividade
                         </span>
@@ -336,61 +276,43 @@ export default function LoginPage() {
                         <span className="text-[9px] font-medium text-emerald-400">
                           +18,4%
                         </span>
-
                       </div>
 
                       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
-
                         <div className="login-progress h-full w-[76%] rounded-full bg-gradient-to-r from-blue-600 to-blue-400" />
-
                       </div>
-
                     </div>
-
                   </div>
 
                   <div className="login-card-secondary absolute right-0 top-[58px] w-[230px] rounded-[18px] border border-white/[0.09] bg-[#0b1018]/90 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
-
                     <div className="flex items-center justify-between">
-
                       <div className="flex items-center gap-2">
-
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-
                           <CalendarDays size={14} />
-
                         </div>
 
                         <div>
-
-                          <p className="text-[9px] text-slate-600">
-                            Próximo
-                          </p>
+                          <p className="text-[9px] text-slate-600">Próximo</p>
 
                           <p className="text-[11px] font-medium text-white">
                             Agendamento
                           </p>
-
                         </div>
-
                       </div>
 
                       <span className="text-[9px] font-medium text-blue-400">
                         14:30
                       </span>
-
                     </div>
 
                     <div className="my-3 h-px bg-white/[0.06]" />
 
                     <div className="flex items-center gap-2">
-
                       <div className="flex h-6 w-6 items-center justify-center rounded-full border border-blue-400/20 bg-blue-500 text-[8px] font-bold text-white">
                         FM
                       </div>
 
                       <div>
-
                         <p className="text-[9px] font-medium text-slate-300">
                           Cliente confirmado
                         </p>
@@ -398,28 +320,18 @@ export default function LoginPage() {
                         <p className="text-[8px] text-slate-600">
                           Hoje · 14:30
                         </p>
-
                       </div>
 
                       <div className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10">
-
-                        <Check
-                          size={11}
-                          className="text-emerald-400"
-                        />
-
+                        <Check size={11} className="text-emerald-400" />
                       </div>
-
                     </div>
-
                   </div>
-
                 </div>
 
                 {/* FEATURES */}
 
                 <div className="login-enter login-delay-5 mt-8 flex flex-wrap gap-x-10 gap-y-5">
-
                   <Feature
                     number="01"
                     title="Operações"
@@ -437,42 +349,29 @@ export default function LoginPage() {
                     title="Crescimento"
                     description="mais controlado"
                   />
-
                 </div>
-
               </div>
-
             </div>
 
             {/* FOOTER */}
 
             <div className="login-enter login-delay-6 flex items-center justify-between">
-
               <p className="text-[9px] tracking-wide text-slate-700">
                 © {new Date().getFullYear()} NEVRIX. Todos os direitos
                 reservados.
               </p>
 
               <div className="hidden items-center gap-2 text-[9px] text-slate-700 xl:flex">
-
                 <ShieldCheck size={12} />
-
                 Ambiente seguro
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
-        {/* =====================================================
-            PAINEL DIREITO
-        ===================================================== */}
+        {/*PAINEL DIREITO */}
 
         <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-10 sm:px-10">
-
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-40 -top-40 h-[450px] w-[450px] rounded-full bg-blue-500/[0.035] blur-[120px]"
@@ -484,36 +383,20 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 w-full max-w-[430px]">
-
             {/* MOBILE BRAND */}
 
             <div className="login-enter login-delay-1 mb-12 lg:hidden">
-
               <Link
                 href="/"
                 className="group inline-flex items-center gap-3"
-              >
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-neutral-950 text-[15px] font-black text-blue-500">
-                  N
-                </div>
-
-                <span className="text-[15px] font-bold tracking-[0.24em] text-neutral-950">
-                  NEVRIX
-                </span>
-
-              </Link>
-
+              ></Link>
             </div>
 
             {/* HEADER */}
 
             <div className="login-enter login-delay-2 mb-9">
-
               <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[12px] border border-neutral-200 bg-neutral-50 text-neutral-700 shadow-sm">
-
                 <Lock size={16} strokeWidth={1.8} />
-
               </div>
 
               <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-blue-600">
@@ -527,20 +410,14 @@ export default function LoginPage() {
               <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-neutral-500">
                 Aceda ao seu espaço de gestão e continue de onde ficou.
               </p>
-
             </div>
 
             {/* FORM */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="login-enter login-delay-3"
-            >
-
+            <form onSubmit={handleSubmit} className="login-enter login-delay-3">
               {/* EMAIL */}
 
               <div>
-
                 <label
                   htmlFor="email"
                   className="mb-2 block text-[11px] font-semibold text-neutral-800"
@@ -549,7 +426,6 @@ export default function LoginPage() {
                 </label>
 
                 <div className="relative">
-
                   <Mail
                     size={16}
                     className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-neutral-400"
@@ -559,36 +435,28 @@ export default function LoginPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
+                    onChange={(event) => setEmail(event.target.value)}
                     placeholder="seu@email.com"
                     required
                     autoComplete="email"
                     className="h-[51px] w-full rounded-[12px] border border-neutral-200 bg-white pl-11 pr-4 text-[13px] text-neutral-900 shadow-[0_2px_10px_rgba(0,0,0,0.02)] outline-none transition-all duration-300 placeholder:text-neutral-400 hover:border-neutral-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/[0.06]"
                   />
-
                 </div>
-
               </div>
 
               {/* PASSWORD */}
 
               <div className="mt-5">
-
                 <div className="mb-2 flex items-center justify-between">
-
                   <label
                     htmlFor="password"
                     className="block text-[11px] font-semibold text-neutral-800"
                   >
                     Palavra-passe
                   </label>
-
                 </div>
 
                 <div className="relative">
-
                   <Lock
                     size={16}
                     className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-neutral-400"
@@ -598,9 +466,7 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
+                    onChange={(event) => setPassword(event.target.value)}
                     placeholder="Digite sua palavra-passe"
                     required
                     autoComplete="current-password"
@@ -609,9 +475,7 @@ export default function LoginPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowPassword((value) => !value)
-                    }
+                    onClick={() => setShowPassword((value) => !value)}
                     className="absolute right-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
                     aria-label={
                       showPassword
@@ -619,28 +483,18 @@ export default function LoginPage() {
                         : "Mostrar palavra-passe"
                     }
                   >
-
-                    {showPassword ? (
-                      <EyeOff size={16} />
-                    ) : (
-                      <Eye size={16} />
-                    )}
-
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
-
                 </div>
 
                 <div className="mt-2 flex justify-end">
-
                   <Link
                     href="/recuperar-password"
                     className="text-[10px] font-medium text-neutral-500 hover:text-blue-600"
                   >
                     Esqueceu a palavra-passe?
                   </Link>
-
                 </div>
-
               </div>
 
               {/* ERRO */}
@@ -658,35 +512,25 @@ export default function LoginPage() {
                 disabled={loading || googleLoading}
                 className="group relative mt-6 flex h-[51px] w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] bg-[#080a0f] text-[13px] font-semibold text-white shadow-[0_8px_25px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
-
                 {loading ? (
                   <>
-                    <Loader2
-                      size={16}
-                      className="animate-spin"
-                    />
-
-                    A entrar...
+                    <Loader2 size={16} className="animate-spin" />A entrar...
                   </>
                 ) : (
                   <>
                     Entrar
-
                     <ArrowRight
                       size={16}
                       className="transition-transform group-hover:translate-x-1"
                     />
                   </>
                 )}
-
               </button>
-
             </form>
 
             {/* DIVISOR */}
 
             <div className="my-7 flex items-center gap-4">
-
               <div className="h-px flex-1 bg-neutral-200" />
 
               <span className="whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400">
@@ -694,7 +538,6 @@ export default function LoginPage() {
               </span>
 
               <div className="h-px flex-1 bg-neutral-200" />
-
             </div>
 
             {/* GOOGLE */}
@@ -705,12 +548,8 @@ export default function LoginPage() {
               disabled={googleLoading || loading}
               className="group flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-70"
             >
-
               {googleLoading ? (
-                <Loader2
-                  size={18}
-                  className="animate-spin text-neutral-500"
-                />
+                <Loader2 size={18} className="animate-spin text-neutral-500" />
               ) : (
                 <GoogleIcon />
               )}
@@ -720,59 +559,30 @@ export default function LoginPage() {
                   ? "A ligar ao Google..."
                   : "Continuar com Google"}
               </span>
-
-            </button>
-
-            {/* APPLE */}
-
-            <button
-              type="button"
-              onClick={handleAppleLogin}
-              disabled={googleLoading || loading}
-              className="mt-3 flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-neutral-200 bg-white text-[13px] font-medium text-neutral-800 transition-all hover:border-neutral-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-
-              <AppleIcon />
-
-              <span>
-                Continuar com Apple
-              </span>
-
             </button>
 
             {/* CADASTRO */}
 
             <p className="mt-8 text-center text-[13px] text-neutral-500">
-
               Ainda não tem uma conta?{" "}
-
               <Link
                 href="/cadastro"
                 className="font-semibold text-neutral-950 hover:text-blue-600"
               >
                 Criar conta
               </Link>
-
             </p>
 
             <div className="mt-7 flex items-center justify-center gap-2 text-[9px] text-neutral-400">
-
               <ShieldCheck size={11} />
 
-              <span>
-                A sua informação permanece protegida.
-              </span>
-
+              <span>A sua informação permanece protegida.</span>
             </div>
-
           </div>
-
         </section>
-
       </div>
 
       <style jsx global>{`
-
         @keyframes loginEnter {
           from {
             opacity: 0;
@@ -796,8 +606,7 @@ export default function LoginPage() {
         }
 
         .login-enter {
-          animation: loginEnter 0.7s
-            cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: loginEnter 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .login-delay-1 {
@@ -863,10 +672,7 @@ export default function LoginPage() {
         .login-grid {
           opacity: 0.035;
           background-image:
-            linear-gradient(
-              rgba(255, 255, 255, 0.8) 1px,
-              transparent 1px
-            ),
+            linear-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px),
             linear-gradient(
               90deg,
               rgba(255, 255, 255, 0.8) 1px,
@@ -891,18 +697,15 @@ export default function LoginPage() {
         }
 
         .login-progress {
-          animation: loginProgress 1.5s
-            cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+          animation: loginProgress 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
         }
 
         .login-card-main {
-          animation: loginEnter 0.9s
-            cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+          animation: loginEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
         }
 
         .login-card-secondary {
-          animation: loginEnter 0.9s
-            cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
+          animation: loginEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -914,15 +717,12 @@ export default function LoginPage() {
             transition-duration: 0.01ms !important;
           }
         }
-
       `}</style>
     </main>
   );
 }
 
-/* ============================================================
-   FEATURE
-============================================================ */
+/*FEATURE */
 
 function Feature({
   number,
@@ -935,30 +735,20 @@ function Feature({
 }) {
   return (
     <div className="group flex items-start gap-3">
-
       <span className="pt-0.5 text-[10px] font-semibold tracking-[0.12em] text-blue-400">
         {number}
       </span>
 
       <div>
+        <p className="text-[10px] font-medium text-slate-300">{title}</p>
 
-        <p className="text-[10px] font-medium text-slate-300">
-          {title}
-        </p>
-
-        <p className="mt-0.5 text-[9px] text-slate-600">
-          {description}
-        </p>
-
+        <p className="mt-0.5 text-[9px] text-slate-600">{description}</p>
       </div>
-
     </div>
   );
 }
 
-/* ============================================================
-   MINI METRIC
-============================================================ */
+/* MINI METRIC*/
 
 function MiniMetric({
   icon,
@@ -971,28 +761,18 @@ function MiniMetric({
 }) {
   return (
     <div className="rounded-lg border border-white/[0.055] bg-black/20 p-2.5">
-
       <div className="flex items-center gap-1.5 text-blue-400">
-
         {icon}
 
-        <span className="text-[8px] text-slate-600">
-          {label}
-        </span>
-
+        <span className="text-[8px] text-slate-600">{label}</span>
       </div>
 
-      <p className="mt-1.5 text-[15px] font-semibold text-white">
-        {value}
-      </p>
-
+      <p className="mt-1.5 text-[15px] font-semibold text-white">{value}</p>
     </div>
   );
 }
 
-/* ============================================================
-   GOOGLE ICON
-============================================================ */
+/* GOOGLE ICON*/
 
 function GoogleIcon() {
   return (
@@ -1003,7 +783,6 @@ function GoogleIcon() {
       fill="none"
       aria-hidden="true"
     >
-
       <path
         fill="#4285F4"
         d="M21.35 12.23c0-.7-.06-1.38-.18-2.03H12v3.84h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.7 2.91-4.2 2.91-7.2Z"
@@ -1023,28 +802,6 @@ function GoogleIcon() {
         fill="#EA4335"
         d="M12 6.1c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.16 14.63 2.18 12 2.18A9.75 9.75 0 0 0 3.3 7.6l3.24 2.53C7.31 7.82 9.46 6.1 12 6.1Z"
       />
-
     </svg>
   );
 }
-
-/* ============================================================
-   APPLE ICON
-============================================================ */
-
-function AppleIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-
-      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.09.8 1.2-.24 2.35-.93 3.63-.84 1.54.12 2.7.73 3.46 1.85-3.18 1.9-2.43 6.07.49 7.23-.58 1.52-1.33 3.03-2.67 3.93ZM12.03 7.25C11.88 4.99 13.71 3.13 15.8 3c.29 2.61-2.36 4.55-3.77 4.25Z" />
-
-    </svg>
-  );
-}
-
