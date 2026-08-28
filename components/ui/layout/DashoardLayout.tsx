@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  ReactNode,
-  useCallback,
-  useState,
-} from "react";
+import { ReactNode, useCallback, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./header";
 
@@ -15,40 +11,31 @@ interface DashboardLayoutProps {
 export function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-  /*
-   * Abaixo de lg o menu lateral vira um drawer, aberto pelo botão no header.
-   * A partir de lg ele é fixo e este estado deixa de ter efeito.
-   */
-  const [isDrawerOpen, setIsDrawerOpen] =
-    useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  /*
-   * Referências estáveis: o Sidebar usa onClose dentro de efeitos, e uma
-   * arrow recriada a cada render fá-los correr sem necessidade.
-   */
-  const closeDrawer = useCallback(
-    () => setIsDrawerOpen(false),
-    [],
-  );
+  const closeDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+  }, []);
 
-  const openDrawer = useCallback(
-    () => setIsDrawerOpen(true),
-    [],
-  );
+  const openDrawer = useCallback(() => {
+    setIsDrawerOpen(true);
+  }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[var(--background)]">
+      {/* MENU LATERAL */}
       <Sidebar
         open={isDrawerOpen}
         onClose={closeDrawer}
       />
 
-      {/* Área principal. min-w-0 impede que conteúdo largo (tabelas) estique
-          o flex item e empurre o layout para fora da viewport. */}
+      {/* ÁREA PRINCIPAL */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* HEADER */}
         <Header onOpenMenu={openDrawer} />
 
-        <main className="flex-1 p-4 sm:p-6">
+        {/* CONTEÚDO */}
+        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

@@ -1,7 +1,9 @@
+
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { Appointment } from "@/types/appointment";
 import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
@@ -24,9 +26,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-/* ===============================================================
+/* ============================================================
    TYPES
-=============================================================== */
+============================================================ */
 
 interface AppointmentListProps {
   appointments?: Appointment[];
@@ -34,15 +36,8 @@ interface AppointmentListProps {
   onEdit?: (appointment: Appointment) => void;
 }
 
-type PaymentMethod =
-  | "CASH"
-  | "CARD"
-  | "TRANSFER"
-  | "MOBILE_MONEY"
-  | string;
-
 type AppointmentWithPayment = Appointment & {
-  paymentMethod?: PaymentMethod | null;
+  paymentMethod?: string | null;
   paymentStatus?: string | null;
   paymentAmount?: number | null;
   paidAt?: string | null;
@@ -53,9 +48,9 @@ type AppointmentWithPayment = Appointment & {
   } | null;
 };
 
-/* ===============================================================
+/* ============================================================
    COMPONENT
-=============================================================== */
+============================================================ */
 
 export function AppointmentList({
   appointments: externalAppointments,
@@ -80,19 +75,53 @@ export function AppointmentList({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [isDeleting, setIsDeleting] = useState(false);
-
   const [isSaving, setIsSaving] = useState(false);
 
   const [validationError, setValidationError] = useState("");
 
-  const [loadingReceipt, setLoadingReceipt] =
-    useState<string | null>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState<string | null>(
+    null
+  );
 
   const { notify } = useNotifications();
 
-  /* =============================================================
-     BUSCAR AGENDAMENTOS
-  ============================================================= */
+  /* ============================================================
+     DATA DE HOJE
+
+     IMPORTANTE:
+     Usamos a data local do computador do proprietário.
+
+     Exemplo:
+     Hoje:      28/08/2026
+     Ontem:     27/08/2026
+     Amanhã:    29/08/2026
+  ============================================================ */
+
+  const today = useMemo(() => {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  /* ============================================================
+     VERIFICAR DATA PASSADA
+  ============================================================ */
+
+  function isPastDate(date?: string): boolean {
+    if (!date) {
+      return false;
+    }
+
+    return date < today;
+  }
+
+  /* ============================================================
+     CARREGAR AGENDAMENTOS
+  ============================================================ */
 
   async function loadAppointments() {
     try {
@@ -115,15 +144,14 @@ export function AppointmentList({
           data = JSON.parse(text);
         } catch {
           throw new Error(
-            "A API retornou uma resposta inválida.",
+            "A API retornou uma resposta inválida."
           );
         }
       }
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
-            "Erro ao carregar agendamentos.",
+          data.error ?? "Erro ao carregar agendamentos."
         );
       }
 
@@ -131,30 +159,30 @@ export function AppointmentList({
     } catch (error) {
       console.error(
         "Erro ao buscar agendamentos:",
-        error,
+        error
       );
 
       toast.error(
         error instanceof Error
           ? error.message
-          : "Erro ao carregar agendamentos.",
+          : "Erro ao carregar agendamentos."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =============================================================
-     CARREGAMENTO INICIAL
-  ============================================================= */
+  /* ============================================================
+     PRIMEIRO CARREGAMENTO
+  ============================================================ */
 
   useEffect(() => {
     loadAppointments();
   }, []);
 
-  /* =============================================================
-     ATUALIZAÇÃO DINÂMICA
-  ============================================================= */
+  /* ============================================================
+     ESCUTAR ALTERAÇÕES
+  ============================================================ */
 
   useEffect(() => {
     function handleAppointmentsChanged() {
@@ -163,20 +191,20 @@ export function AppointmentList({
 
     window.addEventListener(
       "appointments:changed",
-      handleAppointmentsChanged,
+      handleAppointmentsChanged
     );
 
     return () => {
       window.removeEventListener(
         "appointments:changed",
-        handleAppointmentsChanged,
+        handleAppointmentsChanged
       );
     };
   }, []);
 
-  /* =============================================================
+  /* ============================================================
      SINCRONIZAR PROPS
-  ============================================================= */
+  ============================================================ */
 
   useEffect(() => {
     if (!externalAppointments) {
@@ -184,23 +212,64 @@ export function AppointmentList({
     }
 
     setAppointments(
-      externalAppointments as AppointmentWithPayment[],
+      externalAppointments as AppointmentWithPayment[]
     );
   }, [externalAppointments]);
 
-  /* =============================================================
-     VERIFICAR SE PODE EDITAR
-  ============================================================= */
+  /* ============================================================
+     AGENDAMENTOS VISÍVEIS
+
+     REGRA:
+
+     HOJE       ✅
+     AMANHÃ     ✅
+     FUTURO     ✅
+
+     ONTEM      ❌
+     ANTEONTEM  ❌
+     PASSADO    ❌
+
+     O banco NÃO é apagado.
+
+     Apenas não mostramos agendamentos antigos nesta tela.
+  ============================================================ */
+
+  const visibleAppointments = useMemo(() => {
+    return appointments.filter((appointment) => {
+      if (!appointment.date) {
+        return false;
+      }
+
+      return !isPastDate(appointment.date);
+    });
+  }, [appointments, today]);
+
+  /* ============================================================
+     ORDENAÇÃO
+  ============================================================ */
+
+  const sortedAppointments = useMemo(() => {
+    return [...visibleAppointments].sort((a, b) => {
+      const dateTimeA = `${a.date ?? ""} ${a.time ?? ""}`;
+      const dateTimeB = `${b.date ?? ""} ${b.time ?? ""}`;
+
+      return dateTimeA.localeCompare(dateTimeB);
+    });
+  }, [visibleAppointments]);
+
+  /* ============================================================
+     PODE EDITAR?
+  ============================================================ */
 
   function canEditAppointment(
-    appointment: AppointmentWithPayment,
-  ) {
+    appointment: AppointmentWithPayment
+  ): boolean {
     const status = String(
-      appointment.status ?? "",
+      appointment.status ?? ""
     ).toLowerCase();
 
     const payment = String(
-      appointment.payment ?? "",
+      appointment.payment ?? ""
     ).toLowerCase();
 
     if (status === "completed") {
@@ -211,23 +280,27 @@ export function AppointmentList({
       return false;
     }
 
+    if (isPastDate(appointment.date)) {
+      return false;
+    }
+
     return true;
   }
 
-  /* =============================================================
-     RECIBO
-  ============================================================= */
+  /* ============================================================
+     ABRIR RECIBO
+  ============================================================ */
 
   function handleViewReceipt(
-    appointment: AppointmentWithPayment,
+    appointment: AppointmentWithPayment
   ) {
     const payment = String(
-      appointment.payment ?? "",
+      appointment.payment ?? ""
     ).toLowerCase();
 
     if (payment !== "paid") {
       toast.error(
-        "O pagamento ainda não foi confirmado.",
+        "O pagamento ainda não foi confirmado."
       );
 
       return;
@@ -238,46 +311,50 @@ export function AppointmentList({
 
       const receiptPage =
         `/pagamentos?receipt=${encodeURIComponent(
-          appointment.id,
+          appointment.id
         )}`;
 
       const newWindow = window.open(
         receiptPage,
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
 
       if (!newWindow) {
         toast.error(
-          "O navegador bloqueou a abertura do recibo. Permita pop-ups para este sistema.",
+          "O navegador bloqueou a abertura do recibo. Permita pop-ups para este sistema."
         );
       }
     } catch (error) {
       console.error(
         "Erro ao abrir recibo:",
-        error,
+        error
       );
 
       toast.error(
-        "Não foi possível abrir o recibo.",
+        "Não foi possível abrir o recibo."
       );
     } finally {
       setLoadingReceipt(null);
     }
   }
 
-  /* =============================================================
-     EXCLUIR
-  ============================================================= */
+  /* ============================================================
+     SOLICITAR EXCLUSÃO
+  ============================================================ */
 
   function requestDelete(
-    appointment: AppointmentWithPayment,
+    appointment: AppointmentWithPayment
   ) {
     setOpenMenu(null);
     setSelectedAppointment(null);
     setValidationError("");
     setDeletingAppointment(appointment);
   }
+
+  /* ============================================================
+     CONFIRMAR EXCLUSÃO
+  ============================================================ */
 
   async function confirmDelete() {
     if (!deletingAppointment) {
@@ -292,7 +369,7 @@ export function AppointmentList({
         `/api/appointments/${deletingAppointment.id}`,
         {
           method: "DELETE",
-        },
+        }
       );
 
       const text = await response.text();
@@ -307,25 +384,24 @@ export function AppointmentList({
           data = JSON.parse(text);
         } catch {
           throw new Error(
-            "A API retornou uma resposta inválida.",
+            "A API retornou uma resposta inválida."
           );
         }
       }
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
-            "Não foi possível excluir o agendamento.",
+          data.error ??
+            "Não foi possível excluir o agendamento."
         );
       }
 
-      const deletedId =
-        deletingAppointment.id;
+      const deletedId = deletingAppointment.id;
 
       setAppointments((current) =>
         current.filter(
-          (item) => item.id !== deletedId,
-        ),
+          (item) => item.id !== deletedId
+        )
       );
 
       onDelete?.(deletedId);
@@ -333,22 +409,26 @@ export function AppointmentList({
       notify({
         kind: "deleted",
         title: "Agendamento apagado",
-        description: `${deletingAppointment.client} — ${deletingAppointment.date} às ${deletingAppointment.time}`,
+        description:
+          `${deletingAppointment.client} — ` +
+          `${formatDate(
+            deletingAppointment.date
+          )} às ${deletingAppointment.time}`,
       });
 
       toast.success(
-        "Agendamento apagado.",
+        "Agendamento apagado."
       );
 
       window.dispatchEvent(
-        new Event("appointments:changed"),
+        new Event("appointments:changed")
       );
 
       setDeletingAppointment(null);
     } catch (error) {
       console.error(
         "Erro ao excluir:",
-        error,
+        error
       );
 
       const message =
@@ -364,12 +444,12 @@ export function AppointmentList({
     }
   }
 
-  /* =============================================================
+  /* ============================================================
      EDITAR
-  ============================================================= */
+  ============================================================ */
 
   function handleEdit(
-    appointment: AppointmentWithPayment,
+    appointment: AppointmentWithPayment
   ) {
     setOpenMenu(null);
     setSelectedAppointment(null);
@@ -377,7 +457,7 @@ export function AppointmentList({
 
     if (!canEditAppointment(appointment)) {
       toast.error(
-        "Este agendamento já foi pago/concluído e não pode mais ser editado.",
+        "Este agendamento já foi pago, concluído ou pertence a uma data passada."
       );
 
       return;
@@ -388,9 +468,9 @@ export function AppointmentList({
     });
   }
 
-  /* =============================================================
+  /* ============================================================
      SALVAR EDIÇÃO
-  ============================================================= */
+  ============================================================ */
 
   async function saveEdit() {
     if (!editingAppointment) {
@@ -398,16 +478,16 @@ export function AppointmentList({
     }
 
     const status = String(
-      editingAppointment.status ?? "",
+      editingAppointment.status ?? ""
     ).toLowerCase();
 
     const payment = String(
-      editingAppointment.payment ?? "",
+      editingAppointment.payment ?? ""
     ).toLowerCase();
 
     if (status === "completed") {
       setValidationError(
-        "Este agendamento já foi concluído e não pode mais ser editado.",
+        "Este agendamento já foi concluído e não pode mais ser editado."
       );
 
       return;
@@ -415,37 +495,31 @@ export function AppointmentList({
 
     if (payment === "paid") {
       setValidationError(
-        "Este agendamento já foi pago e não pode mais ser editado.",
+        "Este agendamento já foi pago e não pode mais ser editado."
       );
 
       return;
     }
 
-    if (
-      !editingAppointment.client?.trim()
-    ) {
+    if (!editingAppointment.client?.trim()) {
       setValidationError(
-        "Preencha o nome do cliente.",
+        "Preencha o nome do cliente."
       );
 
       return;
     }
 
-    if (
-      !editingAppointment.service?.trim()
-    ) {
+    if (!editingAppointment.service?.trim()) {
       setValidationError(
-        "Preencha o serviço.",
+        "Preencha o serviço."
       );
 
       return;
     }
 
-    if (
-      !editingAppointment.professional?.trim()
-    ) {
+    if (!editingAppointment.professional?.trim()) {
       setValidationError(
-        "Preencha o profissional.",
+        "Preencha o profissional."
       );
 
       return;
@@ -453,7 +527,7 @@ export function AppointmentList({
 
     if (!editingAppointment.date) {
       setValidationError(
-        "Selecione a data.",
+        "Selecione a data."
       );
 
       return;
@@ -461,7 +535,23 @@ export function AppointmentList({
 
     if (!editingAppointment.time) {
       setValidationError(
-        "Selecione o horário.",
+        "Selecione o horário."
+      );
+
+      return;
+    }
+
+    /* ==========================================================
+       NÃO PERMITIR DATA PASSADA
+    ========================================================== */
+
+    if (
+      isPastDate(
+        editingAppointment.date
+      )
+    ) {
+      setValidationError(
+        "Não é possível colocar um agendamento em uma data que já passou."
       );
 
       return;
@@ -502,11 +592,10 @@ export function AppointmentList({
               editingAppointment.notes?.trim() ||
               null,
           }),
-        },
+        }
       );
 
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let data: {
         appointment?: AppointmentWithPayment;
@@ -518,15 +607,15 @@ export function AppointmentList({
           data = JSON.parse(text);
         } catch {
           throw new Error(
-            "A API retornou uma resposta inválida.",
+            "A API retornou uma resposta inválida."
           );
         }
       }
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
-            "Não foi possível atualizar o agendamento.",
+          data.error ??
+            "Não foi possível atualizar o agendamento."
         );
       }
 
@@ -536,15 +625,14 @@ export function AppointmentList({
 
       setAppointments((current) =>
         current.map((item) =>
-          item.id ===
-          savedAppointment.id
+          item.id === savedAppointment.id
             ? savedAppointment
-            : item,
-        ),
+            : item
+        )
       );
 
       window.dispatchEvent(
-        new Event("appointments:changed"),
+        new Event("appointments:changed")
       );
 
       onEdit?.(savedAppointment);
@@ -552,11 +640,15 @@ export function AppointmentList({
       notify({
         kind: "updated",
         title: "Agendamento editado",
-        description: `${savedAppointment.client} — ${savedAppointment.date} às ${savedAppointment.time}`,
+        description:
+          `${savedAppointment.client} — ` +
+          `${formatDate(
+            savedAppointment.date
+          )} às ${savedAppointment.time}`,
       });
 
       toast.success(
-        "Agendamento atualizado.",
+        "Agendamento atualizado."
       );
 
       setEditingAppointment(null);
@@ -564,7 +656,7 @@ export function AppointmentList({
     } catch (error) {
       console.error(
         "Erro ao editar:",
-        error,
+        error
       );
 
       const message =
@@ -580,13 +672,13 @@ export function AppointmentList({
     }
   }
 
-  /* =============================================================
+  /* ============================================================
      STATUS
-  ============================================================= */
+  ============================================================ */
 
   function getStatusLabel(
-    status: Appointment["status"],
-  ) {
+    status: Appointment["status"]
+  ): string {
     switch (
       String(status ?? "").toLowerCase()
     ) {
@@ -608,8 +700,8 @@ export function AppointmentList({
   }
 
   function getStatusClass(
-    status: Appointment["status"],
-  ) {
+    status: Appointment["status"]
+  ): string {
     switch (
       String(status ?? "").toLowerCase()
     ) {
@@ -630,13 +722,13 @@ export function AppointmentList({
     }
   }
 
-  /* =============================================================
+  /* ============================================================
      PAGAMENTO
-  ============================================================= */
+  ============================================================ */
 
   function getPaymentLabel(
-    payment: Appointment["payment"],
-  ) {
+    payment: Appointment["payment"]
+  ): string {
     switch (
       String(payment ?? "").toLowerCase()
     ) {
@@ -652,8 +744,8 @@ export function AppointmentList({
   }
 
   function getPaymentMethodLabel(
-    method?: string | null,
-  ) {
+    method?: string | null
+  ): string {
     switch (method) {
       case "CASH":
         return "Dinheiro";
@@ -672,27 +764,25 @@ export function AppointmentList({
     }
   }
 
-  /* =============================================================
+  /* ============================================================
      PREÇO
-  ============================================================= */
+  ============================================================ */
 
   function getAppointmentPrice(
-    appointment: AppointmentWithPayment,
-  ) {
+    appointment: AppointmentWithPayment
+  ): number {
     const price = Number(
-      appointment.price,
+      appointment.price
     );
 
-    if (!Number.isFinite(price)) {
-      return 0;
-    }
-
-    return price;
+    return Number.isFinite(price)
+      ? price
+      : 0;
   }
 
   function formatMoney(
-    value?: number | null,
-  ) {
+    value?: number | null
+  ): string {
     const amount = Number(value);
 
     if (!Number.isFinite(amount)) {
@@ -704,15 +794,17 @@ export function AppointmentList({
       {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      },
+      }
     )} Kz`;
   }
 
-  /* =============================================================
+  /* ============================================================
      DATA
-  ============================================================= */
+  ============================================================ */
 
-  function formatDate(date: string) {
+  function formatDate(
+    date?: string
+  ): string {
     if (!date) {
       return "-";
     }
@@ -730,56 +822,40 @@ export function AppointmentList({
     return `${day}/${month}/${year}`;
   }
 
-  /* =============================================================
-     ORDENAÇÃO
-  ============================================================= */
-
-  const sortedAppointments =
-    useMemo(() => {
-      return [...appointments].sort(
-        (a, b) => {
-          const dateA =
-            `${a.date} ${a.time}`;
-
-          const dateB =
-            `${b.date} ${b.time}`;
-
-          return dateA.localeCompare(
-            dateB,
-          );
-        },
-      );
-    }, [appointments]);
-
-  /* =============================================================
+  /* ============================================================
      LOADING
-  ============================================================= */
+  ============================================================ */
 
   if (loading) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center">
-        <p className="text-sm text-gray-500">
+      <div className="flex min-h-[240px] items-center justify-center">
+        <div className="flex items-center gap-3 text-sm text-gray-500">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900" />
           Carregando agendamentos...
-        </p>
+        </div>
       </div>
     );
   }
 
-  /* =============================================================
+  /* ============================================================
      LISTA
-  ============================================================= */
+  ============================================================ */
 
   return (
     <>
       {sortedAppointments.length === 0 ? (
-        <div className="py-10 text-center">
-          <h3 className="text-base font-semibold text-gray-900">
-            Nenhum agendamento encontrado
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+            <CalendarDays className="h-6 w-6 text-gray-400" />
+          </div>
+
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            Nenhum agendamento futuro
           </h3>
 
           <p className="mt-1 text-sm text-gray-500">
-            Os novos agendamentos
-            aparecerão aqui
+            Os agendamentos de hoje e dos
+            próximos dias aparecerão aqui
             automaticamente.
           </p>
         </div>
@@ -789,43 +865,42 @@ export function AppointmentList({
             (appointment) => {
               const canEdit =
                 canEditAppointment(
-                  appointment,
+                  appointment
                 );
 
               const isOpeningReceipt =
                 loadingReceipt ===
                 appointment.id;
 
+              const isPaid =
+                String(
+                  appointment.payment ?? ""
+                ).toLowerCase() ===
+                "paid";
+
               return (
                 <div
-                  key={
-                    appointment.id
-                  }
+                  key={appointment.id}
                   className="group rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-gray-200 hover:shadow-md sm:p-5"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="truncate text-base font-semibold text-gray-950">
-                          {
-                            appointment.client
-                          }
+                          {appointment.client}
                         </h3>
 
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClass(
-                            appointment.status,
+                            appointment.status
                           )}`}
                         >
                           {getStatusLabel(
-                            appointment.status,
+                            appointment.status
                           )}
                         </span>
 
-                        {String(
-                          appointment.payment,
-                        ).toLowerCase() ===
-                          "paid" && (
+                        {isPaid && (
                           <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Pago
@@ -835,53 +910,47 @@ export function AppointmentList({
 
                       <div className="mt-3 grid gap-2 text-sm text-gray-500 sm:grid-cols-2 xl:grid-cols-5">
                         <div className="flex items-center gap-2">
-                          <Scissors className="h-4 w-4 text-gray-400" />
+                          <Scissors className="h-4 w-4 shrink-0 text-gray-400" />
 
                           <span className="truncate">
-                            {
-                              appointment.service
-                            }
+                            {appointment.service}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <UserRound className="h-4 w-4 text-gray-400" />
+                          <UserRound className="h-4 w-4 shrink-0 text-gray-400" />
 
                           <span className="truncate">
-                            {
-                              appointment.professional
-                            }
+                            {appointment.professional}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <CalendarDays className="h-4 w-4 text-gray-400" />
+                          <CalendarDays className="h-4 w-4 shrink-0 text-gray-400" />
 
                           <span>
                             {formatDate(
-                              appointment.date,
+                              appointment.date
                             )}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-gray-400" />
+                          <Clock className="h-4 w-4 shrink-0 text-gray-400" />
 
                           <span>
-                            {
-                              appointment.time
-                            }
+                            {appointment.time}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-2 font-semibold text-gray-700">
-                          <Banknote className="h-4 w-4 text-gray-400" />
+                          <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
 
                           <span>
                             {formatMoney(
                               getAppointmentPrice(
-                                appointment,
-                              ),
+                                appointment
+                              )
                             )}
                           </span>
                         </div>
@@ -890,7 +959,7 @@ export function AppointmentList({
 
                     {/* MENU */}
 
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() =>
@@ -898,7 +967,7 @@ export function AppointmentList({
                             openMenu ===
                               appointment.id
                               ? null
-                              : appointment.id,
+                              : appointment.id
                           )
                         }
                         className="rounded-xl p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
@@ -913,11 +982,11 @@ export function AppointmentList({
                             type="button"
                             onClick={() => {
                               setOpenMenu(
-                                null,
+                                null
                               );
 
                               setSelectedAppointment(
-                                appointment,
+                                appointment
                               );
                             }}
                             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
@@ -931,7 +1000,7 @@ export function AppointmentList({
                               type="button"
                               onClick={() =>
                                 handleEdit(
-                                  appointment,
+                                  appointment
                                 )
                               }
                               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
@@ -945,7 +1014,7 @@ export function AppointmentList({
                             type="button"
                             onClick={() =>
                               requestDelete(
-                                appointment,
+                                appointment
                               )
                             }
                             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -959,14 +1028,14 @@ export function AppointmentList({
                   </div>
                 </div>
               );
-            },
+            }
           )}
         </div>
       )}
 
-      {/* ======================================================
-          DETALHES
-      ====================================================== */}
+      {/* ========================================================
+          MODAL DE DETALHES
+      ======================================================== */}
 
       {selectedAppointment && (
         <div
@@ -977,11 +1046,11 @@ export function AppointmentList({
         >
           <div
             className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
           >
-            {/* HEADER */}
+            {/* CABEÇALHO */}
 
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-5">
               <div>
@@ -997,9 +1066,7 @@ export function AppointmentList({
               <button
                 type="button"
                 onClick={() =>
-                  setSelectedAppointment(
-                    null,
-                  )
+                  setSelectedAppointment(null)
                 }
                 className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
               >
@@ -1047,7 +1114,7 @@ export function AppointmentList({
                   }
                   label="Data"
                   value={formatDate(
-                    selectedAppointment.date,
+                    selectedAppointment.date
                   )}
                 />
 
@@ -1068,8 +1135,8 @@ export function AppointmentList({
                   label="Preço"
                   value={formatMoney(
                     getAppointmentPrice(
-                      selectedAppointment,
-                    ),
+                      selectedAppointment
+                    )
                   )}
                 />
 
@@ -1079,75 +1146,64 @@ export function AppointmentList({
                   }
                   label="Pagamento"
                   value={getPaymentLabel(
-                    selectedAppointment.payment,
+                    selectedAppointment.payment
                   )}
                 />
 
                 {String(
-                  selectedAppointment.payment,
-                ).toLowerCase() ===
-                  "paid" && (
-                  <Detail
-                    icon={
-                      <CheckCircle2 className="h-4 w-4" />
-                    }
-                    label="Valor pago"
-                    value={formatMoney(
-                      selectedAppointment.paymentAmount ??
-                        getAppointmentPrice(
-                          selectedAppointment,
-                        ),
-                    )}
-                  />
-                )}
-
-                {String(
-                  selectedAppointment.payment,
-                ).toLowerCase() ===
-                  "paid" && (
-                  <Detail
-                    icon={
-                      <CreditCard className="h-4 w-4" />
-                    }
-                    label="Método de pagamento"
-                    value={getPaymentMethodLabel(
-                      selectedAppointment.paymentMethod,
-                    )}
-                  />
-                )}
-
-                {String(
-                  selectedAppointment.payment,
-                ).toLowerCase() ===
-                    "paid" &&
-                  selectedAppointment.paidAt && (
+                  selectedAppointment.payment
+                ).toLowerCase() === "paid" && (
+                  <>
                     <Detail
                       icon={
-                        <CalendarDays className="h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4" />
                       }
-                      label="Pagamento recebido em"
-                      value={new Date(
-                        selectedAppointment.paidAt,
-                      ).toLocaleString(
-                        "pt-AO",
-                        {
-                          dateStyle:
-                            "short",
-                          timeStyle:
-                            "short",
-                        },
+                      label="Valor pago"
+                      value={formatMoney(
+                        selectedAppointment.paymentAmount ??
+                          getAppointmentPrice(
+                            selectedAppointment
+                          )
                       )}
                     />
-                  )}
 
-                {/* ==================================================
-                    RECIBO
-                ================================================== */}
+                    <Detail
+                      icon={
+                        <CreditCard className="h-4 w-4" />
+                      }
+                      label="Método de pagamento"
+                      value={getPaymentMethodLabel(
+                        selectedAppointment.paymentMethod
+                      )}
+                    />
+
+                    {selectedAppointment.paidAt && (
+                      <Detail
+                        icon={
+                          <CalendarDays className="h-4 w-4" />
+                        }
+                        label="Pagamento recebido em"
+                        value={new Date(
+                          selectedAppointment.paidAt
+                        ).toLocaleString(
+                          "pt-AO",
+                          {
+                            dateStyle:
+                              "short",
+                            timeStyle:
+                              "short",
+                          }
+                        )}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* RECIBO */}
 
                 {String(
-                  selectedAppointment.payment,
-                ).toLowerCase() ===
-                  "paid" && (
+                  selectedAppointment.payment
+                ).toLowerCase() === "paid" && (
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-3">
@@ -1174,24 +1230,23 @@ export function AppointmentList({
                         }
                         onClick={() =>
                           handleViewReceipt(
-                            selectedAppointment,
+                            selectedAppointment
                           )
                         }
                         className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {loadingReceipt ===
-                        selectedAppointment.id ? (
+                        {isOpeningReceipt(
+                          loadingReceipt,
+                          selectedAppointment.id
+                        ) ? (
                           <>
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-
                             Abrindo...
                           </>
                         ) : (
                           <>
                             <Receipt className="h-4 w-4" />
-
                             Ver recibo
-
                             <ExternalLink className="h-3.5 w-3.5" />
                           </>
                         )}
@@ -1221,15 +1276,13 @@ export function AppointmentList({
               </div>
             </div>
 
-            {/* FOOTER */}
+            {/* RODAPÉ */}
 
             <div className="shrink-0 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
               <button
                 type="button"
                 onClick={() =>
-                  setSelectedAppointment(
-                    null,
-                  )
+                  setSelectedAppointment(null)
                 }
                 className="w-full rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
               >
@@ -1240,29 +1293,28 @@ export function AppointmentList({
         </div>
       )}
 
-      {/* ======================================================
-          EDITAR
-      ====================================================== */}
+      {/* ========================================================
+          MODAL EDITAR
+      ======================================================== */}
 
       {editingAppointment && (
         <div
           className="fixed inset-0 z-[9998] flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm"
           onClick={() => {
             if (!isSaving) {
-              setEditingAppointment(
-                null,
-              );
-
+              setEditingAppointment(null);
               setValidationError("");
             }
           }}
         >
           <div
             className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
           >
+            {/* CABEÇALHO */}
+
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-5">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
@@ -1278,10 +1330,7 @@ export function AppointmentList({
                 type="button"
                 disabled={isSaving}
                 onClick={() => {
-                  setEditingAppointment(
-                    null,
-                  );
-
+                  setEditingAppointment(null);
                   setValidationError("");
                 }}
                 className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:opacity-50"
@@ -1289,6 +1338,8 @@ export function AppointmentList({
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* CONTEÚDO */}
 
             <div className="overflow-y-auto p-6">
               {validationError && (
@@ -1301,9 +1352,7 @@ export function AppointmentList({
                     </p>
 
                     <p className="mt-1 text-sm text-red-700">
-                      {
-                        validationError
-                      }
+                      {validationError}
                     </p>
                   </div>
                 </div>
@@ -1323,10 +1372,9 @@ export function AppointmentList({
                         current
                           ? {
                               ...current,
-                              client:
-                                value,
+                              client: value,
                             }
-                          : null,
+                          : null
                     );
                   }}
                 />
@@ -1344,10 +1392,9 @@ export function AppointmentList({
                         current
                           ? {
                               ...current,
-                              service:
-                                value,
+                              service: value,
                             }
-                          : null,
+                          : null
                     );
                   }}
                 />
@@ -1368,7 +1415,7 @@ export function AppointmentList({
                               professional:
                                 value,
                             }
-                          : null,
+                          : null
                     );
                   }}
                 />
@@ -1390,7 +1437,7 @@ export function AppointmentList({
                                 ...current,
                                 date: value,
                               }
-                            : null,
+                            : null
                       );
                     }}
                   />
@@ -1411,11 +1458,13 @@ export function AppointmentList({
                                 ...current,
                                 time: value,
                               }
-                            : null,
+                            : null
                       );
                     }}
                   />
                 </div>
+
+                {/* STATUS */}
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-800">
@@ -1433,12 +1482,12 @@ export function AppointmentList({
 
                       if (
                         String(
-                          newStatus,
+                          newStatus
                         ).toLowerCase() ===
                         "completed"
                       ) {
                         setValidationError(
-                          "O agendamento só é concluído automaticamente quando o pagamento é recebido.",
+                          "O agendamento só é concluído automaticamente quando o pagamento é recebido."
                         );
 
                         return;
@@ -1454,7 +1503,7 @@ export function AppointmentList({
                                 status:
                                   newStatus,
                               }
-                            : null,
+                            : null
                       );
                     }}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
@@ -1485,6 +1534,8 @@ export function AppointmentList({
                   </select>
                 </div>
 
+                {/* PREÇO */}
+
                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1495,8 +1546,8 @@ export function AppointmentList({
                       <p className="mt-1 text-lg font-bold text-gray-950">
                         {formatMoney(
                           getAppointmentPrice(
-                            editingAppointment,
-                          ),
+                            editingAppointment
+                          )
                         )}
                       </p>
                     </div>
@@ -1504,6 +1555,8 @@ export function AppointmentList({
                     <Banknote className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
+
+                {/* PAGAMENTO */}
 
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                   <div className="flex items-center justify-between">
@@ -1514,7 +1567,7 @@ export function AppointmentList({
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
                         {getPaymentLabel(
-                          editingAppointment.payment,
+                          editingAppointment.payment
                         )}
                       </p>
                     </div>
@@ -1523,7 +1576,7 @@ export function AppointmentList({
                   </div>
 
                   {String(
-                    editingAppointment.payment,
+                    editingAppointment.payment
                   ).toLowerCase() ===
                     "paid" && (
                     <div className="mt-3 space-y-1 border-t border-gray-200 pt-3 text-sm">
@@ -1535,8 +1588,8 @@ export function AppointmentList({
                           {formatMoney(
                             editingAppointment.paymentAmount ??
                               getAppointmentPrice(
-                                editingAppointment,
-                              ),
+                                editingAppointment
+                              )
                           )}
                         </strong>
                       </p>
@@ -1547,13 +1600,15 @@ export function AppointmentList({
                         </span>{" "}
                         <strong>
                           {getPaymentMethodLabel(
-                            editingAppointment.paymentMethod,
+                            editingAppointment.paymentMethod
                           )}
                         </strong>
                       </p>
                     </div>
                   )}
                 </div>
+
+                {/* OBSERVAÇÕES */}
 
                 <EditField
                   label="Observações"
@@ -1571,22 +1626,21 @@ export function AppointmentList({
                               ...current,
                               notes: value,
                             }
-                          : null,
+                          : null
                     );
                   }}
                 />
               </div>
             </div>
 
+            {/* RODAPÉ */}
+
             <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={() => {
-                  setEditingAppointment(
-                    null,
-                  );
-
+                  setEditingAppointment(null);
                   setValidationError("");
                 }}
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -1611,28 +1665,25 @@ export function AppointmentList({
         </div>
       )}
 
-      {/* ======================================================
-          EXCLUSÃO
-      ====================================================== */}
+      {/* ========================================================
+          MODAL EXCLUIR
+      ======================================================== */}
 
       {deletingAppointment && (
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm"
           onClick={() => {
             if (!isDeleting) {
-              setDeletingAppointment(
-                null,
-              );
-
+              setDeletingAppointment(null);
               setValidationError("");
             }
           }}
         >
           <div
             className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
           >
             <div className="p-6">
               <div className="flex items-start gap-4">
@@ -1646,10 +1697,9 @@ export function AppointmentList({
                   </h2>
 
                   <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Tem certeza de que
-                    deseja excluir este
-                    agendamento? Esta
-                    ação não pode ser
+                    Tem certeza de que deseja
+                    excluir este agendamento?
+                    Esta ação não pode ser
                     desfeita.
                   </p>
                 </div>
@@ -1673,7 +1723,7 @@ export function AppointmentList({
                     <CalendarDays className="h-3.5 w-3.5" />
 
                     {formatDate(
-                      deletingAppointment.date,
+                      deletingAppointment.date
                     )}
                   </span>
 
@@ -1690,8 +1740,8 @@ export function AppointmentList({
 
                     {formatMoney(
                       getAppointmentPrice(
-                        deletingAppointment,
-                      ),
+                        deletingAppointment
+                      )
                     )}
                   </span>
                 </div>
@@ -1699,9 +1749,7 @@ export function AppointmentList({
 
               {validationError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {
-                    validationError
-                  }
+                  {validationError}
                 </div>
               )}
             </div>
@@ -1711,10 +1759,7 @@ export function AppointmentList({
                 type="button"
                 disabled={isDeleting}
                 onClick={() => {
-                  setDeletingAppointment(
-                    null,
-                  );
-
+                  setDeletingAppointment(null);
                   setValidationError("");
                 }}
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -1725,9 +1770,7 @@ export function AppointmentList({
               <button
                 type="button"
                 disabled={isDeleting}
-                onClick={
-                  confirmDelete
-                }
+                onClick={confirmDelete}
                 className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
                 <Trash2 className="h-4 w-4" />
@@ -1744,9 +1787,20 @@ export function AppointmentList({
   );
 }
 
-/* ===============================================================
+/* ============================================================
+   RECIBO — HELPER
+============================================================ */
+
+function isOpeningReceipt(
+  loadingReceipt: string | null,
+  appointmentId: string
+): boolean {
+  return loadingReceipt === appointmentId;
+}
+
+/* ============================================================
    DETAIL
-=============================================================== */
+============================================================ */
 
 function Detail({
   icon,
@@ -1755,7 +1809,7 @@ function Detail({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value?: string | null;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
@@ -1769,16 +1823,16 @@ function Detail({
         </p>
 
         <p className="mt-0.5 truncate text-sm font-medium text-gray-900">
-          {value}
+          {value ?? "-"}
         </p>
       </div>
     </div>
   );
 }
 
-/* ===============================================================
+/* ============================================================
    EDIT FIELD
-=============================================================== */
+============================================================ */
 
 function EditField({
   label,
@@ -1787,7 +1841,7 @@ function EditField({
   type = "text",
 }: {
   label: string;
-  value: string;
+  value?: string | null;
   onChange: (value: string) => void;
   type?: string;
 }) {
@@ -1801,12 +1855,11 @@ function EditField({
         type={type}
         value={value ?? ""}
         onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
+          onChange(event.target.value)
         }
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
       />
     </div>
   );
 }
+

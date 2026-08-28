@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+
 import {
   Menu,
   Moon,
@@ -28,11 +29,7 @@ interface CurrentUser {
   email: string;
   role: string;
   businessId: string;
-
-  // Logo do estabelecimento
   logo?: string | null;
-
-  // Foto do profissional/funcionário
   avatar?: string | null;
 }
 
@@ -41,7 +38,7 @@ const PAGES: Record<
   { title: string; subtitle: string }
 > = {
   "/dashboard": {
-    title: "Dashboard",
+    title: "Home",
     subtitle: "Visão geral do seu negócio",
   },
 
@@ -65,6 +62,11 @@ const PAGES: Record<
     subtitle: "Profissionais do estabelecimento",
   },
 
+  "/financeiro": {
+    title: "Finanças",
+    subtitle: "Receitas, pagamentos e desempenho financeiro",
+  },
+
   "/configuracoes": {
     title: "Configurações",
     subtitle: "Dados do estabelecimento",
@@ -72,8 +74,8 @@ const PAGES: Record<
 };
 
 const FALLBACK = {
-  title: "NEVRIX Flow",
-  subtitle: "Smart Business Management",
+  title: "SLOTIX",
+  subtitle: "Gestão inteligente do seu negócio",
 };
 
 export function Header({
@@ -100,12 +102,6 @@ export function Header({
 
   const profileRef =
     useRef<HTMLDivElement>(null);
-
-  /*
-  |--------------------------------------------------------------------------
-  | CARREGAR UTILIZADOR
-  |--------------------------------------------------------------------------
-  */
 
   useEffect(() => {
     async function loadUser() {
@@ -144,17 +140,6 @@ export function Header({
           );
         }
 
-        /*
-         * Esperamos:
-         *
-         * data.user
-         *
-         * e dentro dele:
-         *
-         * avatar = foto do profissional
-         * logo   = logo do estabelecimento
-         */
-
         setUser(
           data.user ?? null,
         );
@@ -171,26 +156,7 @@ export function Header({
     loadUser();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | ATUALIZAR PERFIL NO HEADER
-  |--------------------------------------------------------------------------
-  |
-  | Existem dois eventos diferentes:
-  |
-  | business-profile-updated
-  | -> atualização do logo do estabelecimento
-  |
-  | employee-profile-updated
-  | -> atualização da foto do funcionário
-  |
-  */
-
   useEffect(() => {
-    /*
-     * LOGO DO ESTABELECIMENTO
-     */
-
     function handleBusinessUpdated(
       event: Event,
     ) {
@@ -200,9 +166,6 @@ export function Header({
           name?: string;
         }>;
 
-      const detail =
-        customEvent.detail;
-
       setUser((currentUser) => {
         if (!currentUser) {
           return currentUser;
@@ -210,16 +173,12 @@ export function Header({
 
         return {
           ...currentUser,
-
           logo:
-            detail.logo ?? null,
+            customEvent.detail.logo ??
+            null,
         };
       });
     }
-
-    /*
-     * FOTO DO FUNCIONÁRIO
-     */
 
     function handleEmployeeUpdated(
       event: Event,
@@ -230,9 +189,6 @@ export function Header({
           name?: string;
         }>;
 
-      const detail =
-        customEvent.detail;
-
       setUser((currentUser) => {
         if (!currentUser) {
           return currentUser;
@@ -240,12 +196,11 @@ export function Header({
 
         return {
           ...currentUser,
-
           avatar:
-            detail.avatar ?? null,
-
+            customEvent.detail.avatar ??
+            null,
           name:
-            detail.name ??
+            customEvent.detail.name ??
             currentUser.name,
         };
       });
@@ -274,12 +229,6 @@ export function Header({
     };
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | FECHAR MENU AO CLICAR FORA
-  |--------------------------------------------------------------------------
-  */
-
   useEffect(() => {
     function handleClickOutside(
       event: MouseEvent,
@@ -306,12 +255,6 @@ export function Header({
       );
     };
   }, []);
-
-  /*
-  |--------------------------------------------------------------------------
-  | FECHAR MODAL COM ESC
-  |--------------------------------------------------------------------------
-  */
 
   useEffect(() => {
     function handleEscape(
@@ -343,12 +286,6 @@ export function Header({
     loggingOut,
   ]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | TÍTULO DA PÁGINA
-  |--------------------------------------------------------------------------
-  */
-
   const page =
     PAGES[pathname] ??
     Object.entries(PAGES).find(
@@ -359,12 +296,6 @@ export function Header({
     )?.[1] ??
     FALLBACK;
 
-  /*
-  |--------------------------------------------------------------------------
-  | UTILIZADOR
-  |--------------------------------------------------------------------------
-  */
-
   const userName =
     user?.name?.trim() ||
     "Utilizador";
@@ -374,27 +305,10 @@ export function Header({
       .charAt(0)
       .toUpperCase();
 
-  /*
-  |--------------------------------------------------------------------------
-  | FOTO QUE SERÁ MOSTRADA
-  |--------------------------------------------------------------------------
-  |
-  | Primeiro tenta a foto do profissional.
-  |
-  | Se não existir, usa o logo do estabelecimento.
-  |
-  */
-
   const profileImage =
     user?.avatar ||
     user?.logo ||
     null;
-
-  /*
-  |--------------------------------------------------------------------------
-  | CARGO
-  |--------------------------------------------------------------------------
-  */
 
   function formatRole(
     role?: string,
@@ -435,22 +349,10 @@ export function Header({
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | ABRIR MODAL DE LOGOUT
-  |--------------------------------------------------------------------------
-  */
-
   function handleLogout() {
     setOpenProfile(false);
     setShowLogoutModal(true);
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | CONFIRMAR LOGOUT
-  |--------------------------------------------------------------------------
-  */
 
   async function confirmLogout() {
     try {
@@ -461,12 +363,10 @@ export function Header({
           "/api/auth/logout",
           {
             method: "POST",
-
             headers: {
               "Content-Type":
                 "application/json",
             },
-
             credentials:
               "include",
           },
@@ -515,20 +415,12 @@ export function Header({
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | RENDER
-  |--------------------------------------------------------------------------
-  */
-
   return (
     <>
-      <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[var(--surface)]/95 text-[var(--foreground)] backdrop-blur-md">
         <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
 
-          {/* =========================================================
-              ESQUERDA
-          ========================================================= */}
+          {/* ESQUERDA */}
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
 
@@ -553,15 +445,11 @@ export function Header({
             </div>
           </div>
 
-          {/* =========================================================
-              DIREITA
-          ========================================================= */}
+          {/* DIREITA */}
 
           <div className="flex items-center gap-1 sm:gap-2">
 
-            {/* =====================================================
-                TEMA
-            ===================================================== */}
+            {/* TEMA */}
 
             <button
               type="button"
@@ -580,17 +468,11 @@ export function Header({
               )}
             </button>
 
-            {/* =====================================================
-                NOTIFICAÇÕES
-            ===================================================== */}
-
             <NotificationsBell />
 
             <div className="mx-1 hidden h-8 w-px bg-[var(--border)] sm:block" />
 
-            {/* =====================================================
-                UTILIZADOR
-            ===================================================== */}
+            {/* PERFIL */}
 
             <div
               ref={profileRef}
@@ -598,27 +480,20 @@ export function Header({
             >
               {loadingUser ? (
                 <div className="flex items-center gap-2 p-1.5">
-
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--surface-secondary)]">
                     <Loader2
                       size={17}
-                      className="animate-spin text-gray-400"
+                      className="animate-spin text-[var(--muted)]"
                     />
                   </div>
 
                   <div className="hidden sm:block">
-                    <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
-
-                    <div className="mt-1.5 h-2.5 w-14 animate-pulse rounded bg-gray-100" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-[var(--surface-secondary)]" />
+                    <div className="mt-1.5 h-2.5 w-14 animate-pulse rounded bg-[var(--surface-secondary)]" />
                   </div>
-
                 </div>
               ) : (
                 <>
-                  {/* =================================================
-                      BOTÃO DO PERFIL
-                  ================================================= */}
-
                   <button
                     type="button"
                     onClick={() =>
@@ -632,9 +507,6 @@ export function Header({
                     }
                     className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-secondary)]"
                   >
-
-                    {/* AVATAR */}
-
                     {profileImage ? (
                       <img
                         src={profileImage}
@@ -647,10 +519,7 @@ export function Header({
                       </div>
                     )}
 
-                    {/* NOME E CARGO */}
-
                     <div className="hidden text-left sm:block">
-
                       <p className="max-w-[140px] truncate text-sm font-semibold leading-4 text-[var(--foreground)]">
                         {userName}
                       </p>
@@ -660,7 +529,6 @@ export function Header({
                           user?.role,
                         )}
                       </p>
-
                     </div>
 
                     <ChevronDown
@@ -671,25 +539,13 @@ export function Header({
                           : ""
                       }`}
                     />
-
                   </button>
 
-                  {/* =================================================
-                      DROPDOWN
-                  ================================================= */}
-
                   {openProfile && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
-
-                      {/* =============================================
-                          PERFIL
-                      ============================================= */}
+                    <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
 
                       <div className="border-b border-[var(--border)] p-4">
-
                         <div className="flex items-center gap-3">
-
-                          {/* FOTO */}
 
                           {profileImage ? (
                             <img
@@ -707,10 +563,7 @@ export function Header({
                             </div>
                           )}
 
-                          {/* INFORMAÇÕES */}
-
                           <div className="min-w-0">
-
                             <p className="truncate text-sm font-semibold text-[var(--foreground)]">
                               {
                                 userName
@@ -729,27 +582,16 @@ export function Header({
                                 user?.role,
                               )}
                             </p>
-
                           </div>
-
                         </div>
                       </div>
 
-                      {/* =============================================
-                          OPÇÕES
-                      ============================================= */}
-
                       <div className="p-2">
-
-                        {/* CONFIGURAÇÕES */}
 
                         <button
                           type="button"
                           onClick={() => {
-                            setOpenProfile(
-                              false,
-                            );
-
+                            setOpenProfile(false);
                             window.location.href =
                               "/configuracoes";
                           }}
@@ -763,15 +605,10 @@ export function Header({
                           Configurações
                         </button>
 
-                        {/* MEU PERFIL */}
-
                         <button
                           type="button"
                           onClick={() => {
-                            setOpenProfile(
-                              false,
-                            );
-
+                            setOpenProfile(false);
                             window.location.href =
                               "/configuracoes";
                           }}
@@ -787,10 +624,6 @@ export function Header({
 
                       </div>
 
-                      {/* =============================================
-                          LOGOUT
-                      ============================================= */}
-
                       <div className="border-t border-[var(--border)] p-2">
 
                         <button
@@ -801,7 +634,7 @@ export function Header({
                           disabled={
                             loggingOut
                           }
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <LogOut
                             size={18}
@@ -811,7 +644,6 @@ export function Header({
                         </button>
 
                       </div>
-
                     </div>
                   )}
                 </>
@@ -821,24 +653,18 @@ export function Header({
         </div>
       </header>
 
-      {/* ===========================================================
-          MODAL DE LOGOUT
-      =========================================================== */}
+      {/* MODAL LOGOUT */}
 
       {showLogoutModal && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
-          onMouseDown={(
-            event,
-          ) => {
+          onMouseDown={(event) => {
             if (
               event.target ===
                 event.currentTarget &&
               !loggingOut
             ) {
-              setShowLogoutModal(
-                false,
-              );
+              setShowLogoutModal(false);
             }
           }}
         >
@@ -849,20 +675,17 @@ export function Header({
             className="w-full max-w-md overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
           >
 
-            {/* HEADER DA MODAL */}
-
             <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
 
               <div className="flex items-center gap-3">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 text-red-500">
                   <AlertTriangle
                     size={21}
                   />
                 </div>
 
                 <div>
-
                   <h2
                     id="logout-title"
                     className="text-base font-semibold text-[var(--foreground)]"
@@ -873,7 +696,6 @@ export function Header({
                   <p className="text-xs text-[var(--muted)]">
                     Confirmação necessária
                   </p>
-
                 </div>
 
               </div>
@@ -881,13 +703,9 @@ export function Header({
               <button
                 type="button"
                 onClick={() =>
-                  setShowLogoutModal(
-                    false,
-                  )
+                  setShowLogoutModal(false)
                 }
-                disabled={
-                  loggingOut
-                }
+                disabled={loggingOut}
                 aria-label="Fechar"
                 className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted)] transition hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] disabled:opacity-50"
               >
@@ -896,10 +714,7 @@ export function Header({
 
             </div>
 
-            {/* CONTEÚDO */}
-
             <div className="px-6 py-6">
-
               <p className="text-sm leading-6 text-[var(--muted)]">
                 Tem a certeza de que deseja
                 terminar a sessão?
@@ -911,37 +726,26 @@ export function Header({
                 voltar a utilizar o
                 sistema.
               </p>
-
             </div>
-
-            {/* BOTÕES */}
 
             <div className="flex flex-col-reverse gap-3 border-t border-[var(--border)] px-6 py-5 sm:flex-row sm:justify-end">
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowLogoutModal(
-                    false,
-                  )
+                  setShowLogoutModal(false)
                 }
-                disabled={
-                  loggingOut
-                }
-                className="w-full rounded-xl border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                disabled={loggingOut}
+                className="w-full rounded-xl border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-secondary)] disabled:opacity-50 sm:w-auto"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
-                onClick={
-                  confirmLogout
-                }
-                disabled={
-                  loggingOut
-                }
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                onClick={confirmLogout}
+                disabled={loggingOut}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 sm:w-auto"
               >
                 {loggingOut ? (
                   <>
@@ -949,15 +753,11 @@ export function Header({
                       size={17}
                       className="animate-spin"
                     />
-
                     A terminar sessão...
                   </>
                 ) : (
                   <>
-                    <LogOut
-                      size={17}
-                    />
-
+                    <LogOut size={17} />
                     Terminar sessão
                   </>
                 )}
