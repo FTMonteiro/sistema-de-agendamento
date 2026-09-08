@@ -2,9 +2,8 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-// ============================================================
 // PRISMA + POSTGRESQL
-// ============================================================
+
 //
 // Mantemos uma única instância do Pool e do PrismaClient
 // durante o desenvolvimento para evitar abrir várias
@@ -16,9 +15,9 @@ const globalForPrisma = globalThis as unknown as {
   pool?: Pool;
 };
 
-// ============================================================
+
 // CRIAR POOL
-// ============================================================
+
 
 function createPool(): Pool {
   const databaseUrl = process.env.DATABASE_URL;

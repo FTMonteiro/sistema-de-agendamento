@@ -741,7 +741,7 @@ export async function POST(
 
               data: {
                 receiptUrl:
-                  `/api/payments/${appointment.id}/receipt`,
+                  `/api/appointments/payments/${appointment.id}/receipt`,
               },
             });
 
@@ -1050,4 +1050,3 @@ export async function POST(
     );
   }
 }
-

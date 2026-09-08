@@ -56,18 +56,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | MÊS SELECIONADO
-    |--------------------------------------------------------------------------
-    |
-    | Exemplo:
-    |
-    | /api/financeiro?month=2026-08
-    |
-    | Se não for enviado, usamos o mês atual.
-    |
-    */
+    /*MÊS SELECIONADO*/
 
     const monthParam =
       request.nextUrl.searchParams.get("month");

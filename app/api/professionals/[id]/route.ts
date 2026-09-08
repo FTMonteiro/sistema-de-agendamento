@@ -757,25 +757,10 @@ export async function PATCH(
 // ============================================================
 // DELETE
 //
-// EXCLUI:
-// 1. AGENDAMENTOS DO PROFISSIONAL
-// 2. PROFISSIONAL
-// 3. CONTA USER EMPLOYEE VINCULADA
+// EXCLUI SOMENTE PROFISSIONAIS SEM HISTÓRICO DE AGENDAMENTOS.
 //
-// IMPORTANTE:
-//
-// O schema atual possui:
-//
-// Appointment.professional
-// onDelete: Cascade
-//
-// Portanto, ao excluir o Professional,
-// os Appointment relacionados também são removidos
-// automaticamente pelo banco.
-//
-// A conta User também é excluída manualmente.
-//
-// NÃO BLOQUEAMOS MAIS A EXCLUSÃO POR EXISTIREM AGENDAMENTOS.
+// Profissionais com histórico devem ser desativados pelo PATCH desta rota.
+// Isso evita que o cascade do banco remova agendamentos, pagamentos e visitas.
 // ============================================================
 
 export async function DELETE(
@@ -834,9 +819,6 @@ export async function DELETE(
 
     // ==========================================================
     // CONTAR AGENDAMENTOS
-    //
-    // Apenas para informar quantos registros
-    // estavam associados antes da exclusão.
     // ==========================================================
 
     const appointmentsCount =
@@ -844,8 +826,36 @@ export async function DELETE(
         where: {
           professionalId:
             professional.id,
+
+          businessId:
+            owner.businessId,
         },
       });
+
+    // ==========================================================
+    // PRESERVAR HISTÓRICO
+    // ==========================================================
+
+    if (appointmentsCount > 0) {
+      const registros =
+        appointmentsCount === 1
+          ? "1 agendamento registrado"
+          : `${appointmentsCount} agendamentos registrados`;
+
+      return NextResponse.json(
+        {
+          error:
+            `Não é possível excluir ${professional.name}: há ${registros}. Desative ou arquive o profissional para preservar os agendamentos, pagamentos e visitas existentes.`,
+
+          reason: "has_appointments",
+
+          appointments: appointmentsCount,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
 
     // ==========================================================
     // EXCLUSÃO
@@ -861,10 +871,7 @@ export async function DELETE(
           professional.userId;
 
         // ======================================================
-        // EXCLUIR PROFISSIONAL
-        //
-        // O banco irá remover os agendamentos relacionados
-        // devido ao onDelete: Cascade definido no schema.
+        // EXCLUIR PROFISSIONAL SEM HISTÓRICO
         // ======================================================
 
         await transaction.professional.delete({
@@ -991,4 +998,3 @@ export async function DELETE(
     );
   }
 }
-

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -15,6 +14,7 @@ import {
   X,
   ListChecks,
   WalletCards,
+  Images,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -75,6 +75,12 @@ const menuItems: MenuItem[] = [
     ownerOnly: true,
   },
   {
+    label: "Galeria",
+    href: "/galeria",
+    icon: Images,
+    ownerOnly: true,
+  },
+  {
     label: "Configurações",
     href: "/configuracoes",
     icon: Settings,
@@ -93,6 +99,9 @@ export function Sidebar({
   const [loadingUser, setLoadingUser] =
     useState(true);
 
+  /*
+   * CARREGAR UTILIZADOR
+   */
   useEffect(() => {
     let cancelled = false;
 
@@ -107,6 +116,9 @@ export function Sidebar({
           },
         );
 
+        /*
+         * UTILIZADOR NÃO AUTENTICADO
+         */
         if (response.status === 401) {
           if (!cancelled) {
             setUser(null);
@@ -115,6 +127,9 @@ export function Sidebar({
           return;
         }
 
+        /*
+         * VALIDAR CONTENT-TYPE
+         */
         const contentType =
           response.headers.get(
             "content-type",
@@ -130,9 +145,15 @@ export function Sidebar({
           );
         }
 
+        /*
+         * LER RESPOSTA
+         */
         const data =
           await response.json();
 
+        /*
+         * ERRO DA API
+         */
         if (!response.ok) {
           throw new Error(
             data?.error ||
@@ -140,8 +161,13 @@ export function Sidebar({
           );
         }
 
+        /*
+         * GUARDAR UTILIZADOR
+         */
         if (!cancelled) {
-          setUser(data.user ?? null);
+          setUser(
+            data.user ?? null,
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -166,6 +192,9 @@ export function Sidebar({
     };
   }, []);
 
+  /*
+   * FECHAR MENU COM ESC
+   */
   useEffect(() => {
     if (!open) {
       return;
@@ -179,10 +208,18 @@ export function Sidebar({
       }
     }
 
+    /*
+     * Guardar estado anterior do scroll
+     */
     const previousOverflow =
       document.body.style.overflow;
 
-    document.body.style.overflow = "hidden";
+    /*
+     * Bloquear scroll quando
+     * o menu mobile estiver aberto
+     */
+    document.body.style.overflow =
+      "hidden";
 
     window.addEventListener(
       "keydown",
@@ -200,24 +237,49 @@ export function Sidebar({
     };
   }, [open, onClose]);
 
+  /*
+   * VERIFICAR SE É OWNER
+   */
   const isOwner =
-    user?.role?.toUpperCase() === "OWNER";
+    user?.role?.toUpperCase() ===
+    "OWNER";
 
+  /*
+   * MOSTRAR APENAS OS MENUS
+   * PERMITIDOS PARA O UTILIZADOR
+   */
   const visibleMenuItems =
     menuItems.filter((item) => {
+      /*
+       * Menus normais:
+       * todos podem visualizar
+       */
       if (!item.ownerOnly) {
         return true;
       }
 
+      /*
+       * Enquanto o utilizador
+       * ainda está a carregar,
+       * esconder menus exclusivos
+       */
       if (loadingUser) {
         return false;
       }
 
+      /*
+       * Menus ownerOnly:
+       * apenas OWNER
+       */
       return isOwner;
     });
 
   return (
     <>
+      {/* =========================================
+          OVERLAY MOBILE
+          ========================================= */}
+
       {open && (
         <div
           onClick={onClose}
@@ -225,6 +287,10 @@ export function Sidebar({
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
         />
       )}
+
+      {/* =========================================
+          SIDEBAR
+          ========================================= */}
 
       <aside
         id="menu-lateral"
@@ -234,7 +300,9 @@ export function Sidebar({
             : "-translate-x-full"
         }`}
       >
-        {/* LOGO */}
+        {/* =======================================
+            LOGO
+            ======================================= */}
 
         <div className="flex h-[92px] shrink-0 items-center justify-between border-b border-[var(--border)] px-6">
           <Link
@@ -256,6 +324,8 @@ export function Sidebar({
             </div>
           </Link>
 
+          {/* BOTÃO FECHAR NO MOBILE */}
+
           <button
             type="button"
             onClick={onClose}
@@ -269,7 +339,9 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* MENU */}
+        {/* =======================================
+            MENU PRINCIPAL
+            ======================================= */}
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <nav
@@ -280,6 +352,9 @@ export function Sidebar({
               (item) => {
                 const Icon = item.icon;
 
+                /*
+                 * ITEM ATIVO
+                 */
                 const isActive =
                   pathname === item.href ||
                   pathname.startsWith(
@@ -302,12 +377,16 @@ export function Sidebar({
                         : "text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)]"
                     }`}
                   >
+                    {/* INDICADOR DO ITEM ATIVO */}
+
                     {isActive && (
                       <span
                         aria-hidden="true"
                         className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-primary"
                       />
                     )}
+
+                    {/* ÍCONE */}
 
                     <Icon
                       size={19}
@@ -323,6 +402,8 @@ export function Sidebar({
                       }`}
                     />
 
+                    {/* TEXTO */}
+
                     <span>
                       {item.label}
                     </span>
@@ -336,4 +417,3 @@ export function Sidebar({
     </>
   );
 }
-

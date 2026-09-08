@@ -530,6 +530,20 @@ export async function DELETE(
           id,
           businessId: user.businessId,
         },
+
+        include: {
+          payment: {
+            select: {
+              id: true,
+            },
+          },
+
+          visit: {
+            select: {
+              id: true,
+            },
+          },
+        },
       });
 
     if (!appointment) {
@@ -540,6 +554,35 @@ export async function DELETE(
         },
         {
           status: 404,
+        },
+      );
+    }
+
+    // ========================================================
+    // PRESERVAR HISTÓRICO OPERACIONAL E FINANCEIRO
+    // ========================================================
+
+    if (appointment.payment || appointment.visit) {
+      const history = [
+        appointment.payment ? "pagamento" : null,
+        appointment.visit ? "visita" : null,
+      ]
+        .filter(Boolean)
+        .join(" e ");
+
+      return NextResponse.json(
+        {
+          error:
+            `Não é possível excluir este agendamento porque possui ${history} associado. Preserve o histórico mantendo o agendamento registrado.`,
+
+          reason: "has_history",
+
+          hasPayment: Boolean(appointment.payment),
+
+          hasVisit: Boolean(appointment.visit),
+        },
+        {
+          status: 409,
         },
       );
     }
@@ -602,4 +645,3 @@ export async function DELETE(
     );
   }
 }
-
